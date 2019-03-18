@@ -90,8 +90,8 @@ Curve::Coeffs Curve::elevateOrderCoeffs(int n) const
         elevate_order_coeffs_.at(n)(k, k - 1) = 1;
       else
       {
-        elevate_order_coeffs_.at(n)(k, k - 1) = 1. * k / (n);
-        elevate_order_coeffs_.at(n)(k, k) = 1 - 1. * k / (n);
+        elevate_order_coeffs_.at(n)(k, k - 1) = 1. * k / n;
+        elevate_order_coeffs_.at(n)(k, k) = 1 - 1. * k / n;
       }
     }
   }
