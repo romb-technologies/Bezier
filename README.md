@@ -20,7 +20,7 @@ Fast and lightweight class for using the Bezier curves of any order in C++
 - c++11
 - Eigen3
 
-*Add compile flag* `-march=native)` *when compiling to use vectorization with Eigen.*
+*Add compile flag* `-march=native` *when compiling to use vectorization with Eigen.*
 
 # Licence
 Apache License Version 2.0
