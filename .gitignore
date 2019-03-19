@@ -1,4 +1,4 @@
-# Don't track local Doxygen docs
 html/
 latex/
 build*/
+*.user
