@@ -1,5 +1,6 @@
 # Bezier-Cpp
 [![Build Status](https://travis-ci.com/stribor14/Bezier-cpp.svg?branch=master)](https://travis-ci.com/stribor14/Bezier-cpp)
+[![Codacy Badge](https://api.codacy.com/project/badge/Grade/aceb46ce7de1407abd56cfc127dba5f1)](https://www.codacy.com/app/stribor14/Bezier-cpp?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=stribor14/Bezier-cpp&amp;utm_campaign=Badge_Grade)
 
 Fast and lightweight class for using the Bezier curves of any order in C++
 

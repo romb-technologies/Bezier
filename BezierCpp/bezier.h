@@ -62,10 +62,10 @@ private:
   /*!
    * \brief Map of different coefficient matrices, depending on the order of the curve
    */
-  typedef std::map<int, Coeffs> CoeffsMap;
+  typedef std::map<uint, Coeffs> CoeffsMap;
 
   /// Number of control points (order + 1)
-  int N_;
+  uint N_;
   /// N x 2 matrix where each row corresponds to control Point
   Eigen::MatrixX2d control_points_;
 
@@ -96,9 +96,9 @@ private:
   /// Private getter function for coefficients to get a subcurve t = [z, 1];
   Coeffs splittingCoeffsRight(double z = 0.5) const;
   /// Private getter function for coefficients to elevate order of curve
-  Coeffs elevateOrderCoeffs(int n) const;
+  Coeffs elevateOrderCoeffs(uint n) const;
   /// Private getter function for coefficients to lower order of curve
-  Coeffs lowerOrderCoeffs(int n) const;
+  Coeffs lowerOrderCoeffs(uint n) const;
 
 public:
   /*!
@@ -131,7 +131,7 @@ public:
    * \param index Index of chosen control point
    * \param point New control point
    */
-  void manipulateControlPoint(int index, Point point);
+  void manipulateControlPoint(uint index, const Point& point);
 
   /*!
    * \brief Manipulate the curve so that it passes through wanted point for given 't'
@@ -141,7 +141,7 @@ public:
    * Only works for quadratic and cubic curves
    * \warning Resets cached data
    */
-  void manipulateCurvature(double t, Point point);
+  void manipulateCurvature(double t, const Point& point);
 
   /*!
    * \brief Raise the curve order by 1
@@ -202,7 +202,7 @@ public:
    * \param max_iter Maximum number of iterations for Newton-Rhapson
    * \return A vector of extreme points
    */
-  std::vector<Point> getRoots(double step = 0.1, double epsilon = 0.001, std::size_t max_iter = 15) const;
+  std::vector<Point> getRoots(double step = 0.01, double epsilon = 0.001, std::size_t max_iter = 15) const;
 
   /*!
    * \brief Get the bounding box of curve
@@ -236,7 +236,7 @@ public:
    *
    * \warning self-intersection not yet implemented
    */
-  double projectPointOnCurve(Point point, double step = 0.01) const;
+  double projectPointOnCurve(const Point& point, double step = 0.01) const;
 };
 }
 
