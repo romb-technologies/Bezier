@@ -1,4 +1,9 @@
+dist: xenial
+
 sudo: false
+
+git:
+  quiet: true
 
 branches:
   only:
@@ -6,11 +11,16 @@ branches:
 
 addons:
   apt:
+    update: true
     packages:
       - doxygen
+      - qt5-default
+      - libeigen3-dev
 
-script:
-  - doxygen Doxyfile
+script: >-
+  qmake example/bezier_example.pro &&
+  make &&
+  doxygen Doxyfile
 
 deploy:
   provider: pages

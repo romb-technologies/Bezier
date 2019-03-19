@@ -17,6 +17,7 @@ void Curve::resetCache()
   cached_ext_points_.reset();
   cached_bounding_box_tight_.reset();
   cached_bounding_box_relaxed_.reset();
+  cached_polyline_.reset();
 }
 
 Curve::Coeffs Curve::bernsteinCoeffs() const
@@ -132,6 +133,39 @@ PointVector Curve::getControlPoints() const
   return points;
 }
 
+PointVector Curve::getPolyline(double smoothness) const
+{
+  if(!cached_polyline_ || smoothness != cached_polyline_smootheness_)
+  {
+    PointVector *polyline = new PointVector;
+    std::vector<std::shared_ptr<Curve>> subcurves;
+    subcurves.push_back(std::make_shared<Bezier::Curve>(this->getControlPoints()));
+    polyline->push_back(control_points_.row(0));
+    while(!subcurves.empty())
+    {
+      auto c = subcurves.back();
+      subcurves.pop_back();
+      auto cp = c->getControlPoints();
+      double hull = 0;
+      for(int k = 1; k < cp.size(); k++)
+        hull += (cp.at(k-1) - cp.at(k)).norm();
+      if (hull < smoothness * (cp.front() - cp.back()).norm())
+      {
+        polyline->push_back(cp.back());
+      }
+      else
+      {
+        auto split = c->splitCurve();
+        subcurves.push_back(std::make_shared<Bezier::Curve>(split.second));
+        subcurves.push_back(std::make_shared<Bezier::Curve>(split.first));
+      }
+    }
+    (const_cast<Curve*>(this))->cached_polyline_smootheness_ = smoothness;
+    (const_cast<Curve*>(this))->cached_polyline_.reset(polyline);
+  }
+  return *cached_polyline_;
+}
+
 void Curve::manipulateControlPoint(int index, Point point)
 {
   control_points_.row(index) = point;
@@ -140,10 +174,8 @@ void Curve::manipulateControlPoint(int index, Point point)
 
 void Curve::manipulateCurvature(double t, Point point)
 {
-  if (N_ > 4)
-    throw "Order of curve too big.";
-  if (N_ < 3)
-    throw "Not a curve.";
+  if (N_ < 3 || N_ > 4)
+    throw "Only quadratic and cubic curves can be manipulated";
 
   double r = fabs((pow(t, N_ - 1) + pow(1 - t, N_ - 1) - 1) / (pow(t, N_ - 1) + pow(1 - t, N_ - 1)));
   double u = pow(1 - t, N_ - 1) / (pow(t, N_ - 1) + pow(1 - t, N_ - 1));

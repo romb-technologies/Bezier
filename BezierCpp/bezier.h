@@ -23,16 +23,16 @@
 #include <memory>
 
 /*!
- * Nominal namespace
+ * Nominal namespace containing class definition and typedefs
  */
 namespace Bezier
 {
 /*!
- * \brief Point Point in xy plane
+ * \brief Point in xy plane
  */
 typedef Eigen::Vector2d Point;
 /*!
- * \brief Vector in xy plane
+ * \brief A Vector in xy plane
  */
 typedef Eigen::Vector2d Vec2;
 /*!
@@ -76,6 +76,8 @@ private:
       cached_bounding_box_tight_; /*! If generated, stores bounding box (use_roots = true) for later use */
   std::shared_ptr<BBox>
       cached_bounding_box_relaxed_; /*! If generated, stores bounding box (use_roots = false) for later use */
+  std::shared_ptr<PointVector> cached_polyline_; /*! If generated, stores polyline for later use */
+  double cached_polyline_smootheness_ = 0; /*! Smootheness of cached polyline */
 
   /// Reset all privately cached data
   inline void resetCache();
@@ -100,34 +102,41 @@ private:
 
 public:
   /*!
-   * \brief Curve Create Bezier curve
+   * \brief Create the Bezier curve
    * \param points Nx2 matrix where each row is one of N control points that define the curve
    */
   Curve(const Eigen::MatrixX2d& points);
 
   /*!
-   * \brief Curve Create Bezier curve
+   * \brief Create the Bezier curve
    * \param points A vector of control points that define the curve
    */
   Curve(const PointVector& points);
 
   /*!
-   * \brief getControlPoints Get control points
-   * \return a Vector of control points
+   * \brief Get the control points
+   * \return A vector of control points
    */
   PointVector getControlPoints() const;
 
   /*!
-   * \brief manipulateControlPoint Set new coordinates to a control point
+   * \brief Get a polyline representation of curve as a vector of points on curve
+   * \param smoothness smoothness factor > 1 (more resulting points when closer to 1)
+   * \return A vector of polyline vertices
+   */
+  PointVector getPolyline(double smoothness = 1.001) const;
+
+  /*!
+   * \brief Set the new coordinates to a control point
    * \param index Index of chosen control point
    * \param point New control point
    */
   void manipulateControlPoint(int index, Point point);
 
   /*!
-   * \brief manipulateCurvature Manipulate curve so that it passes through wanted point for given 't'
+   * \brief Manipulate the curve so that it passes through wanted point for given 't'
    * \param t Curve parameter
-   * \param point Point where curve should pass for given t
+   * \param point Point where curve should pass for a given t
    *
    * Only works for quadratic and cubic curves
    * \warning Resets cached data
@@ -135,7 +144,7 @@ public:
   void manipulateCurvature(double t, Point point);
 
   /*!
-   * \brief elevateOrder Raise curve order by 1
+   * \brief Raise the curve order by 1
    *
    * Curve will always retain its shape
    * \warning Resets cached data
@@ -143,7 +152,7 @@ public:
   void elevateOrder();
 
   /*!
-   * \brief lowerOrder Lower curve order by 1
+   * \brief Lower the curve order by 1
    *
    * If current shape cannot be described by lower order, it will be best aproximation
    * \warning Resets cached data
@@ -151,43 +160,43 @@ public:
   void lowerOrder();
 
   /*!
-   * \brief valueAt Get point on curve for given t
+   * \brief Get the point on curve for a given t
    * \param t Curve parameter
-   * \return Point on a curve for given t
+   * \return Point on a curve for a given t
    */
   Point valueAt(double t) const;
 
   /*!
-   * \brief curvatureAt Get curvature of curve for given t
+   * \brief Get curvature of curve for a given t
    * \param t Curve parameter
-   * \return Curvature of a curve for given t
+   * \return Curvature of a curve for a given t
    */
   double curvatureAt(double t) const;
 
   /*!
-   * \brief tangentAt Get tangent of curve for given t
+   * \brief Get the tangent of curve for a given t
    * \param t Curve parameter
-   * \param normalize If resulting tangent should be normalized
-   * \return Tangent of a curve for given t
+   * \param normalize If the resulting tangent should be normalized
+   * \return Tangent of a curve for a given t
    */
   Vec2 tangentAt(double t, bool normalize = true) const;
 
   /*!
-   * \brief normalAt Get normal of curve for given t
+   * \brief Get the normal of curve for a given t
    * \param t Curve parameter
-   * \param normalize If resulting normal should be normalized
+   * \param normalize If the resulting normal should be normalized
    * \return Normal of a curve for given t
    */
   Vec2 normalAt(double t, bool normalize = true) const;
 
   /*!
-   * \brief getDerivative Get derivative of a curve
+   * \brief Get the derivative of a curve
    * \return Derivative curve
    */
   Curve getDerivative() const;
 
   /*!
-   * \brief getRoots Get extreme points of curve
+   * \brief Get the extreme points of curve
    * \param step Size of step in coarse search
    * \param epsilon Precision of resulting t
    * \param max_iter Maximum number of iterations for Newton-Rhapson
@@ -196,21 +205,21 @@ public:
   std::vector<Point> getRoots(double step = 0.1, double epsilon = 0.001, std::size_t max_iter = 15) const;
 
   /*!
-   * \brief getBBox Get bounding box of curve
+   * \brief Get the bounding box of curve
    * \param use_roots If algorithm should use extreme points
    * \return Bounding box (if use_roots is false, returns the bounding box of control points)
    */
   BBox getBBox(bool use_roots = true) const;
 
   /*!
-   * \brief splitCurve Split curve into two subcurves
+   * \brief Split the curve into two subcurves
    * \param z Parameter t at which to split the curve
    * \return Pair of two subcurves
    */
   std::pair<Curve, Curve> splitCurve(double z = 0.5) const;
 
   /*!
-   * \brief getPointsOfIntersection Get points of intersection with another curve
+   * \brief Get the points of intersection with another curve
    * \param curve Curve to intersect with
    * \param stop_at_first If first point of intersection is enough
    * \param epsilon Precision of resulting intersection
@@ -220,7 +229,7 @@ public:
                                              double epsilon = 0.001) const;
 
   /*!
-   * \brief projectPointOnCurve Get parameter t where curve is closes to given point
+   * \brief Get the parameter t where curve is closes to given point
    * \param point Point to project on curve
    * \param step Size of step in coarse search
    * \return Parameter t
