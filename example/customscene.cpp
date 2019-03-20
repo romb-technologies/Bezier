@@ -34,7 +34,7 @@ QRectF qCurve::boundingRect() const
   return QRectF(QPointF(bbox.min().x(), bbox.min().y()), QPointF(bbox.max().x(), bbox.max().y()));
 }
 
-void CustomScene::drawForeground(QPainter *painter, const QRectF &rect)
+void CustomScene::drawForeground(QPainter* painter, const QRectF& rect)
 {
   Q_UNUSED(rect)
 
@@ -44,8 +44,8 @@ void CustomScene::drawForeground(QPainter *painter, const QRectF &rect)
     for (auto&& curve : curves)
     {
       auto bbox = curve->getBBox(true);
-      painter->drawRect(bbox.min().x(), bbox.min().y(),
-                        bbox.max().x() - bbox.min().x(), bbox.max().y() - bbox.min().y());
+      painter->drawRect(bbox.min().x(), bbox.min().y(), bbox.max().x() - bbox.min().x(),
+                        bbox.max().y() - bbox.min().y());
     }
 
     painter->setPen(Qt::red);

@@ -44,14 +44,10 @@ private:
   std::pair<qCurve*, uint> cp_to_update;
 
 protected:
-  void drawForeground(QPainter *painter, const QRectF &rect) Q_DECL_OVERRIDE;
-
+  void drawForeground(QPainter* painter, const QRectF& rect) Q_DECL_OVERRIDE;
   void mousePressEvent(QGraphicsSceneMouseEvent* mouseEvent) Q_DECL_OVERRIDE;
-
   void mouseMoveEvent(QGraphicsSceneMouseEvent* mouseEvent) Q_DECL_OVERRIDE;
-
   void mouseReleaseEvent(QGraphicsSceneMouseEvent* mouseEvent) Q_DECL_OVERRIDE;
-
   void mouseDoubleClickEvent(QGraphicsSceneMouseEvent* mouseEvent) Q_DECL_OVERRIDE;
 
 public:

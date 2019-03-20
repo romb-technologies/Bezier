@@ -35,7 +35,8 @@
  * (see QWheelEvent::angleDelta).
  * The default zoom factor base is 1.0015.
  */
-class QGraphicsViewZoom : public QObject {
+class QGraphicsViewZoom : public QObject
+{
   Q_OBJECT
 public:
   QGraphicsViewZoom(QGraphicsView* view);

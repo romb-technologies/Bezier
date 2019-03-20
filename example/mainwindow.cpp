@@ -3,10 +3,7 @@
 
 #include <QDebug>
 
-MainWindow::MainWindow(QWidget *parent) :
-  QMainWindow(parent),
-  ui(new Ui::MainWindow),
-  scene(new CustomScene)
+MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent), ui(new Ui::MainWindow), scene(new CustomScene)
 {
   ui->setupUi(this);
 
@@ -14,8 +11,8 @@ MainWindow::MainWindow(QWidget *parent) :
   new QGraphicsViewZoom(ui->graphicsView);
 
   Eigen::MatrixX2d cp1, cp2;
-  cp1.resize(4,2);
-  cp2.resize(5,2);
+  cp1.resize(4, 2);
+  cp2.resize(5, 2);
   cp1 << 84, 162,
       246, 30,
       48, 236,
@@ -27,8 +24,8 @@ MainWindow::MainWindow(QWidget *parent) :
       164, 165,
       124, 134;
 
-  scene->curves.push_back(new qCurve(cp1*5));
-  scene->curves.push_back(new qCurve(cp2*5));
+  scene->curves.push_back(new qCurve(cp1 * 5));
+  scene->curves.push_back(new qCurve(cp2 * 5));
 
   scene->addItem(scene->curves[0]);
   scene->addItem(scene->curves[1]);
@@ -36,7 +33,4 @@ MainWindow::MainWindow(QWidget *parent) :
   ui->graphicsView->centerOn(scene->itemsBoundingRect().center());
 }
 
-MainWindow::~MainWindow()
-{
-  delete ui;
-}
+MainWindow::~MainWindow() { delete ui; }

@@ -77,7 +77,7 @@ private:
   std::shared_ptr<BBox>
       cached_bounding_box_relaxed_; /*! If generated, stores bounding box (use_roots = false) for later use */
   std::shared_ptr<PointVector> cached_polyline_; /*! If generated, stores polyline for later use */
-  double cached_polyline_smootheness_ = 0; /*! Smootheness of cached polyline */
+  double cached_polyline_smootheness_ = 0;       /*! Smootheness of cached polyline */
 
   /// Reset all privately cached data
   inline void resetCache();

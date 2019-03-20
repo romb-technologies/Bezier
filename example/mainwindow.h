@@ -10,15 +10,12 @@ class MainWindow : public QMainWindow
   Q_OBJECT
 
 public:
-  explicit MainWindow(QWidget *parent = nullptr);
+  explicit MainWindow(QWidget* parent = nullptr);
   ~MainWindow();
 
 private:
-  Ui::MainWindow *ui;
-  CustomScene *scene;
+  Ui::MainWindow* ui;
+  CustomScene* scene;
 };
-
-
-
 
 #endif // MAINWINDOW_H
