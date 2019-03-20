@@ -110,15 +110,16 @@ void CustomScene::mousePressEvent(QGraphicsSceneMouseEvent* mouseEvent)
       if ((curve->valueAt(t) - p).norm() < sensitivity)
       {
         this->removeItem(curve);
-        qCurve* c1, *c2;
         auto split = curve->splitCurve(t);
+        delete curve;
+        curves.removeOne(curve);
+        qCurve* c1, *c2;
         c1 = new qCurve(split.first);
         c2 = new qCurve(split.second);
         this->addItem(c1);
         this->addItem(c2);
         curves.push_back(c1);
         curves.push_back(c2);
-        curves.removeOne(curve);
         update();
         break;
       }
@@ -145,6 +146,7 @@ void CustomScene::mouseMoveEvent(QGraphicsSceneMouseEvent* mouseEvent)
   }
   if (update_cp)
   {
+    cp_to_update.first->prepareGeometryChange();
     cp_to_update.first->manipulateControlPoint(cp_to_update.second, p);
     update();
   }
@@ -152,6 +154,7 @@ void CustomScene::mouseMoveEvent(QGraphicsSceneMouseEvent* mouseEvent)
   {
     try
     {
+      t_to_update.first->prepareGeometryChange();
       t_to_update.first->manipulateCurvature(t_to_update.second, p);
       update();
     }
@@ -199,6 +202,7 @@ void CustomScene::mouseDoubleClickEvent(QGraphicsSceneMouseEvent* mouseEvent)
       auto pt = curve->valueAt(t);
       if ((pt - p).norm() < 10)
       {
+        curve->prepareGeometryChange();
         curve->elevateOrder();
       }
     }
@@ -211,6 +215,7 @@ void CustomScene::mouseDoubleClickEvent(QGraphicsSceneMouseEvent* mouseEvent)
       {
         try
         {
+          curve->prepareGeometryChange();
           curve->lowerOrder();
         }
         catch (char const* err)

@@ -28,6 +28,7 @@ public:
   qCurve(Bezier::Curve&& curve) : QGraphicsItem(), Bezier::Curve(curve) {}
   void paint(QPainter* painter, const QStyleOptionGraphicsItem* option, QWidget* widget) Q_DECL_OVERRIDE;
   QRectF boundingRect() const Q_DECL_OVERRIDE;
+  void prepareGeometryChange() {QGraphicsItem::prepareGeometryChange();}
 };
 
 class CustomScene : public QGraphicsScene
