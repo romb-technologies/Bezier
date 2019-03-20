@@ -135,7 +135,7 @@ PointVector Curve::getControlPoints() const
   return points;
 }
 
-PointVector Curve::getPolyline(double smoothness) const
+PointVector Curve::getPolyline(double smoothness, double precision) const
 {
   if (!cached_polyline_ || smoothness != cached_polyline_smootheness_)
   {
@@ -151,7 +151,8 @@ PointVector Curve::getPolyline(double smoothness) const
       double hull = 0;
       for (uint k = 1; k < cp.size(); k++)
         hull += (cp.at(k - 1) - cp.at(k)).norm();
-      if (hull < smoothness * (cp.front() - cp.back()).norm())
+      if (hull < smoothness * (cp.front() - cp.back()).norm() ||
+          (cp.front() - cp.back()).norm() / smoothness < precision)
       {
         polyline->push_back(cp.back());
       }
@@ -168,13 +169,13 @@ PointVector Curve::getPolyline(double smoothness) const
   return *cached_polyline_;
 }
 
-void Curve::manipulateControlPoint(uint index, const Point &point)
+void Curve::manipulateControlPoint(uint index, const Point& point)
 {
   control_points_.row(index) = point;
   resetCache();
 }
 
-void Curve::manipulateCurvature(double t, const Point &point)
+void Curve::manipulateCurvature(double t, const Point& point)
 {
   if (N_ < 3 || N_ > 4)
     throw "Only quadratic and cubic curves can be manipulated";
@@ -318,8 +319,7 @@ std::vector<Point> Curve::getRoots(double step, double epsilon, std::size_t max_
           current_iter++;
         }
 
-        // we only need to check unvisited part of range
-        t = (t > t_current ? t : t_current) + step;
+        t += step;
       }
     }
   }
@@ -475,7 +475,7 @@ std::vector<Point> Curve::getPointsOfIntersection(const Curve& curve, bool stop_
   return points_of_intersection;
 }
 
-double Curve::projectPointOnCurve(const Point &point, double step) const
+double Curve::projectPointOnCurve(const Point& point, double step) const
 {
   double t = 0;
   double t_dist = (valueAt(t) - point).norm();

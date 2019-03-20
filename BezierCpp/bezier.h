@@ -121,10 +121,11 @@ public:
 
   /*!
    * \brief Get a polyline representation of curve as a vector of points on curve
-   * \param smoothness smoothness factor > 1 (more resulting points when closer to 1)
+   * \param smoothness Smoothness factor > 1 (more resulting points when closer to 1)
+   * \param precision Minimal distance between two subsequent points
    * \return A vector of polyline vertices
    */
-  PointVector getPolyline(double smoothness = 1.001) const;
+  PointVector getPolyline(double smoothness = 1.0001, double precision = 1.0) const;
 
   /*!
    * \brief Set the new coordinates to a control point
@@ -202,7 +203,7 @@ public:
    * \param max_iter Maximum number of iterations for Newton-Rhapson
    * \return A vector of extreme points
    */
-  std::vector<Point> getRoots(double step = 0.01, double epsilon = 0.001, std::size_t max_iter = 15) const;
+  std::vector<Point> getRoots(double step = 0.1, double epsilon = 0.001, std::size_t max_iter = 15) const;
 
   /*!
    * \brief Get the bounding box of curve
