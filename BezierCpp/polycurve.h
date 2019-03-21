@@ -1,50 +1,41 @@
 #ifndef POLYCURVE_H
 #define POLYCURVE_H
 
-#include <bezier.h>
+#include "bezier.h"
 #include <deque>
 
 namespace Bezier
 {
+class PolyCurve;
+
+typedef std::shared_ptr<PolyCurve> PolyCurvePtr;
+typedef std::shared_ptr<const PolyCurve> ConstPolyCurvePtr;
+
 class PolyCurve
 {
-public:
-  enum LinkType // functionality not yet implemented
-  {
-    C0,
-    C1,
-    G1 // etc
-  };
-
 private:
-  struct Link
+  struct Part
   {
-    std::pair<CurvePtr, CurvePtr> curve_pair;
-    LinkType link_type;
-    enum LinkPoint
-    {
-      s_s,
-      s_e,
-      e_s,
-      e_e
-    } link_point;
-
-    Link(std::pair<CurvePtr, CurvePtr> curve_pair, LinkType link_type, LinkPoint link_point) :
-      curve_pair(curve_pair), link_type(link_type), link_point(link_point) {}
+    CurvePtr curve;
+    bool reversed;
+    Part(CurvePtr curve, bool reversed) :
+      curve(curve), reversed(reversed) {}
   };
 
-  std::deque<Link> chain_;
+  std::deque<Part> parts_;
+
+  PolyCurve(const std::deque<Part>& part_list);
 
 public:
-  PolyCurve(CurvePtr& curve1, CurvePtr& curve2, LinkType type = C0);
-  PolyCurve(std::vector<CurvePtr>& curve_list, const std::vector<LinkType>& type_list = std::vector<LinkType>());
+  PolyCurve(CurvePtr& curve1);
+  PolyCurve(std::vector<CurvePtr>& curve_list);
 
   void addCurve(CurvePtr& curve);
   void removeFirst();
   void removeLast();
   PolyCurve getSubPolyCurve(uint idx_l, uint idx_r);
   uint getSize() const;
-  int getCurveIdx(const CurvePtr& curve) const;
+  uint getCurveIdx(const CurvePtr& curve) const;
   CurvePtr getCurvePtr(uint idx) const;
 
   PointVector getPolyline(double smoothness = 1.0001, double precision = 1.0) const;
@@ -52,8 +43,8 @@ public:
 
   Point valueAt(double t) const;
   double curvatureAt(double t) const;
-  Vec2 tangentAt(double t) const;
-  Vec2 normalAt(double t) const;
+  Vec2 tangentAt(double t, bool normalize = true) const;
+  Vec2 normalAt(double t, bool normalize = true) const;
 
   BBox getBBox(bool use_roots = true) const;
 

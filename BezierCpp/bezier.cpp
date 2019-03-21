@@ -42,7 +42,7 @@ Curve::Coeffs Curve::splittingCoeffsLeft(double z) const
       splitting_coeffs_left_.insert(std::make_pair(N_, Coeffs::Zero(N_, N_)));
       for (uint k = 0; k < N_; k++)
         splitting_coeffs_left_.at(N_)(k, k) = pow(0.5, k);
-      splitting_coeffs_left_.at(N_).noalias() =
+      splitting_coeffs_left_.at(N_) =
           bernsteinCoeffs().inverse() * splitting_coeffs_left_.at(N_) * bernsteinCoeffs();
     }
     coeffs = splitting_coeffs_left_.at(N_);
@@ -51,7 +51,7 @@ Curve::Coeffs Curve::splittingCoeffsLeft(double z) const
   {
     for (uint k = 0; k < N_; k++)
       coeffs(k, k) = pow(z, k);
-    coeffs.noalias() = bernsteinCoeffs().inverse() * coeffs * bernsteinCoeffs();
+    coeffs = bernsteinCoeffs().inverse() * coeffs * bernsteinCoeffs();
   }
   return coeffs;
 }
@@ -203,8 +203,8 @@ void Curve::manipulateCurvature(double t, const Point& point)
                control_points_.row(2) * pow(t, 2);
     Point e2 = control_points_.row(1) * pow(1 - t, 2) + control_points_.row(2) * 2 * t * (1 - t) +
                control_points_.row(3) * pow(t, 2);
-    e1.noalias() = B + e1 - valueAt(t);
-    e2.noalias() = B + e2 - valueAt(t);
+    e1 = B + e1 - valueAt(t);
+    e2 = B + e2 - valueAt(t);
     Point v1 = A - (A - e1) / (1 - t);
     Point v2 = A + (e2 - A) / t;
     control_points_.row(1).noalias() = control_points_.row(0) + (v1.transpose() - control_points_.row(0)) / t;
@@ -279,11 +279,11 @@ Curve Curve::getDerivative() const
   return *cached_derivative_;
 }
 
-std::vector<Point> Curve::getRoots(double step, double epsilon, std::size_t max_iter) const
+PointVector Curve::getRoots(double step, double epsilon, std::size_t max_iter) const
 {
   if (!cached_ext_points_)
   {
-    (const_cast<Curve*>(this))->cached_ext_points_ = std::make_shared<std::vector<Point>>();
+    (const_cast<Curve*>(this))->cached_ext_points_ = std::make_shared<PointVector>();
     std::vector<double> added_t;
 
     // check both axes
@@ -337,7 +337,7 @@ BBox Curve::getBBox(bool use_roots) const
 {
   if (!(use_roots ? cached_bounding_box_tight_ : cached_bounding_box_relaxed_))
   {
-    std::vector<Point> extremes;
+    PointVector extremes;
     if (use_roots)
     {
       extremes = getRoots();
@@ -375,10 +375,10 @@ std::pair<Curve, Curve> Curve::splitCurve(double z) const
                         Curve(splittingCoeffsRight(z) * control_points_));
 }
 
-std::vector<Point> Curve::getPointsOfIntersection(const Curve& curve, bool stop_at_first, double epsilon) const
+PointVector Curve::getPointsOfIntersection(const Curve& curve, bool stop_at_first, double epsilon) const
 {
-  std::vector<Point> points_of_intersection;
-  std::vector<std::pair<std::shared_ptr<const Curve>, std::shared_ptr<const Curve>>> subcurve_pairs;
+  PointVector points_of_intersection;
+  std::vector<std::pair<ConstCurvePtr, ConstCurvePtr>> subcurve_pairs;
 
   if (this != &curve)
   {
@@ -409,8 +409,8 @@ std::vector<Point> Curve::getPointsOfIntersection(const Curve& curve, bool stop_
 
   while (!subcurve_pairs.empty())
   {
-    std::shared_ptr<const Curve> part_a = std::get<0>(subcurve_pairs.back());
-    std::shared_ptr<const Curve> part_b = std::get<1>(subcurve_pairs.back());
+    ConstCurvePtr part_a = std::get<0>(subcurve_pairs.back());
+    ConstCurvePtr part_b = std::get<1>(subcurve_pairs.back());
     subcurve_pairs.pop_back();
 
     BBox bbox1 = part_a->getBBox(false); // very slow with tight BBox (roots)
@@ -444,8 +444,8 @@ std::vector<Point> Curve::getPointsOfIntersection(const Curve& curve, bool stop_
     // divide both segments in half and new pairs
     // LIFO : we want to first discover closest intersection (smallest t on this curve)
     // so it is important which pair of subcurves is inserted first
-    std::vector<std::shared_ptr<const Curve>> subcurves_a;
-    std::vector<std::shared_ptr<const Curve>> subcurves_b;
+    std::vector<ConstCurvePtr> subcurves_a;
+    std::vector<ConstCurvePtr> subcurves_b;
 
     if (bbox1.diagonal().norm() < epsilon)
     {

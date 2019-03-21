@@ -30,9 +30,13 @@ namespace Bezier
 class Curve;
 
 /*!
- * \brief Shared pointer of class Curve
+ * \brief Shared pointer of Curve
  */
 typedef std::shared_ptr<Curve> CurvePtr;
+/*!
+ * \brief Shared pointer of const Curve
+ */
+typedef std::shared_ptr<const Curve> ConstCurvePtr;
 /*!
  * \brief Point in xy plane
  */
@@ -69,7 +73,7 @@ private:
 
   // private caching
   CurvePtr cached_derivative_;              /*! If generated, stores derivative for later use */
-  std::shared_ptr<std::vector<Point>> cached_ext_points_; /*! If generated, stores extreme Points for later use */
+  std::shared_ptr<PointVector> cached_ext_points_; /*! If generated, stores extreme Points for later use */
   std::shared_ptr<BBox>
       cached_bounding_box_tight_; /*! If generated, stores bounding box (use_roots = true) for later use */
   std::shared_ptr<BBox>
@@ -213,7 +217,7 @@ public:
    * \param max_iter Maximum number of iterations for Newton-Rhapson
    * \return A vector of extreme points
    */
-  std::vector<Point> getRoots(double step = 0.1, double epsilon = 0.001, std::size_t max_iter = 15) const;
+  PointVector getRoots(double step = 0.1, double epsilon = 0.001, std::size_t max_iter = 15) const;
 
   /*!
    * \brief Get the bounding box of curve
@@ -236,7 +240,7 @@ public:
    * \param epsilon Precision of resulting intersection
    * \return A vector af points of intersection between curves
    */
-  std::vector<Point> getPointsOfIntersection(const Curve& curve, bool stop_at_first = false,
+  PointVector getPointsOfIntersection(const Curve& curve, bool stop_at_first = false,
                                              double epsilon = 0.001) const;
 
   /*!
