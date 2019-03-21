@@ -42,7 +42,7 @@ Curve::Coeffs Curve::splittingCoeffsLeft(double z) const
       splitting_coeffs_left_.insert(std::make_pair(N_, Coeffs::Zero(N_, N_)));
       for (uint k = 0; k < N_; k++)
         splitting_coeffs_left_.at(N_)(k, k) = pow(0.5, k);
-      splitting_coeffs_left_.at(N_).noalias() =
+      splitting_coeffs_left_.at(N_) =
           bernsteinCoeffs().inverse() * splitting_coeffs_left_.at(N_) * bernsteinCoeffs();
     }
     coeffs = splitting_coeffs_left_.at(N_);
@@ -51,7 +51,7 @@ Curve::Coeffs Curve::splittingCoeffsLeft(double z) const
   {
     for (uint k = 0; k < N_; k++)
       coeffs(k, k) = pow(z, k);
-    coeffs.noalias() = bernsteinCoeffs().inverse() * coeffs * bernsteinCoeffs();
+    coeffs = bernsteinCoeffs().inverse() * coeffs * bernsteinCoeffs();
   }
   return coeffs;
 }
@@ -196,8 +196,8 @@ void Curve::manipulateCurvature(double t, const Point& point)
                control_points_.row(2) * pow(t, 2);
     Point e2 = control_points_.row(1) * pow(1 - t, 2) + control_points_.row(2) * 2 * t * (1 - t) +
                control_points_.row(3) * pow(t, 2);
-    e1.noalias() = B + e1 - valueAt(t);
-    e2.noalias() = B + e2 - valueAt(t);
+    e1 = B + e1 - valueAt(t);
+    e2 = B + e2 - valueAt(t);
     Point v1 = A - (A - e1) / (1 - t);
     Point v2 = A + (e2 - A) / t;
     control_points_.row(1).noalias() = control_points_.row(0) + (v1.transpose() - control_points_.row(0)) / t;
