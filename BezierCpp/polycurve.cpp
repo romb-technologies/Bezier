@@ -1,6 +1,7 @@
 #include "polycurve.h"
 
-namespace Bezier {
+namespace Bezier
+{
 PolyCurve::PolyCurve(CurvePtr& curve1, CurvePtr& curve2, LinkType type)
 {
   // we need to connect two curves, but there are four possible combinations
@@ -42,7 +43,7 @@ PolyCurve::PolyCurve(CurvePtr& curve1, CurvePtr& curve2, LinkType type)
     point = Link::LinkPoint::e_e;
   }
 
-  chain_.push_back(Link(curve1, curve2, type, point));
+  chain_.push_back(Link(std::make_pair(curve1, curve2), type, point));
 }
 
 PolyCurve::PolyCurve(std::vector<CurvePtr>& curve_list, const std::vector<PolyCurve::LinkType>& type_list)
@@ -56,7 +57,7 @@ PolyCurve::PolyCurve(std::vector<CurvePtr>& curve_list, const std::vector<PolyCu
     std::tie(s_1, e_1) = curve_list[k]->getEndPoints();
     std::tie(s_1, e_1) = curve_list[k + 1]->getEndPoints();
     Link::LinkPoint point;
-    if (chain_[k - 1].link_point == Link::LinkPoint::s_s || chain_[k - 1].link_point == Link::LinkPoint::e_s)
+    if (chain_.at(k - 1).link_point == Link::LinkPoint::s_s || chain_.at(k - 1).link_point == Link::LinkPoint::e_s)
     {
       double e_s = (e_1 - s_2).norm();
       double e_e = (e_1 - e_2).norm();
@@ -91,7 +92,7 @@ PolyCurve::PolyCurve(std::vector<CurvePtr>& curve_list, const std::vector<PolyCu
       }
     }
 
-    chain_.push_back(Link(curve_list[k], curve_list[k + 1], type_list.empty() ? C0 : type_list[k], point));
+    chain_.push_back(Link(std::make_pair(curve_list[k], curve_list[k + 1]), type_list.empty() ? C0 : type_list[k], point));
   }
 }
 
@@ -102,14 +103,25 @@ void PolyCurve::addCurve(CurvePtr& curve)
 
 void PolyCurve::removeFirst()
 {
-  if (!chain_.empty())
-    chain_.pop_front();
+  chain_.pop_front();
 }
 
 void PolyCurve::removeLast()
 {
-  if (!chain_.empty())
-    chain_.pop_back();
+  chain_.pop_back();
+}
+
+PolyCurve PolyCurve::getSubPolyCurve(uint idx_l, uint idx_r)
+{
+  std::vector<CurvePtr> poly;
+  std::vector<LinkType> type;
+  for(; idx_l < idx_r; idx_l++)
+  {
+    poly.push_back(getCurvePtr(idx_l));
+    type.push_back(chain_.at(idx_l).link_type);
+  }
+  poly.push_back(getCurvePtr(idx_r));
+  return PolyCurve(poly, type);
 }
 
 uint PolyCurve::getSize() const { return static_cast<uint>(chain_.size() + 1); }
@@ -117,25 +129,51 @@ uint PolyCurve::getSize() const { return static_cast<uint>(chain_.size() + 1); }
 int PolyCurve::getCurveIdx(const CurvePtr& curve) const
 {
   int idx = -1;
-  for (uint k = 0; k < chain_.size(); k++)
-    if (curve == chain_[k].c[0])
+  for (uint k = 0; k < getSize(); k++)
+    if (curve == getCurvePtr(k))
     {
       idx = static_cast<int>(k);
       break;
     }
-  if (idx < 0)
-    if (curve == chain_.back().c[1])
-      idx = static_cast<int>(chain_.size());
   return idx;
 }
 
 CurvePtr PolyCurve::getCurvePtr(uint idx) const
 {
   if (idx < chain_.size())
-    return chain_[idx].c[0];
+    return chain_.at(idx).curve_pair.first;
   if (idx == chain_.size() && !chain_.empty())
-    return chain_.back().c[1];
+    return chain_.back().curve_pair.first;
   return CurvePtr();
+}
+
+PointVector PolyCurve::getPolyline(double smoothness, double precision) const
+{
+  PointVector polyline;
+  for(uint k = 0; k < getSize(); k++)
+  {
+    auto new_poly = getCurvePtr(k)->getPolyline(smoothness, precision);
+    polyline.reserve(polyline.size() + new_poly.size());
+    polyline.insert(polyline.end(), new_poly.begin(), new_poly.end());
+  }
+  return polyline;
+}
+
+std::pair<Point, Point> PolyCurve::getEndPoints() const
+{
+  std::pair<Point, Point> end_points;
+  auto ep_s = getCurvePtr(0)->getEndPoints();
+  auto ep_e = getCurvePtr(getSize()-1)->getEndPoints();
+  if (chain_.front().link_point == Link::LinkPoint::s_e || chain_.front().link_point == Link::LinkPoint::s_s)
+    end_points.first = ep_s.first;
+  else
+    end_points.first = ep_s.second;
+
+  if (chain_.back().link_point == Link::LinkPoint::s_s || chain_.back().link_point == Link::LinkPoint::e_s)
+    end_points.second = ep_e.second;
+  else
+    end_points.second = ep_e.first;
+  return std::pair<Point, Point>();
 }
 
 Point PolyCurve::valueAt(double t) const
@@ -165,34 +203,22 @@ Vec2 PolyCurve::normalAt(double t) const
 BBox PolyCurve::getBBox(bool use_roots) const
 {
   BBox bbox;
-  if (!chain_.empty())
-  {
-    bbox = chain_[0].c[0]->getBBox(use_roots);
-    for (uint k = 0; k < chain_.size(); k++)
-      bbox.extend(chain_[k].c[1]->getBBox(use_roots));
-  }
+  for (uint k = 0; k < getSize(); k++)
+    bbox.extend(getCurvePtr(k)->getBBox(use_roots));
   return bbox;
 }
 
 std::vector<Point> PolyCurve::getPointsOfIntersection(const Curve& curve, bool stop_at_first, double epsilon) const
 {
   std::vector<Point> points;
-  if (!chain_.empty())
+  for (uint k = 0; k < getSize(); k++)
   {
-    auto new_points = chain_[0].c[0]->getPointsOfIntersection(curve, stop_at_first, epsilon);
+    auto new_points = getCurvePtr(k)->getPointsOfIntersection(curve, stop_at_first, epsilon);
     points.reserve(points.size() + new_points.size());
     points.insert(points.end(), new_points.begin(), new_points.end());
-    if (points.empty() || !stop_at_first)
-      for (uint k = 0; k < chain_.size(); k++)
-      {
-        new_points = chain_[k].c[1]->getPointsOfIntersection(curve, stop_at_first, epsilon);
-        points.reserve(points.size() + new_points.size());
-        points.insert(points.end(), new_points.begin(), new_points.end());
-        if (!points.empty() && stop_at_first)
-          break;
-      }
+    if (!points.empty() && stop_at_first)
+      break;
   }
-
   return points;
 }
 
@@ -213,20 +239,17 @@ std::vector<Point> PolyCurve::getPointsOfIntersection(const PolyCurve& poly_curv
 
 double PolyCurve::projectPoint(const Point& point, double step) const
 {
-  double min_t = 0;
-  if (!chain_.empty())
+  double min_t = getCurvePtr(0)->projectPoint(point, step);
+  double min_dist = (point - getCurvePtr(0)->valueAt(min_t)).norm();
+
+  for (uint k = 1; k < getSize(); k++)
   {
-    double min_t = chain_[0].c[0]->projectPoint(point, step);
-    double min_dist = (point - chain_[0].c[0]->valueAt(min_t)).norm();
-    for (uint k = 0; k < chain_.size(); k++)
+    double t = getCurvePtr(k)->projectPoint(point, step);
+    double dist = (point - getCurvePtr(k)->valueAt(t)).norm();
+    if (dist < min_dist)
     {
-      double t = chain_[k].c[1]->projectPoint(point, step);
-      double dist = (point - chain_[k].c[1]->valueAt(t)).norm();
-      if (dist < min_dist)
-      {
-        min_dist = dist;
-        min_t = 1 + k + t;
-      }
+      min_dist = dist;
+      min_t = k + t;
     }
   }
   return min_t;

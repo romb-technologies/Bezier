@@ -19,6 +19,8 @@ public:
 private:
   struct Link
   {
+    std::pair<CurvePtr, CurvePtr> curve_pair;
+    LinkType link_type;
     enum LinkPoint
     {
       s_s,
@@ -26,15 +28,9 @@ private:
       e_s,
       e_e
     } link_point;
-    CurvePtr c[2];
-    LinkType link_type;
-    Link(CurvePtr& curve1, CurvePtr& curve2, LinkType type, LinkPoint point)
-    {
-      c[0] = curve1;
-      c[1] = curve2;
-      link_type = type;
-      link_point = point;
-    }
+
+    Link(std::pair<CurvePtr, CurvePtr> curve_pair, LinkType link_type, LinkPoint link_point) :
+      curve_pair(curve_pair), link_type(link_type), link_point(link_point) {}
   };
 
   std::deque<Link> chain_;
@@ -46,9 +42,13 @@ public:
   void addCurve(CurvePtr& curve);
   void removeFirst();
   void removeLast();
+  PolyCurve getSubPolyCurve(uint idx_l, uint idx_r);
   uint getSize() const;
   int getCurveIdx(const CurvePtr& curve) const;
   CurvePtr getCurvePtr(uint idx) const;
+
+  PointVector getPolyline(double smoothness = 1.0001, double precision = 1.0) const;
+  std::pair<Point, Point> getEndPoints() const;
 
   Point valueAt(double t) const;
   double curvatureAt(double t) const;
