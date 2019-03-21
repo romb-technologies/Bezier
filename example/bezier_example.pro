@@ -33,13 +33,15 @@ SOURCES += \
         mainwindow.cpp \
         ../BezierCpp/bezier.cpp \
     qgraphicsviewzoom.cpp \
-    customscene.cpp
+    customscene.cpp \
+    ../BezierCpp/polycurve.cpp
 
 HEADERS += \
         mainwindow.h \
         ../BezierCpp/bezier.h \
     qgraphicsviewzoom.h \
-    customscene.h
+    customscene.h \
+    ../BezierCpp/polycurve.h
 
 FORMS += \
         mainwindow.ui

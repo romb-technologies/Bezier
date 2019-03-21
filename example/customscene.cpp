@@ -69,7 +69,7 @@ void CustomScene::mousePressEvent(QGraphicsSceneMouseEvent* mouseEvent)
     dot = addEllipse(QRectF(QPointF(p.x(), p.y()), QSizeF(6, 6)), QPen(Qt::yellow), QBrush(Qt::red, Qt::SolidPattern));
     for (auto&& curve : curves)
     {
-      auto t1 = curve->projectPointOnCurve(p);
+      auto t1 = curve->projectPoint(p);
       auto p1 = curve->valueAt(t1);
       auto tan1 = curve->tangentAt(t1);
       line.push_back(addLine(QLineF(QPointF(p.x(), p.y()), QPointF(p1.x(), p1.y())), QPen(Qt::red)));
@@ -92,7 +92,7 @@ void CustomScene::mousePressEvent(QGraphicsSceneMouseEvent* mouseEvent)
         }
       if (update_cp)
         break;
-      double t = curve->projectPointOnCurve(p);
+      double t = curve->projectPoint(p);
       auto pt = curve->valueAt(t);
       if ((pt - p).norm() < 10)
       {
@@ -106,7 +106,7 @@ void CustomScene::mousePressEvent(QGraphicsSceneMouseEvent* mouseEvent)
   {
     for (auto&& curve : curves)
     {
-      auto t = curve->projectPointOnCurve(p);
+      auto t = curve->projectPoint(p);
       if ((curve->valueAt(t) - p).norm() < sensitivity)
       {
         this->removeItem(curve);
@@ -198,7 +198,7 @@ void CustomScene::mouseDoubleClickEvent(QGraphicsSceneMouseEvent* mouseEvent)
   if (mouseEvent->button() == Qt::LeftButton)
     for (auto&& curve : curves)
     {
-      double t = curve->projectPointOnCurve(p);
+      double t = curve->projectPoint(p);
       auto pt = curve->valueAt(t);
       if ((pt - p).norm() < 10)
       {
@@ -209,7 +209,7 @@ void CustomScene::mouseDoubleClickEvent(QGraphicsSceneMouseEvent* mouseEvent)
   if (mouseEvent->button() == Qt::RightButton)
     for (auto&& curve : curves)
     {
-      double t = curve->projectPointOnCurve(p);
+      double t = curve->projectPoint(p);
       auto pt = curve->valueAt(t);
       if ((pt - p).norm() < 10)
       {

@@ -19,7 +19,6 @@
 
 #include <Eigen/Dense>
 #include <vector>
-#include <deque>
 #include <map>
 #include <memory>
 
@@ -28,6 +27,12 @@
  */
 namespace Bezier
 {
+class Curve;
+
+/*!
+ * \brief Shared pointer of class Curve
+ */
+typedef std::shared_ptr<Curve> CurvePtr;
 /*!
  * \brief Point in xy plane
  */
@@ -43,16 +48,8 @@ typedef std::vector<Point> PointVector;
 /*!
  * \brief Bounding box
  */
-typedef Eigen::AlignedBox2d BBox; 
+typedef Eigen::AlignedBox2d BBox;
 
-/*!
- * \brief A Bezier curve class
- *
- * A class for storing and using any-order Bezier curve.
- * It uses private and static caching for storing often accessed data.
- * Private caching is used for data concerning individual curve, while
- * static caching is used for common data (coefficient matrices)
- */
 class Curve : public std::enable_shared_from_this<Curve>
 {
 private:
@@ -71,7 +68,7 @@ private:
   Eigen::MatrixX2d control_points_;
 
   // private caching
-  std::shared_ptr<Curve> cached_derivative_;              /*! If generated, stores derivative for later use */
+  CurvePtr cached_derivative_;              /*! If generated, stores derivative for later use */
   std::shared_ptr<std::vector<Point>> cached_ext_points_; /*! If generated, stores extreme Points for later use */
   std::shared_ptr<BBox>
       cached_bounding_box_tight_; /*! If generated, stores bounding box (use_roots = true) for later use */
@@ -253,57 +250,6 @@ public:
   double projectPoint(const Point& point, double step = 0.01) const;
 };
 
-typedef std::shared_ptr<Curve> CurvePtr;
-
-class PolyCurve
-{
-public:
-  enum LinkType
-  {
-    C1,
-    G1,
-    none
-  };
-private:
-  struct Link
-  {
-    enum LinkPoint{
-      s_s,
-      s_e,
-      e_s,
-      e_e
-    } link_point;
-    CurvePtr c[2];
-    LinkType link_type;
-    Link(CurvePtr &curve1, CurvePtr &curve2, LinkType type, LinkPoint point)
-    {
-      c[0] = curve1;
-      c[1] = curve2;
-      link_type = type;
-      link_point = point;
-    }
-  };
-
-  std::deque<Link> chain_;
-
-public:
-  PolyCurve(CurvePtr &curve1, CurvePtr &curve2, LinkType type = none);
-  PolyCurve(std::vector<CurvePtr> &curve_list, const std::vector<LinkType> &type_list = std::vector<LinkType>());
-
-  void addCurve(CurvePtr &curve);
-  void removeFirst();
-  void removeLast();
-  uint getSize() const;
-  int getIdx(const CurvePtr &curve) const;
-  CurvePtr getCurvePtr(uint idx) const;
-
-  std::vector<Point> getPointsOfIntersection(const Curve& curve, bool stop_at_first = false,
-                                             double epsilon = 0.001) const;
-  std::vector<Point> getPointsOfIntersection(const PolyCurve& poly_curve, bool stop_at_first = false,
-                                             double epsilon = 0.001) const;
-  double projectPoint(const Point& point, double step = 0.01) const;
-
-};
 }
 
 #endif // BEZIER_H
