@@ -19,6 +19,7 @@
 
 #include <Eigen/Dense>
 #include <vector>
+#include <deque>
 #include <map>
 #include <memory>
 
@@ -42,7 +43,7 @@ typedef std::vector<Point> PointVector;
 /*!
  * \brief Bounding box
  */
-typedef Eigen::AlignedBox2d BBox;
+typedef Eigen::AlignedBox2d BBox; 
 
 /*!
  * \brief A Bezier curve class
@@ -114,10 +115,22 @@ public:
   Curve(const PointVector& points);
 
   /*!
+   * \brief Get order of curve (Nth order curve is described with N+1 points);
+   * \return Order of curve
+   */
+  uint getOrder();
+
+  /*!
    * \brief Get the control points
    * \return A vector of control points
    */
   PointVector getControlPoints() const;
+
+  /*!
+   * \brief Get first and last control points
+   * \return A pair of end points
+   */
+  std::pair<Point, Point> getEndPoints() const;
 
   /*!
    * \brief Get a polyline representation of curve as a vector of points on curve
@@ -237,7 +250,59 @@ public:
    *
    * \warning self-intersection not yet implemented
    */
-  double projectPointOnCurve(const Point& point, double step = 0.01) const;
+  double projectPoint(const Point& point, double step = 0.01) const;
+};
+
+typedef std::shared_ptr<Curve> CurvePtr;
+
+class PolyCurve
+{
+public:
+  enum LinkType
+  {
+    C1,
+    G1,
+    none
+  };
+private:
+  struct Link
+  {
+    enum LinkPoint{
+      s_s,
+      s_e,
+      e_s,
+      e_e
+    } link_point;
+    CurvePtr c[2];
+    LinkType link_type;
+    Link(CurvePtr &curve1, CurvePtr &curve2, LinkType type, LinkPoint point)
+    {
+      c[0] = curve1;
+      c[1] = curve2;
+      link_type = type;
+      link_point = point;
+    }
+  };
+
+  std::deque<Link> chain_;
+
+public:
+  PolyCurve(CurvePtr &curve1, CurvePtr &curve2, LinkType type = none);
+  PolyCurve(std::vector<CurvePtr> &curve_list, const std::vector<LinkType> &type_list = std::vector<LinkType>());
+
+  void addCurve(CurvePtr &curve);
+  void removeFirst();
+  void removeLast();
+  uint getSize() const;
+  int getIdx(const CurvePtr &curve) const;
+  CurvePtr getCurvePtr(uint idx) const;
+
+  std::vector<Point> getPointsOfIntersection(const Curve& curve, bool stop_at_first = false,
+                                             double epsilon = 0.001) const;
+  std::vector<Point> getPointsOfIntersection(const PolyCurve& poly_curve, bool stop_at_first = false,
+                                             double epsilon = 0.001) const;
+  double projectPoint(const Point& point, double step = 0.01) const;
+
 };
 }
 

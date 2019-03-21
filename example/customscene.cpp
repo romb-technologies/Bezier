@@ -136,7 +136,7 @@ void CustomScene::mouseMoveEvent(QGraphicsSceneMouseEvent* mouseEvent)
     dot->setRect(QRectF(QPointF(p.x() - 3, p.y() - 3), QSizeF(6, 6)));
     for (int k = 0; k < curves.size(); k++)
     {
-      auto t1 = curves[k]->projectPointOnCurve(Bezier::Point(p.x(), p.y()));
+      auto t1 = curves[k]->projectPoint(Bezier::Point(p.x(), p.y()));
       auto p1 = curves[k]->valueAt(t1);
       auto tan1 = curves[k]->tangentAt(t1);
       line[k]->setLine(QLineF(QPointF(p.x(), p.y()), QPointF(p1.x(), p1.y())));
