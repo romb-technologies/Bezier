@@ -54,6 +54,14 @@ typedef std::vector<Point> PointVector;
  */
 typedef Eigen::AlignedBox2d BBox;
 
+/*!
+ * \brief A Bezier curve class
+ *
+ * A class for storing and using any-order Bezier curve.
+ * It uses private and static caching for storing often accessed data.
+ * Private caching is used for data concerning individual curve, while
+ * static caching is used for common data (coefficient matrices)
+ */
 class Curve : public std::enable_shared_from_this<Curve>
 {
 private:
@@ -142,11 +150,16 @@ public:
   PointVector getPolyline(double smoothness = 1.0001, double precision = 1.0) const;
 
   /*!
+   * \brief Reverse order of control points
+   */
+  void reverse();
+
+  /*!
    * \brief Set the new coordinates to a control point
    * \param index Index of chosen control point
    * \param point New control point
    */
-  void manipulateControlPoint(uint index, const Point& point);
+  void manipulateControlPoint(uint idx, const Point& point);
 
   /*!
    * \brief Manipulate the curve so that it passes through wanted point for given 't'

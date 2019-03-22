@@ -14,25 +14,22 @@ typedef std::shared_ptr<const PolyCurve> ConstPolyCurvePtr;
 class PolyCurve
 {
 private:
-  struct Part
-  {
-    CurvePtr curve;
-    bool reversed;
-    Part(CurvePtr curve, bool reversed) :
-      curve(curve), reversed(reversed) {}
-  };
 
-  std::deque<Part> parts_;
+  std::deque<CurvePtr> curves_;
+  // TODO: Continuity isn't implemented yet
 
-  PolyCurve(const std::deque<Part>& part_list);
+  PolyCurve(const std::deque<CurvePtr>& curve_list);
 
 public:
   PolyCurve(CurvePtr& curve1);
   PolyCurve(std::vector<CurvePtr>& curve_list);
 
-  void addCurve(CurvePtr& curve);
+  void insertAt(uint idx, CurvePtr& curve);
+  void insertFront(CurvePtr& curve);
+  void insertBack(CurvePtr& curve);
+  void removeAt(uint idx);
   void removeFirst();
-  void removeLast();
+  void removeBack();
   PolyCurve getSubPolyCurve(uint idx_l, uint idx_r);
   uint getSize() const;
   uint getCurveIdx(const CurvePtr& curve) const;
