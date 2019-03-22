@@ -27,7 +27,7 @@ Fast and lightweight class for using the Bezier curves of any order in C++
   - <img src="https://img.shields.io/badge/v.1.1-indev-yellow.svg" alt="v1.1 indev" align="top"> Bezier polycurves
     - [x] Create polycurve (C0 continuity)
     - [x] Equivalent methods from Bezier curves
-    - [ ] Adding aditional curves to existing polycurve
+    - [x] Adding and removing curves
     - [ ] Curve continuity and manipulation
   - <img src="https://img.shields.io/badge/v.1.2-planned-red.svg" alt="v1.2 planned" align="top"> Bezier shapes
 
