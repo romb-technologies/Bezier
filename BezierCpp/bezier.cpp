@@ -14,7 +14,7 @@ Curve::CoeffsMap Curve::lower_order_coeffs_ = CoeffsMap();
 void Curve::resetCache()
 {
   cached_derivative_.reset();
-  cached_ext_points_.reset();
+  cached_roots_.reset();
   cached_bounding_box_tight_.reset();
   cached_bounding_box_relaxed_.reset();
   cached_polyline_.reset();
@@ -159,7 +159,7 @@ PointVector Curve::getPolyline(double smoothness, double precision) const
       for (uint k = 1; k < cp.size(); k++)
         hull += (cp.at(k - 1) - cp.at(k)).norm();
       if (hull < smoothness * (cp.front() - cp.back()).norm() ||
-          (cp.front() - cp.back()).norm() / smoothness < precision)
+          (cp.front() - cp.back()).norm() < precision)
       {
         polyline->push_back(cp.back());
       }
@@ -249,17 +249,15 @@ Point Curve::valueAt(double t) const
 
 double Curve::curvatureAt(double t) const
 {
-  Point d = getDerivative().valueAt(t);
-  Point dd = getDerivative().getDerivative().valueAt(t);
-  double num = d.x() * dd.y() - d.y() * dd.x();
-  double dnm = pow(pow(d.x(), 2) + pow(d.y(), 2), 3 / 2);
+  Point d = getDerivative()->valueAt(t);
+  Point dd = getDerivative()->getDerivative()->valueAt(t);
 
-  return num / dnm;
+  return (d.x() * dd.y() - d.y() * dd.x()) / pow(d.norm(), 3);
 }
 
 Vec2 Curve::tangentAt(double t, bool normalize) const
 {
-  Point p(getDerivative().valueAt(t));
+  Point p(getDerivative()->valueAt(t));
   if (normalize)
     p.normalize();
   return p;
@@ -271,25 +269,25 @@ Vec2 Curve::normalAt(double t, bool normalize) const
   return Vec2(-tangent.y(), tangent.x());
 }
 
-Curve Curve::getDerivative() const
+ConstCurvePtr Curve::getDerivative() const
 {
   if (!cached_derivative_)
   {
     Eigen::MatrixX2d new_points;
     new_points.resize(N_ - 1, 2);
     for (uint k = 0; k < N_ - 1; k++)
-      new_points.row(k).noalias() = N_ * (control_points_.row(k + 1) - control_points_.row(k));
+      new_points.row(k).noalias() = (N_ - 1) * (control_points_.row(k + 1) - control_points_.row(k));
 
-    (const_cast<Curve*>(this))->cached_derivative_ = std::make_shared<Curve>(new_points);
+    (const_cast<Curve*>(this))->cached_derivative_ = std::make_shared<const Curve>(new_points);
   }
-  return *cached_derivative_;
+  return cached_derivative_;
 }
 
 PointVector Curve::getRoots(double step, double epsilon, std::size_t max_iter) const
 {
-  if (!cached_ext_points_)
+  if (!cached_roots_)
   {
-    (const_cast<Curve*>(this))->cached_ext_points_ = std::make_shared<PointVector>();
+    (const_cast<Curve*>(this))->cached_roots_ = std::make_shared<PointVector>();
     std::vector<double> added_t;
 
     // check both axes
@@ -305,8 +303,8 @@ PointVector Curve::getRoots(double step, double epsilon, std::size_t max_iter) c
         while (current_iter < max_iter)
         {
           // Newton-Rhapson: f = f - f' / f''
-          double t_new =
-              t_current - getDerivative().valueAt(t_current)[k] / getDerivative().getDerivative().valueAt(t_current)[k];
+          double t_new = t_current - getDerivative()->valueAt(t_current)[k] /
+                                     getDerivative()->getDerivative()->valueAt(t_current)[k];
 
           // if there is no change to t_current
           if (fabs(t_new - t_current) < epsilon)
@@ -322,7 +320,7 @@ PointVector Curve::getRoots(double step, double epsilon, std::size_t max_iter) c
               {
                 // add new value and point
                 added_t.push_back(t_new);
-                (const_cast<Curve*>(this))->cached_ext_points_->push_back(valueAt(t_new));
+                (const_cast<Curve*>(this))->cached_roots_->push_back(valueAt(t_new));
                 break;
               }
             }
@@ -336,7 +334,7 @@ PointVector Curve::getRoots(double step, double epsilon, std::size_t max_iter) c
       }
     }
   }
-  return *cached_ext_points_;
+  return *cached_roots_;
 }
 
 BBox Curve::getBBox(bool use_roots) const
@@ -488,7 +486,7 @@ PointVector Curve::getPointsOfIntersection(const Curve& curve, bool stop_at_firs
   return points_of_intersection;
 }
 
-double Curve::projectPoint(const Point& point, double step) const
+double Curve::projectPoint(const Point& point, double step, double epsilon) const
 {
   double t = 0;
   double t_dist = (valueAt(t) - point).norm();
@@ -520,7 +518,7 @@ double Curve::projectPoint(const Point& point, double step) const
       t_dist = (new_dist1 < new_dist2 ? new_dist1 : new_dist2);
       t += new_dist1 < new_dist2 ? -step / 2 : step / 2;
     }
-  } while (step > 0.0001);
+  } while (step > epsilon);
 
   // if closest point is between <1, 1+step>
   if (t > 1)
@@ -531,5 +529,4 @@ double Curve::projectPoint(const Point& point, double step) const
 
   return t;
 }
-
 }

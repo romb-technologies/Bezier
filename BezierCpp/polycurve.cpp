@@ -19,23 +19,35 @@ void PolyCurve::insertAt(uint idx, CurvePtr& curve)
   std::tie(s_1, e_1) = curve->getEndPoints();
   if (idx > 0) // check with curve before
   {
-    std::tie(s_2, e_2) = curves_[idx - 1]->getEndPoints();
+    std::tie(s_2, e_2) = curves_.at(idx - 1)->getEndPoints();
 
     double s_e = (s_1 - e_2).norm();
     double e_e = (e_1 - e_2).norm();
 
     if (e_e < s_e) // we need to reverse the curve
+    {
       curve->reverse();
+      std::tie(s_1, e_1) = curve->getEndPoints();
+    }
+
+    curve->manipulateControlPoint(0, (s_1 + e_2) / 2);
+    curves_.at(idx - 1)->manipulateControlPoint(curves_.at(idx - 1)->getOrder(), (s_1 + e_2) / 2);
   }
-  else if (getSize() > 0) // if zero, but there is a curve already
+  if (idx + 1 < getSize()) // check with curve after
   {
-    std::tie(s_2, e_2) = curves_[idx]->getEndPoints();
+    std::tie(s_2, e_2) = curves_.at(idx)->getEndPoints();
 
     double e_s = (e_1 - s_2).norm();
     double s_s = (s_1 - s_2).norm();
 
     if (s_s < e_s) // we ned to reverse the curve
+    {
       curve->reverse();
+      std::tie(s_1, e_1) = curve->getEndPoints();
+    }
+
+    curve->manipulateControlPoint(curve->getOrder(), (e_1 + s_2) / 2);
+    curves_.at(idx + 1)->manipulateControlPoint(0, (e_1 + s_2) / 2);
   }
 
   curves_.insert(curves_.begin() + idx, curve);
@@ -49,14 +61,17 @@ void PolyCurve::removeAt(uint idx)
 {
   if (idx == 0)
     removeFirst();
-  if (idx == getSize() - 1)
+  else if (idx == getSize() - 1)
     removeBack();
-  Point s_1, s_2, e_1, e_2;
-  std::tie(s_1, e_1) = curves_[idx - 1]->getEndPoints();
-  std::tie(s_2, e_2) = curves_[idx + 1]->getEndPoints();
-  curves_[idx - 1]->manipulateControlPoint(curves_[idx - 1]->getOrder(), (e_1 + s_2) / 2);
-  curves_[idx + 1]->manipulateControlPoint(0, (e_1 + s_2) / 2);
-  curves_.erase(curves_.begin() + idx);
+  else
+  {
+    Point s_1, s_2, e_1, e_2;
+    std::tie(s_1, e_1) = curves_.at(idx - 1)->getEndPoints();
+    std::tie(s_2, e_2) = curves_.at(idx + 1)->getEndPoints();
+    curves_.at(idx - 1)->manipulateControlPoint(curves_.at(idx - 1)->getOrder(), (e_1 + s_2) / 2);
+    curves_.at(idx + 1)->manipulateControlPoint(0, (e_1 + s_2) / 2);
+    curves_.erase(curves_.begin() + idx);
+  }
 }
 
 void PolyCurve::removeFirst() { curves_.pop_front(); }

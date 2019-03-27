@@ -80,8 +80,8 @@ private:
   Eigen::MatrixX2d control_points_;
 
   // private caching
-  CurvePtr cached_derivative_;              /*! If generated, stores derivative for later use */
-  std::shared_ptr<PointVector> cached_ext_points_; /*! If generated, stores extreme Points for later use */
+  ConstCurvePtr cached_derivative_;              /*! If generated, stores derivative for later use */
+  std::shared_ptr<PointVector> cached_roots_; /*! If generated, stores roots for later use */
   std::shared_ptr<BBox>
       cached_bounding_box_tight_; /*! If generated, stores bounding box (use_roots = true) for later use */
   std::shared_ptr<BBox>
@@ -221,10 +221,10 @@ public:
    * \brief Get the derivative of a curve
    * \return Derivative curve
    */
-  Curve getDerivative() const;
+  ConstCurvePtr getDerivative() const;
 
   /*!
-   * \brief Get the extreme points of curve
+   * \brief Get the roots of curve on both axis
    * \param step Size of step in coarse search
    * \param epsilon Precision of resulting t
    * \param max_iter Maximum number of iterations for Newton-Rhapson
@@ -234,7 +234,7 @@ public:
 
   /*!
    * \brief Get the bounding box of curve
-   * \param use_roots If algorithm should use extreme points
+   * \param use_roots If algorithm should use roots
    * \return Bounding box (if use_roots is false, returns the bounding box of control points)
    */
   BBox getBBox(bool use_roots = true) const;
@@ -260,11 +260,12 @@ public:
    * \brief Get the parameter t where curve is closes to given point
    * \param point Point to project on curve
    * \param step Size of step in coarse search
+   * \param epsilon Precision of resulting projection
    * \return Parameter t
    *
    * \warning self-intersection not yet implemented
    */
-  double projectPoint(const Point& point, double step = 0.01) const;
+  double projectPoint(const Point& point, double step = 0.01, double epsilon = 0.001) const;
 };
 
 }
