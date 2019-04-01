@@ -1,16 +1,10 @@
 #ifndef POLYCURVE_H
 #define POLYCURVE_H
 
-#include "bezier.h"
-#include <deque>
+#include "declarations.h"
 
 namespace Bezier
 {
-class PolyCurve;
-
-typedef std::shared_ptr<PolyCurve> PolyCurvePtr;
-typedef std::shared_ptr<const PolyCurve> ConstPolyCurvePtr;
-
 class PolyCurve
 {
 private:

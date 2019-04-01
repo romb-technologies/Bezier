@@ -17,43 +17,13 @@
 #ifndef BEZIER_H
 #define BEZIER_H
 
-#include <Eigen/Dense>
-#include <vector>
-#include <map>
-#include <memory>
+#include "declarations.h"
 
 /*!
  * Nominal namespace containing class definition and typedefs
  */
 namespace Bezier
 {
-class Curve;
-
-/*!
- * \brief Shared pointer of Curve
- */
-typedef std::shared_ptr<Curve> CurvePtr;
-/*!
- * \brief Shared pointer of const Curve
- */
-typedef std::shared_ptr<const Curve> ConstCurvePtr;
-/*!
- * \brief Point in xy plane
- */
-typedef Eigen::Vector2d Point;
-/*!
- * \brief A Vector in xy plane
- */
-typedef Eigen::Vector2d Vec2;
-/*!
- * \brief A vector of Points
- */
-typedef std::vector<Point> PointVector;
-/*!
- * \brief Bounding box
- */
-typedef Eigen::AlignedBox2d BBox;
-
 /*!
  * \brief A Bezier curve class
  *

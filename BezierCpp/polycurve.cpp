@@ -1,4 +1,5 @@
 #include "polycurve.h"
+#include "bezier.h"
 
 namespace Bezier
 {

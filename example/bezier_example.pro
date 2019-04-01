@@ -34,14 +34,20 @@ SOURCES += \
         ../BezierCpp/bezier.cpp \
     qgraphicsviewzoom.cpp \
     customscene.cpp \
-    ../BezierCpp/polycurve.cpp
+    ../BezierCpp/polycurve.cpp \
+../BezierCpp/polyline.cpp
 
 HEADERS += \
         mainwindow.h \
         ../BezierCpp/bezier.h \
     qgraphicsviewzoom.h \
     customscene.h \
-    ../BezierCpp/polycurve.h
+    ../BezierCpp/polycurve.h \
+../BezierCpp/declarations.h \
+../BezierCpp/polyline.h \
+
+DEFINES += BEZIER_POLYCURVE \
+           BEZIER_POLYLINE
 
 FORMS += \
         mainwindow.ui
