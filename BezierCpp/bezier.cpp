@@ -27,7 +27,7 @@ Curve::Coeffs Curve::bernsteinCoeffs() const
     bernstein_coeffs_.insert(std::make_pair(N_, Coeffs::Zero(N_, N_)));
     for (uint k = 0; k < N_; k++)
       for (uint i = 0; i <= k; i++)
-        bernstein_coeffs_.at(N_)(k, i) = pow(-1, i - k) * binomial(N_ - 1, k) * binomial(k, i);
+        bernstein_coeffs_.at(N_)(k, i) = std::pow(-1, i - k) * binomial(N_ - 1, k) * binomial(k, i);
   }
   return bernstein_coeffs_.at(N_);
 }
@@ -41,7 +41,7 @@ Curve::Coeffs Curve::splittingCoeffsLeft(double z) const
     {
       splitting_coeffs_left_.insert(std::make_pair(N_, Coeffs::Zero(N_, N_)));
       for (uint k = 0; k < N_; k++)
-        splitting_coeffs_left_.at(N_)(k, k) = pow(0.5, k);
+        splitting_coeffs_left_.at(N_)(k, k) = std::pow(0.5, k);
       splitting_coeffs_left_.at(N_) =
           bernsteinCoeffs().inverse() * splitting_coeffs_left_.at(N_) * bernsteinCoeffs();
     }
@@ -50,7 +50,7 @@ Curve::Coeffs Curve::splittingCoeffsLeft(double z) const
   else
   {
     for (uint k = 0; k < N_; k++)
-      coeffs(k, k) = pow(z, k);
+      coeffs(k, k) = std::pow(z, k);
     coeffs = bernsteinCoeffs().inverse() * coeffs * bernsteinCoeffs();
   }
   return coeffs;
@@ -193,8 +193,8 @@ void Curve::manipulateCurvature(double t, const Point& point)
   if (N_ < 3 || N_ > 4)
     throw "Only quadratic and cubic curves can be manipulated";
 
-  double r = fabs((pow(t, N_ - 1) + pow(1 - t, N_ - 1) - 1) / (pow(t, N_ - 1) + pow(1 - t, N_ - 1)));
-  double u = pow(1 - t, N_ - 1) / (pow(t, N_ - 1) + pow(1 - t, N_ - 1));
+  double r = std::fabs((std::pow(t, N_ - 1) + std::pow(1 - t, N_ - 1) - 1) / (std::pow(t, N_ - 1) + std::pow(1 - t, N_ - 1)));
+  double u = std::pow(1 - t, N_ - 1) / (std::pow(t, N_ - 1) + std::pow(1 - t, N_ - 1));
   Point C = u * control_points_.row(0) + (1 - u) * control_points_.row(N_ - 1);
   Point B = point;
   Point A = B - (C - B) / r;
@@ -205,10 +205,10 @@ void Curve::manipulateCurvature(double t, const Point& point)
     control_points_.row(1) = A;
     break;
   case 4:
-    Point e1 = control_points_.row(0) * pow(1 - t, 2) + control_points_.row(1) * 2 * t * (1 - t) +
-               control_points_.row(2) * pow(t, 2);
-    Point e2 = control_points_.row(1) * pow(1 - t, 2) + control_points_.row(2) * 2 * t * (1 - t) +
-               control_points_.row(3) * pow(t, 2);
+    Point e1 = control_points_.row(0) * std::pow(1 - t, 2) + control_points_.row(1) * 2 * t * (1 - t) +
+               control_points_.row(2) * std::pow(t, 2);
+    Point e2 = control_points_.row(1) * std::pow(1 - t, 2) + control_points_.row(2) * 2 * t * (1 - t) +
+               control_points_.row(3) * std::pow(t, 2);
     e1 = B + e1 - valueAt(t);
     e2 = B + e2 - valueAt(t);
     Point v1 = A - (A - e1) / (1 - t);
@@ -242,7 +242,7 @@ Point Curve::valueAt(double t) const
   Eigen::VectorXd power_basis;
   power_basis.resize(N_);
   for (uint k = 0; k < N_; k++)
-    power_basis(k) = pow(t, k);
+    power_basis(k) = std::pow(t, k);
 
   return (power_basis.transpose() * bernsteinCoeffs() * control_points_).transpose();
 }
@@ -252,7 +252,7 @@ double Curve::curvatureAt(double t) const
   Point d = getDerivative()->valueAt(t);
   Point dd = getDerivative()->getDerivative()->valueAt(t);
 
-  return (d.x() * dd.y() - d.y() * dd.x()) / pow(d.norm(), 3);
+  return (d.x() * dd.y() - d.y() * dd.x()) / std::pow(d.norm(), 3);
 }
 
 Vec2 Curve::tangentAt(double t, bool normalize) const
@@ -307,7 +307,7 @@ PointVector Curve::getRoots(double step, double epsilon, std::size_t max_iter) c
                                      getDerivative()->getDerivative()->valueAt(t_current)[k];
 
           // if there is no change to t_current
-          if (fabs(t_new - t_current) < epsilon)
+          if (std::fabs(t_new - t_current) < epsilon)
           {
             // check if between [0, 1]
             if (t_new >= -epsilon && t_new <= 1 + epsilon)
@@ -315,7 +315,7 @@ PointVector Curve::getRoots(double step, double epsilon, std::size_t max_iter) c
               // check if same value wasn't found before
               if (added_t.end() == std::find_if(added_t.begin(), added_t.end(), [t_new, epsilon](const double& val)
                                                 {
-                                                  return fabs(val - t_new) < epsilon;
+                                                  return std::fabs(val - t_new) < epsilon;
                                                 }))
               {
                 // add new value and point
