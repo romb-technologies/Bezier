@@ -1,44 +1,37 @@
 #include "polyline.h"
 
-namespace Bezier {
-PolyLine::PolyLine()
+namespace Bezier
 {
+PolyLine::PolyLine() {}
 
-}
-
-double PolyLine::getLength()
+double PolyLine::getLength() const
 {
   double length = 0.0;
-  for(uint k = 1; k < size(); k++)
-    length += (at(k-1) - at(k)).norm();
+  for (uint k = 1; k < size(); k++)
+    length += (at(k - 1) - at(k)).norm();
   return length;
 }
 
-double PolyLine::getPercentage(Point point)
+double PolyLine::getPercentage(const Point& point) const
 {
   double lenght_to_point = 0.0;
-  double lenght = 0.0;
-  bool found = false;
-  for(uint k = 1; k < size(); k++)
+  for (uint k = 1; k < size(); k++)
   {
-    double d1 = (at(k-1) - point).norm();
-    double d2 = (at(k) - point).norm();
-    double l = (at(k-1) - at(k)).norm();
-    lenght += l;
-    if(!found)
+    auto p1 = at(k) - at(k-1);
+    auto p2 = point - at(k-1);
+    double x_r = p2.x() / p1.x();
+    double y_r = p2.y() / p1.y();
+    if ( x_r >= 0 && x_r <= 1 && y_r >= 0 && y_r <= 1)
     {
-      if(d1 < l && d2 <l)
-      {
-        lenght_to_point = d1;
-        found = true;
-      }
-      else {
-        lenght_to_point += l;
-      }
+      lenght_to_point += p2.norm();
+      break;
+    }
+    else
+    {
+      lenght_to_point += p1.norm();
     }
   }
 
-  return lenght_to_point / lenght;
+  return lenght_to_point / getLength();
 }
 }
-

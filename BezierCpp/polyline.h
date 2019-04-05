@@ -3,15 +3,16 @@
 
 #include "declarations.h"
 
-namespace Bezier {
+namespace Bezier
+{
 class PolyLine : public PointVector
 {
 public:
   PolyLine();
 
-  double getLength();
+  double getLength() const;
 
-  double getPercentage(Point point);
+  double getPercentage(const Point& point) const;
 };
 }
 
