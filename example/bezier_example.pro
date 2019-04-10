@@ -35,7 +35,9 @@ SOURCES += \
     qgraphicsviewzoom.cpp \
     customscene.cpp \
     ../BezierCpp/polycurve.cpp \
-../BezierCpp/polyline.cpp
+../BezierCpp/polyline.cpp \
+    qcurve.cpp \
+    qpolycurve.cpp
 
 HEADERS += \
         mainwindow.h \
@@ -45,6 +47,8 @@ HEADERS += \
     ../BezierCpp/polycurve.h \
 ../BezierCpp/declarations.h \
 ../BezierCpp/polyline.h \
+    qcurve.h \
+    qpolycurve.h
 
 DEFINES += BEZIER_POLYCURVE \
            BEZIER_POLYLINE

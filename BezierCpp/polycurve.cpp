@@ -114,6 +114,30 @@ std::pair<Point, Point> PolyCurve::getEndPoints() const
   return std::make_pair(curves_.front()->getEndPoints().first, curves_.back()->getEndPoints().second);
 }
 
+PointVector PolyCurve::getControlPoints() const
+{
+  PointVector cp;
+  for(auto &&curve: curves_)
+  {
+    auto cp_c = curve->getControlPoints();
+    cp.reserve(cp.size() + cp_c.size());
+    cp.insert(cp.end(), cp_c.begin(), cp_c.end());
+  }
+  return cp;
+}
+
+void PolyCurve::manipulateControlPoint(uint idx, const Point &point)
+{
+  for(auto &&curve:curves_)
+    if(idx <= curve->getOrder())
+    {
+      curve->manipulateControlPoint(idx, point);
+      break;
+    }
+    else
+      --idx -= curve->getOrder();
+}
+
 Point PolyCurve::valueAt(double t) const
 {
   uint idx = static_cast<uint>(t);

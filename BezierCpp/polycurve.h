@@ -31,6 +31,18 @@ public:
 
   PointVector getPolyline(double smoothness = 1.0001, double precision = 1.0) const;
   std::pair<Point, Point> getEndPoints() const;
+  /*!
+   * \brief Get the control points
+   * \return A vector of control points
+   */
+  PointVector getControlPoints() const;
+
+  /*!
+   * \brief Set the new coordinates to a control point
+   * \param index Index of chosen control point
+   * \param point New control point
+   */
+  void manipulateControlPoint(uint idx, const Point& point);
 
   Point valueAt(double t) const;
   double curvatureAt(double t) const;
