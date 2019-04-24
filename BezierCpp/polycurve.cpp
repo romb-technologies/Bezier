@@ -1,9 +1,106 @@
 #include "polycurve.h"
 #include "bezier.h"
 
+#include<QDebug>
+
+inline double binomial(uint n, uint k) { return tgamma(n + 1) / (tgamma(k + 1) * tgamma(n - k + 1)); }
+
 namespace Bezier
 {
 PolyCurve::PolyCurve(const std::deque<CurvePtr>& part_list) : curves_(part_list) {}
+
+void PolyCurve::applyContinuity(uint idx)
+{
+  // raise this curve enough for that only one end point can be affected
+  auto curve = getCurvePtr(idx);
+  auto ord = curve->getOrder();
+
+  while (ord < continuity_[idx].order){
+    curve->elevateOrder();
+    ord = curve->getOrder();
+  }
+
+  if (idx > 0)
+  {
+    // backward
+    // no need to check order (it is always checked in forward direction)
+    getCurvePtr(idx - 1)->reverse();
+    getCurvePtr(idx)->reverse();
+    calculateContinuity(getCurvePtr(idx), getCurvePtr(idx - 1), continuity_.at(idx - 1));
+    getCurvePtr(idx - 1)->reverse();
+    getCurvePtr(idx)->reverse();
+  }
+  if (idx < getSize() - 1)
+  {
+    // forward
+    // raise next curve enough for that only one end point can be affected
+    auto curve_f = getCurvePtr(idx + 1);
+    while (curve_f->getOrder() < continuity_[idx].order)
+      curve_f->elevateOrder();
+    calculateContinuity(getCurvePtr(idx), getCurvePtr(idx + 1), continuity_.at(idx));
+  }
+}
+
+void PolyCurve::calculateContinuity(CurvePtr from, CurvePtr to, Continuity con)
+{
+  PointVector N;
+  PointVector P = from->getControlPoints();
+  PointVector Q = to->getControlPoints();
+
+  uint n = from->getOrder();
+  uint m = to->getOrder();
+
+  auto F = [n, m](uint k)
+  {
+    return std::tgamma(m - k) / std::tgamma(m) *
+           std::tgamma(n) / std::tgamma(n - k);
+  };
+
+  auto R = [from, to, con](uint k)
+  {
+    if (k == 0 || con.type == 'C') return 1.0;
+    return to->getDerivative()->valueAt(0).norm() / from->getDerivative()->valueAt(1).norm();
+//    ConstCurvePtr der_q = from;
+//    ConstCurvePtr der_p = to;
+//    for(uint d = 0; d < k; d++)
+//    {
+//      der_q = der_q->getDerivative();
+//      der_p = der_p->getDerivative();
+//    }
+//    return der_p->valueAt(0).norm() / der_q->valueAt(1).norm();
+  };
+
+  for (uint x = 0; x <= con.order; x++)
+  {
+    Point new_point;
+    new_point << 0, 0;
+    for (uint i = 0; i <= x; i++)
+    {
+      double inner_sum = 0.0;
+      for (uint k = i; k <= x; k++)
+        inner_sum += binomial(x-i, k-i)*F(k) * R(k);
+      new_point += std::pow(-1, i) * binomial(x, i) * P.at(n - i) * inner_sum;
+    }
+    N.push_back(new_point);
+  }
+
+  for (uint x = 0; x <= con.order; x++)
+    to->manipulateControlPoint(x, N.at(x));
+
+  ConstCurvePtr der_q = from;
+  ConstCurvePtr der_p = to;
+  for(uint x = 0; x <= con.order; x++)
+  {
+    auto q = der_q->valueAt(1);
+    auto p = der_p->valueAt(0);
+    qDebug() << x << "derivation:";
+    qDebug() << '(' << q.x() << ',' << q.y() << ')' << '(' << (q/q.norm()).x() << ',' << (q/q.norm()).y() << ')' << q.norm();
+    qDebug() << '(' << p.x() << ',' << p.y() << ')' << '(' << (p/p.norm()).x() << ',' << (p/p.norm()).y() << ')' << p.norm();
+    qDebug() << q.norm() / p.norm() << p.norm() / q.norm();
+    der_q = der_q->getDerivative();
+    der_p = der_p->getDerivative();
+  }
+}
 
 PolyCurve::PolyCurve(CurvePtr& curve) { curves_.push_back(curve); }
 
@@ -52,6 +149,7 @@ void PolyCurve::insertAt(uint idx, CurvePtr& curve)
   }
 
   curves_.insert(curves_.begin() + idx, curve);
+  continuity_.resize(getSize() - 1);
 }
 
 void PolyCurve::insertFront(CurvePtr& curve) { insertAt(0, curve); }
@@ -78,6 +176,11 @@ void PolyCurve::removeAt(uint idx)
 void PolyCurve::removeFirst() { curves_.pop_front(); }
 
 void PolyCurve::removeBack() { curves_.pop_back(); }
+
+void PolyCurve::setContinuity(uint idx, Continuity c) {
+  continuity_[idx] = c;
+  applyContinuity(idx);
+}
 
 PolyCurve PolyCurve::getSubPolyCurve(uint idx_l, uint idx_r)
 {
@@ -117,7 +220,7 @@ std::pair<Point, Point> PolyCurve::getEndPoints() const
 PointVector PolyCurve::getControlPoints() const
 {
   PointVector cp;
-  for(auto &&curve: curves_)
+  for (auto&& curve : curves_)
   {
     auto cp_c = curve->getControlPoints();
     cp.reserve(cp.size() + cp_c.size());
@@ -126,12 +229,13 @@ PointVector PolyCurve::getControlPoints() const
   return cp;
 }
 
-void PolyCurve::manipulateControlPoint(uint idx, const Point &point)
+void PolyCurve::manipulateControlPoint(uint idx, const Point& point)
 {
-  for(auto &&curve:curves_)
-    if(idx <= curve->getOrder())
+  for (auto&& curve : curves_)
+    if (idx <= curve->getOrder())
     {
       curve->manipulateControlPoint(idx, point);
+      applyContinuity(getCurveIdx(curve));
       break;
     }
     else

@@ -366,4 +366,17 @@ Delete - delete curve/polycurve");
       addItem(new_poly);
     update();
   }
+  if (keyEvent->key() >= 48 && keyEvent->key() <= 59) // num keys
+  {
+    Bezier::Continuity c;
+    c.order = keyEvent->key() - 48;
+    c.type = keyEvent->modifiers().testFlag(Qt::ControlModifier) ? 'G' : 'C';
+    for (auto&& curve : selectedItems())
+    {
+      if(is_poly)
+        for(uint k = 0; k < c_poly->getSize() - 1; k++)
+          c_poly->setContinuity(k, c);
+    }
+    update();
+  }
 }

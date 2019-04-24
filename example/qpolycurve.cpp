@@ -1,5 +1,5 @@
 #include "qpolycurve.h"
-
+#include "bezier.h"
 #include <QPainter>
 #include <QPen>
 
@@ -24,6 +24,28 @@ void qPolyCurve::setDraw_curvature_radious(bool value)
 }
 
 int qPolyCurve::type() const { return QGraphicsItem::UserType + 2; }
+
+inline double kappaDerived(qPolyCurve* pcurve, double t)
+{
+  auto det = [](Bezier::Vec2 a, Bezier::Vec2 b)
+  {
+    return a.x() * b.y() - a.y() * b.x();
+  };
+
+  uint idx = t;
+  t = t - idx;
+  if (idx == pcurve->getSize()){
+    idx--;
+    t = 1;
+  }
+  auto curve = pcurve->getCurvePtr(idx);
+
+  auto d1 = curve->getDerivative()->valueAt(t);
+  auto d2 = curve->getDerivative()->getDerivative()->valueAt(t);
+  auto d3 = curve->getDerivative()->getDerivative()->getDerivative()->valueAt(t);
+
+  return (det(d1, d3) * d1.squaredNorm() - 3 * d1.dot(d2) * det(d1, d2)) / std::pow(d1.norm(), 5);
+}
 
 void qPolyCurve::paint(QPainter* painter, const QStyleOptionGraphicsItem* option, QWidget* widget)
 {
@@ -69,8 +91,8 @@ void qPolyCurve::paint(QPainter* painter, const QStyleOptionGraphicsItem* option
                              static_cast<int>(255 * t / getSize()),
                              static_cast<int>(255 * (1 - t / getSize()))));
       auto p = valueAt(t);
-      auto n1 = p + normalAt(t, false) * curvatureAt(t);
-      auto n2 = p - normalAt(t, false) * curvatureAt(t);
+      auto n1 = p + normalAt(t, false) * kappaDerived(this, t);
+      auto n2 = p - normalAt(t, false) * kappaDerived(this, t);
       painter->drawLine(QLineF(n1.x(), n1.y(), n2.x(), n2.y()));
     }
   }

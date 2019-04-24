@@ -5,14 +5,27 @@
 
 namespace Bezier
 {
+
+struct Continuity
+{
+  char type;
+  uint order;
+
+  Continuity(char type = 'C', uint order = 0) : type(type), order(order){}
+};
+
 class PolyCurve
 {
 private:
 
   std::deque<CurvePtr> curves_;
+  std::vector<Continuity> continuity_;
   // TODO: Continuity isn't implemented yet
 
   PolyCurve(const std::deque<CurvePtr>& curve_list);
+
+  void applyContinuity(uint idx);
+  void calculateContinuity(CurvePtr from, CurvePtr to, Continuity con);
 
 public:
   PolyCurve(CurvePtr& curve1);
@@ -21,9 +34,13 @@ public:
   void insertAt(uint idx, CurvePtr& curve);
   void insertFront(CurvePtr& curve);
   void insertBack(CurvePtr& curve);
+
   void removeAt(uint idx);
   void removeFirst();
   void removeBack();
+
+  void setContinuity(uint idx, Continuity c = Continuity());
+
   PolyCurve getSubPolyCurve(uint idx_l, uint idx_r);
   uint getSize() const;
   uint getCurveIdx(const CurvePtr& curve) const;
