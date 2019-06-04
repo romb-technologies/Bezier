@@ -50,9 +50,6 @@ HEADERS += \
     qcurve.h \
     qpolycurve.h
 
-DEFINES += BEZIER_POLYCURVE \
-           BEZIER_POLYLINE
-
 FORMS += \
         mainwindow.ui
 

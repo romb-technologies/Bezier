@@ -42,8 +42,7 @@ Curve::Coeffs Curve::splittingCoeffsLeft(double z) const
       splitting_coeffs_left_.insert(std::make_pair(N_, Coeffs::Zero(N_, N_)));
       for (uint k = 0; k < N_; k++)
         splitting_coeffs_left_.at(N_)(k, k) = std::pow(0.5, k);
-      splitting_coeffs_left_.at(N_) =
-          bernsteinCoeffs().inverse() * splitting_coeffs_left_.at(N_) * bernsteinCoeffs();
+      splitting_coeffs_left_.at(N_) = bernsteinCoeffs().inverse() * splitting_coeffs_left_.at(N_) * bernsteinCoeffs();
     }
     coeffs = splitting_coeffs_left_.at(N_);
   }
@@ -158,8 +157,7 @@ PointVector Curve::getPolyline(double smoothness, double precision) const
       double hull = 0;
       for (uint k = 1; k < cp.size(); k++)
         hull += (cp.at(k - 1) - cp.at(k)).norm();
-      if (hull < smoothness * (cp.front() - cp.back()).norm() ||
-          (cp.front() - cp.back()).norm() < precision)
+      if (hull <= smoothness * (cp.front() - cp.back()).norm() || (cp.front() - cp.back()).norm() <= precision)
       {
         polyline->push_back(cp.back());
       }
@@ -193,7 +191,8 @@ void Curve::manipulateCurvature(double t, const Point& point)
   if (N_ < 3 || N_ > 4)
     throw "Only quadratic and cubic curves can be manipulated";
 
-  double r = std::fabs((std::pow(t, N_ - 1) + std::pow(1 - t, N_ - 1) - 1) / (std::pow(t, N_ - 1) + std::pow(1 - t, N_ - 1)));
+  double r =
+      std::fabs((std::pow(t, N_ - 1) + std::pow(1 - t, N_ - 1) - 1) / (std::pow(t, N_ - 1) + std::pow(1 - t, N_ - 1)));
   double u = std::pow(1 - t, N_ - 1) / (std::pow(t, N_ - 1) + std::pow(1 - t, N_ - 1));
   Point C = u * control_points_.row(0) + (1 - u) * control_points_.row(N_ - 1);
   Point B = point;
@@ -258,7 +257,7 @@ double Curve::curvatureAt(double t) const
 Vec2 Curve::tangentAt(double t, bool normalize) const
 {
   Point p(getDerivative()->valueAt(t));
-  if (normalize)
+  if (normalize && p.norm() > 0)
     p.normalize();
   return p;
 }
@@ -310,8 +309,9 @@ PointVector Curve::getRoots(double step, double epsilon, std::size_t max_iter) c
         while (current_iter < max_iter)
         {
           // Newton-Rhapson: f = f - f' / f''
-          double t_new = t_current - getDerivative()->valueAt(t_current)[k] /
-                                     getDerivative()->getDerivative()->valueAt(t_current)[k];
+          double t_new =
+              t_current -
+              getDerivative()->valueAt(t_current)[k] / getDerivative()->getDerivative()->valueAt(t_current)[k];
 
           // if there is no change to t_current
           if (std::fabs(t_new - t_current) < epsilon)
@@ -515,7 +515,7 @@ double Curve::projectPoint(const Point& point, double step, double epsilon) cons
     double new_dist1 = (valueAt(t - step / 2) - point).norm();
     double new_dist2 = (valueAt(t + step / 2) - point).norm();
 
-    if (new_dist1 > t_dist && new_dist2 > t_dist)
+    if (new_dist1 >= t_dist && new_dist2 >= t_dist)
     {
       step /= 2;
       continue;

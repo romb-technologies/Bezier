@@ -5,10 +5,7 @@
 #include <vector>
 #include <map>
 #include <memory>
-
-#ifdef BEZIER_POLYCURVE
 #include <deque>
-#endif
 
 namespace Bezier
 {
@@ -39,17 +36,10 @@ typedef std::vector<Point> PointVector;
  */
 typedef Eigen::AlignedBox2d BBox;
 
-#ifdef BEZIER_POLYLINE
 class PolyLine;
-#else
-typedef PointVector PolyLine;
-#endif
 
-#ifdef BEZIER_POLYCURVE
 class PolyCurve;
 typedef std::shared_ptr<PolyCurve> PolyCurvePtr;
 typedef std::shared_ptr<const PolyCurve> ConstPolyCurvePtr;
-#endif
 }
-
 #endif // DECLARATIONS_H
