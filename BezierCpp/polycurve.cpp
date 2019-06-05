@@ -13,12 +13,9 @@ void PolyCurve::applyContinuity(uint idx)
 {
   // raise this curve enough for that only one end point can be affected
   auto curve = getCurvePtr(idx);
-  auto ord = curve->getOrder();
 
-  while (ord < continuity_[idx].order){
+  while (curve->getOrder() < continuity_[idx].order + 1)
     curve->elevateOrder();
-    ord = curve->getOrder();
-  }
 
   if (idx > 0)
   {
@@ -35,7 +32,7 @@ void PolyCurve::applyContinuity(uint idx)
     // forward
     // raise next curve enough for that only one end point can be affected
     auto curve_f = getCurvePtr(idx + 1);
-    while (curve_f->getOrder() < continuity_[idx].order)
+    while (curve_f->getOrder() < continuity_[idx].order + 1)
       curve_f->elevateOrder();
     calculateContinuity(getCurvePtr(idx), getCurvePtr(idx + 1), continuity_.at(idx));
   }
@@ -52,8 +49,8 @@ void PolyCurve::calculateContinuity(CurvePtr from, CurvePtr to, Continuity con)
 
   auto F = [n, m](uint k)
   {
-    return std::tgamma(m - k) / std::tgamma(m) *
-           std::tgamma(n) / std::tgamma(n - k);
+    return std::tgamma(m - k + 1) / std::tgamma(m + 1) *
+           std::tgamma(n + 1) / std::tgamma(n - k + 1);
   };
 
   auto R = [from, to, con](uint k)
