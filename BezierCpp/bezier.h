@@ -19,9 +19,6 @@
 
 #include "declarations.h"
 
-/*!
- * Nominal namespace containing class definition and typedefs
- */
 namespace Bezier
 {
 /*!
@@ -81,6 +78,8 @@ private:
   Coeffs lowerOrderCoeffs(uint n) const;
 
 public:
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+
   /*!
    * \brief Create the Bezier curve
    * \param points Nx2 matrix where each row is one of N control points that define the curve
@@ -222,18 +221,18 @@ public:
    * \param stop_at_first If first point of intersection is enough
    * \param epsilon Precision of resulting intersection
    * \return A vector af points of intersection between curves
+   *
+   * \warning self-intersection not yet implemented
    */
   PointVector getPointsOfIntersection(const Curve& curve, bool stop_at_first = false,
                                              double epsilon = 0.001) const;
 
   /*!
-   * \brief Get the parameter t where curve is closes to given point
+   * \brief Get the parameter t where curve is closest to given point
    * \param point Point to project on curve
    * \param step Size of step in coarse search
    * \param epsilon Precision of resulting projection
    * \return Parameter t
-   *
-   * \warning self-intersection not yet implemented
    */
   double projectPoint(const Point& point, double step = 0.01, double epsilon = 0.001) const;
 };
