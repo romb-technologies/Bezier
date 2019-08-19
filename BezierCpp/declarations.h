@@ -26,7 +26,8 @@ class Curve;
  * \brief A polyline class
  *
  * A class for operations on polyline, mainly used for
- * polyline representation of curves.
+ * polyline representation of curves. Underlying structure
+ * is a vector of points.
  */
 class PolyLine;
 
