@@ -1,15 +1,13 @@
 #include "polycurve.h"
 #include "bezier.h"
 
-#include<QDebug>
-
 inline double binomial(uint n, uint k) { return tgamma(n + 1) / (tgamma(k + 1) * tgamma(n - k + 1)); }
 
 namespace Bezier
 {
 PolyCurve::PolyCurve(const std::deque<CurvePtr>& part_list) : curves_(part_list) {}
 
-void PolyCurve::applyContinuity(uint idx)
+void PolyCurve::prepareForContinuity(uint idx)
 {
   // raise this curve enough for that only one end point can be affected
   auto curve = getCurvePtr(idx);
@@ -23,7 +21,7 @@ void PolyCurve::applyContinuity(uint idx)
     // no need to check order (it is always checked in forward direction)
     getCurvePtr(idx - 1)->reverse();
     getCurvePtr(idx)->reverse();
-    calculateContinuity(getCurvePtr(idx), getCurvePtr(idx - 1), continuity_.at(idx - 1));
+    applyContinuity(getCurvePtr(idx), getCurvePtr(idx - 1), continuity_.at(idx - 1));
     getCurvePtr(idx - 1)->reverse();
     getCurvePtr(idx)->reverse();
   }
@@ -34,11 +32,11 @@ void PolyCurve::applyContinuity(uint idx)
     auto curve_f = getCurvePtr(idx + 1);
     while (curve_f->getOrder() < continuity_[idx].order + 1)
       curve_f->elevateOrder();
-    calculateContinuity(getCurvePtr(idx), getCurvePtr(idx + 1), continuity_.at(idx));
+    applyContinuity(getCurvePtr(idx), getCurvePtr(idx + 1), continuity_.at(idx));
   }
 }
 
-void PolyCurve::calculateContinuity(CurvePtr from, CurvePtr to, Continuity con)
+void PolyCurve::applyContinuity(CurvePtr from, CurvePtr to, Continuity con)
 {
   PointVector N;
   PointVector P = from->getControlPoints();
@@ -49,6 +47,7 @@ void PolyCurve::calculateContinuity(CurvePtr from, CurvePtr to, Continuity con)
 
   auto F = [n, m](uint k)
   {
+    // n! == tgamma(n +1)
     return std::tgamma(m - k + 1) / std::tgamma(m + 1) *
            std::tgamma(n + 1) / std::tgamma(n - k + 1);
   };
@@ -83,20 +82,6 @@ void PolyCurve::calculateContinuity(CurvePtr from, CurvePtr to, Continuity con)
 
   for (uint x = 0; x <= con.order; x++)
     to->manipulateControlPoint(x, N.at(x));
-
-  ConstCurvePtr der_q = from;
-  ConstCurvePtr der_p = to;
-  for(uint x = 0; x <= con.order; x++)
-  {
-    auto q = der_q->valueAt(1);
-    auto p = der_p->valueAt(0);
-    qDebug() << x << "derivation:";
-    qDebug() << '(' << q.x() << ',' << q.y() << ')' << '(' << (q/q.norm()).x() << ',' << (q/q.norm()).y() << ')' << q.norm();
-    qDebug() << '(' << p.x() << ',' << p.y() << ')' << '(' << (p/p.norm()).x() << ',' << (p/p.norm()).y() << ')' << p.norm();
-    qDebug() << q.norm() / p.norm() << p.norm() / q.norm();
-    der_q = der_q->getDerivative();
-    der_p = der_p->getDerivative();
-  }
 }
 
 PolyCurve::PolyCurve(CurvePtr& curve) { curves_.push_back(curve); }
@@ -176,7 +161,7 @@ void PolyCurve::removeBack() { curves_.pop_back(); }
 
 void PolyCurve::setContinuity(uint idx, Continuity c) {
   continuity_[idx] = c;
-  applyContinuity(idx);
+  prepareForContinuity(idx);
 }
 
 PolyCurve PolyCurve::getSubPolyCurve(uint idx_l, uint idx_r)
@@ -197,14 +182,19 @@ uint PolyCurve::getCurveIdx(const CurvePtr& curve) const
 
 CurvePtr PolyCurve::getCurvePtr(uint idx) const { return curves_.at(idx); }
 
+std::vector<CurvePtr> PolyCurve::getCurveList() const
+{
+  return std::vector<CurvePtr>(curves_.begin(), curves_.end());
+}
+
 PointVector PolyCurve::getPolyline(double smoothness, double precision) const
 {
   PointVector polyline;
   for (uint k = 0; k < getSize(); k++)
   {
     auto new_poly = getCurvePtr(k)->getPolyline(smoothness, precision);
-    polyline.reserve(polyline.size() + new_poly.size());
-    polyline.insert(polyline.end(), new_poly.begin(), new_poly.end());
+    polyline.reserve(polyline.size() + new_poly.size() - (k > 0 ? 1 : 0));
+    polyline.insert(polyline.end(), new_poly.begin() + (k > 0 ? 1 : 0), new_poly.end());
   }
   return polyline;
 }
@@ -232,7 +222,7 @@ void PolyCurve::manipulateControlPoint(uint idx, const Point& point)
     if (idx <= curve->getOrder())
     {
       curve->manipulateControlPoint(idx, point);
-      applyContinuity(getCurveIdx(curve));
+      prepareForContinuity(getCurveIdx(curve));
       break;
     }
     else
