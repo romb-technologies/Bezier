@@ -29,7 +29,9 @@ Fast and lightweight class for using the Bezier curves of any order in C++
     - [x] Equivalent methods from Bezier curves
     - [x] Adding and removing curves
     - [ ] Curve continuity and manipulation
-    - [ ] Document polycurve features
+      - [x] Parametric continuity
+      - [ ] Geometric continuity
+    - [x] Document polycurve features
     - [ ] More sophisticated example
   - <img src="https://img.shields.io/badge/v.0.3-planned-red.svg" alt="v0.3 planned" align="top"> Bezier shapes
 
