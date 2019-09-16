@@ -78,7 +78,6 @@ private:
   Coeffs lowerOrderCoeffs(uint n) const;
 
 public:
-  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
   /*!
    * \brief Create the Bezier curve

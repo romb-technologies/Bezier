@@ -31,7 +31,6 @@ namespace Bezier
 class PolyLine : public PointVector
 {
 public:
-  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
   /*!
    * \brief Create the polyline

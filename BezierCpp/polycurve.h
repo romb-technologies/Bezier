@@ -74,7 +74,6 @@ private:
   void applyContinuity(CurvePtr from, CurvePtr to, Continuity con);
 
 public:
-  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
   /*!
    * \brief Create the Bezier polycurve with only one subcurve
