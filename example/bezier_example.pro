@@ -48,7 +48,8 @@ HEADERS += \
 ../BezierCpp/declarations.h \
 ../BezierCpp/polyline.h \
     qcurve.h \
-    qpolycurve.h
+    qpolycurve.h \
+    fw_curve.h
 
 FORMS += \
         mainwindow.ui

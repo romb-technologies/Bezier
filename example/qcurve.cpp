@@ -1,5 +1,7 @@
 #include "qcurve.h"
 
+#include "fw_curve.h"
+
 #include <QPainter>
 #include <QPen>
 
@@ -53,15 +55,22 @@ void qCurve::paint(QPainter* painter, const QStyleOptionGraphicsItem* option, QW
 
   if (draw_curvature_radious)
   {
-    painter->setPen(Qt::green);
-    for (double t = 0; t <= 1.0; t += 1.0 / 100)
+    QPainterPath curve_fw;
+    auto pfw = getFrontWheelPosition(*this, 0);
+    curve_fw.moveTo(pfw.x(), pfw.y());
+    for (double t = 1.0 / 300; t <= 1.0; t += 1.0 / 300)
     {
-      painter->setPen(QColor(abs(255 * (0.5 - t)), (int)(255 * t), (int)(255 * (1 - t))));
-      auto p = valueAt(t);
-      auto n1 = p + normalAt(t, false) * curvatureAt(t);
-      auto n2 = p - normalAt(t, false) * curvatureAt(t);
-      painter->drawLine(QLineF(n1.x(), n1.y(), n2.x(), n2.y()));
+        pfw = getFrontWheelPosition(*this, t);
+        curve_fw.lineTo(pfw.x(), pfw.y());
+//      painter->setPen(QColor(abs(255 * (0.5 - t)), (int)(255 * t), (int)(255 * (1 - t))));
+//      auto p = valueAt(t);
+//      auto n1 = p + normalAt(t, false) * curvatureAt(t);
+//      auto n2 = p - normalAt(t, false) * curvatureAt(t);
+//      painter->drawLine(QLineF(n1.x(), n1.y(), n2.x(), n2.y()));
     }
+    painter->setPen(Qt::green);
+    painter->setBrush(QBrush());
+    painter->drawPath(curve_fw);
   }
 }
 
