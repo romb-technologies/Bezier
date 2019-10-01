@@ -10,6 +10,8 @@
 #define c_curve (static_cast<qCurve*>(curve))
 #define c_poly (static_cast<qPolyCurve*>(curve))
 
+#include "fw_curve.h"
+
 void CustomScene::drawForeground(QPainter* painter, const QRectF& rect)
 {
   Q_UNUSED(rect)
@@ -189,8 +191,8 @@ void CustomScene::mouseMoveEvent(QGraphicsSceneMouseEvent* mouseEvent)
       if (is_curve)
       {
         auto t1 = c_curve->projectPoint(p);
-        auto p1 = c_curve->valueAt(t1);
-        auto tan1 = c_curve->tangentAt(t1);
+        auto p1 = getFrontWheelPosition(*c_curve, t1);//c_curve->valueAt(t1);
+        auto tan1 = getFrontWheelTangent(*c_curve, t1);//c_curve->tangentAt(t1);
         line[curve]->setLine(QLineF(QPointF(p.x(), p.y()), QPointF(p1.x(), p1.y())));
         tan[curve]->setLine(QLineF(QPointF(p1.x(), p1.y()) - 500 * QPointF(tan1.x(), tan1.y()),
                                    QPointF(p1.x(), p1.y()) + 500 * QPointF(tan1.x(), tan1.y())));
