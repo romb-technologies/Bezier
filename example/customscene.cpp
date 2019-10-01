@@ -192,8 +192,8 @@ void CustomScene::mouseMoveEvent(QGraphicsSceneMouseEvent* mouseEvent)
       {
         auto t1 = c_curve->projectPoint(p);
         auto p_c = c_curve->valueAt(t1);
-        auto p1 = getFrontWheelCurveDerivation_1(*c_curve, t1);//c_curve->valueAt(t1);
-        auto tan1 = getFrontWheelCurveDerivation_2(*c_curve, t1);//c_curve->tangentAt(t1);
+        auto p1 = getFrontWheelCurveDerivation_2(*c_curve, t1);//c_curve->valueAt(t1);
+        auto tan1 = getFrontWheelCurveDerivation_3(*c_curve, t1);//c_curve->tangentAt(t1);
         line[curve]->setLine(QLineF(QPointF(p.x(), p.y()), QPointF(p_c.x(), p_c.y())));
         tan[curve]->setLine(QLineF(QPointF(p1.x(), p1.y()) - 500 * QPointF(tan1.x(), tan1.y()),
                                    QPointF(p1.x(), p1.y()) + 500 * QPointF(tan1.x(), tan1.y())));
