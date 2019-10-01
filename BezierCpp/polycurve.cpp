@@ -297,14 +297,14 @@ PointVector PolyCurve::getPointsOfIntersection(const PolyCurve& poly_curve, bool
   return points;
 }
 
-double PolyCurve::projectPoint(const Point& point, double step) const
+double PolyCurve::projectPoint(const Point& point, double step, double epsilon) const
 {
-  double min_t = curves_.front()->projectPoint(point, step);
+  double min_t = curves_.front()->projectPoint(point, step, epsilon);
   double min_dist = (point - curves_.front()->valueAt(min_t)).norm();
 
   for (uint k = 1; k < getSize(); k++)
   {
-    double t = curves_.at(k)->projectPoint(point, step);
+    double t = curves_.at(k)->projectPoint(point, step, epsilon);
     double dist = (point - curves_.at(k)->valueAt(t)).norm();
     if (dist < min_dist)
     {

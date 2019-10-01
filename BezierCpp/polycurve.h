@@ -257,7 +257,7 @@ public:
    * \param epsilon Precision of resulting projection
    * \return Parameter t
    */
-  double projectPoint(const Point& point, double step = 0.01) const;
+  double projectPoint(const Point& point, double step = 0.01, double epsilon = 0.001) const;
 };
 }
 #endif // POLYCURVE_H
