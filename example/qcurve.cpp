@@ -71,6 +71,25 @@ void qCurve::paint(QPainter* painter, const QStyleOptionGraphicsItem* option, QW
     painter->setPen(Qt::green);
     painter->setBrush(QBrush());
     painter->drawPath(curve_fw);
+
+    QPainterPath curve_fw_d1;
+    auto d1_fw = getFrontWheelCurveDerivation_1(*this, 0);
+    curve_fw.moveTo(d1_fw.x(), d1_fw.y());
+    for (double t = 1.0 / 300; t <= 1.0; t += 1.0 / 300)
+    {
+        d1_fw = getFrontWheelCurveDerivation_1(*this, t);
+        curve_fw_d1.lineTo(d1_fw.x(), d1_fw.y());
+//      painter->setPen(QColor(abs(255 * (0.5 - t)), (int)(255 * t), (int)(255 * (1 - t))));
+//      auto p = valueAt(t);
+//      auto n1 = p + normalAt(t, false) * curvatureAt(t);
+//      auto n2 = p - normalAt(t, false) * curvatureAt(t);
+//      painter->drawLine(QLineF(n1.x(), n1.y(), n2.x(), n2.y()));
+    }
+    painter->setPen(Qt::magenta);
+    painter->setBrush(QBrush());
+    painter->drawPath(curve_fw_d1);
+
+
   }
 }
 
