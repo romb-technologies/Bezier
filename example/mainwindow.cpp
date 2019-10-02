@@ -24,8 +24,8 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent), ui(new Ui::MainWi
       164, 165,
       124, 134;
 
-  scene->addItem(new qCurve(cp1 * 5));
-  scene->addItem(new qCurve(cp2 * 5));
+  scene->addItem(new qCurve(cp1));
+//  scene->addItem(new qCurve(cp2));
 
   ui->graphicsView->centerOn(scene->itemsBoundingRect().center());
 }

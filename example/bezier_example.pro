@@ -37,7 +37,8 @@ SOURCES += \
     ../BezierCpp/polycurve.cpp \
 ../BezierCpp/polyline.cpp \
     qcurve.cpp \
-    qpolycurve.cpp
+    qpolycurve.cpp \
+    fw_curve.cpp
 
 HEADERS += \
         mainwindow.h \
