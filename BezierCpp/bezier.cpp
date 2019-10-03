@@ -1,4 +1,5 @@
 #include "bezier.h"
+#include "legendre_gauss.h"
 
 inline double binomial(uint n, uint k) { return tgamma(n + 1) / (tgamma(k + 1) * tgamma(n - k + 1)); }
 
@@ -172,6 +173,23 @@ PointVector Curve::getPolyline(double smoothness, double precision) const
     (const_cast<Curve*>(this))->cached_polyline_.reset(polyline);
   }
   return *cached_polyline_;
+}
+
+double Curve::getLength() const
+{
+  double z = 0.5;
+  double sum = 0;
+  uint n = 5 * N_; // TODO: decide which weights to use
+  for (uint k = 0; k < n; k++) {
+    double t = z * LegendreGauss::abscissae.at(n).at(k) + z;
+    sum += LegendreGauss::weights.at(n).at(k) * getDerivative()->valueAt(t).norm();
+  }
+  return z * sum;
+}
+
+double Curve::getLength(double t) const
+{
+  return splitCurve(t).first.getLength();
 }
 
 void Curve::reverse()

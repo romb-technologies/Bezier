@@ -11,6 +11,8 @@
 #define c_poly (static_cast<qPolyCurve*>(curve))
 
 #include "fw_curve.h"
+#include "polyline.h"
+#include <QElapsedTimer>
 
 void CustomScene::drawForeground(QPainter* painter, const QRectF& rect)
 {
@@ -219,6 +221,12 @@ void CustomScene::mouseMoveEvent(QGraphicsSceneMouseEvent* mouseEvent)
     {
       c_curve->prepareGeometryChange();
       c_curve->manipulateControlPoint(cp_to_update.second, p);
+      QElapsedTimer timer;
+      timer.start();
+      qDebug() << c_curve->getLength() << " - " << timer.nsecsElapsed();
+      timer.restart();
+      qDebug() << Bezier::PolyLine(c_curve->getPolyline()).getLength() << " - " << timer.nsecsElapsed();
+      qDebug() << "---";
     }
     if (is_poly)
     {

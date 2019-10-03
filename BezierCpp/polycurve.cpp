@@ -199,6 +199,26 @@ PointVector PolyCurve::getPolyline(double smoothness, double precision) const
   return polyline;
 }
 
+double PolyCurve::getLength() const
+{
+  double l = 0;
+  for(auto& curve : curves_)
+    l += curve->getLength();
+  return l;
+}
+
+double PolyCurve::getLength(double t) const
+{
+  double l = 0;
+  uint idx = static_cast<uint>(t);
+  if (idx == getSize()) // for the last point of last curve
+    --idx;
+  for (uint k = 0; k < idx; k++)
+    l += curves_.at(k)->getLength();
+  l += curves_.at(idx)->getLength(t - idx);
+  return l;
+}
+
 std::pair<Point, Point> PolyCurve::getEndPoints() const
 {
   return std::make_pair(curves_.front()->getEndPoints().first, curves_.back()->getEndPoints().second);

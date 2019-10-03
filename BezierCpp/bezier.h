@@ -117,6 +117,9 @@ public:
    */
   PointVector getPolyline(double smoothness = 1.0001, double precision = 1.0) const;
 
+  double getLength() const;
+  double getLength(double t) const;
+
   /*!
    * \brief Reverse order of control points
    */

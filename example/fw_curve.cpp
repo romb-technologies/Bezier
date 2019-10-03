@@ -1,7 +1,7 @@
 #include "fw_curve.h"
 
-#define LL 20
-#define dd 7
+#define LL 1.438
+#define dd 0
 
 inline double LDx(Bezier::Point p) {
   auto asd = LL * p.x();
