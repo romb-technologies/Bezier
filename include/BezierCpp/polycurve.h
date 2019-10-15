@@ -170,8 +170,29 @@ public:
    */
   PointVector getPolyline(double smoothness = 1.0001, double precision = 1.0) const;
 
+  /*!
+   * \brief Compute exaxt arc length with Legendre-Gauss quadrature
+   * \return Arc length
+   * \warning Precision depends on value of LEGENDRE_GAUSS_N at compile time
+   */
   double getLength() const;
+
+  /*!
+   * \brief Compute exact arc length with Legendre-Gauss quadrature
+   * \param t Curve parameter to which length is computed
+   * \return Arc length from start to parameter t
+   * \warning Precision depends on value of LEGENDRE_GAUSS_N at compile time
+   */
   double getLength(double t) const;
+
+  /*!
+   * \brief Compute exact arc length with Legendre-Gauss quadrature
+   * \param t1 Curve parameter from which length is computed
+   * \param t2 Curve parameter to which length is computed
+   * \return Arc length between paramaters t1 and t2
+   * \warning Precision depends on value of LEGENDRE_GAUSS_N at compile time
+   */
+  double getLength(double t1, double t2) const;
 
   /*!
    * \brief Get first and last control points

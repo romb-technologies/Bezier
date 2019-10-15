@@ -117,8 +117,29 @@ public:
    */
   PointVector getPolyline(double smoothness = 1.0001, double precision = 1.0) const;
 
+  /*!
+   * \brief Compute exaxt arc length with Legendre-Gauss quadrature
+   * \return Arc length
+   * \warning Precision depends on value of LEGENDRE_GAUSS_N at compile time
+   */
   double getLength() const;
+
+  /*!
+   * \brief Compute exact arc length with Legendre-Gauss quadrature
+   * \param t Curve parameter to which length is computed
+   * \return Arc length from start to parameter t
+   * \warning Precision depends on value of LEGENDRE_GAUSS_N at compile time
+   */
   double getLength(double t) const;
+
+  /*!
+   * \brief Compute exact arc length with Legendre-Gauss quadrature
+   * \param t1 Curve parameter from which length is computed
+   * \param t2 Curve parameter to which length is computed
+   * \return Arc length between paramaters t1 and t2
+   * \warning Precision depends on value of LEGENDRE_GAUSS_N at compile time
+   */
+  double getLength(double t1, double t2) const;
 
   /*!
    * \brief Reverse order of control points
@@ -171,6 +192,13 @@ public:
    * \return Curvature of a curve for a given t
    */
   double curvatureAt(double t) const;
+
+  /*!
+   * \brief Get curvature derivative of curve for a given t
+   * \param t Curve parameter
+   * \return Curvature derivative of a curve for a given t
+   */
+  double curvatureDerivativeAt(double t) const;
 
   /*!
    * \brief Get the tangent of curve for a given t

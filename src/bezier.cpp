@@ -1,5 +1,8 @@
-#include "bezier.h"
-#include "legendre_gauss.h"
+#include "BezierCpp/bezier.h"
+#include "BezierCpp/legendre_gauss.h"
+
+#include <iostream>
+#include <numeric>
 
 inline double binomial(uint n, uint k) { return tgamma(n + 1) / (tgamma(k + 1) * tgamma(n - k + 1)); }
 
@@ -177,20 +180,18 @@ PointVector Curve::getPolyline(double smoothness, double precision) const
 
 double Curve::getLength() const
 {
-  double z = 0.5;
+  constexpr double z = 0.5;
   double sum = 0;
-  uint n = 5 * N_; // TODO: decide which weights to use
-  for (uint k = 0; k < n; k++) {
-    double t = z * LegendreGauss::abscissae.at(n).at(k) + z;
-    sum += LegendreGauss::weights.at(n).at(k) * getDerivative()->valueAt(t).norm();
-  }
+
+  for (uint k = 0; k < LegendreGauss::N; k++)
+    sum += LegendreGauss::weights.at(k) * getDerivative()->valueAt(z * LegendreGauss::abcissae.at(k) + z).norm();
+
   return z * sum;
 }
 
-double Curve::getLength(double t) const
-{
-  return splitCurve(t).first.getLength();
-}
+double Curve::getLength(double t) const { return splitCurve(t).first.getLength(); }
+
+double Curve::getLength(double t1, double t2) const { return getLength(t2) - getLength(t1); }
 
 void Curve::reverse()
 {
@@ -266,10 +267,20 @@ Point Curve::valueAt(double t) const
 
 double Curve::curvatureAt(double t) const
 {
-  Point d = getDerivative()->valueAt(t);
-  Point dd = getDerivative()->getDerivative()->valueAt(t);
+  Point d1 = getDerivative()->valueAt(t);
+  Point d2 = getDerivative()->getDerivative()->valueAt(t);
 
-  return (d.x() * dd.y() - d.y() * dd.x()) / std::pow(d.norm(), 3);
+  return (d1.x() * d2.y() - d1.y() * d2.x()) / std::pow(d1.norm(), 3);
+}
+
+double Curve::curvatureDerivativeAt(double t) const
+{
+  auto d1 = getDerivative()->valueAt(t);
+  auto d2 = getDerivative()->getDerivative()->valueAt(t);
+  auto d3 = getDerivative()->getDerivative()->getDerivative()->valueAt(t);
+
+  return (d1.x() * d3.y() - d1.y() * d3.x()) / std::pow(d1.norm(), 3) -
+         3 * d1.dot(d2) * (d1.x() * d2.y() - d1.y() * d2.x()) / std::pow(d1.norm(), 5);
 }
 
 Vec2 Curve::tangentAt(double t, bool normalize) const
@@ -327,9 +338,8 @@ PointVector Curve::getRoots(double step, double epsilon, std::size_t max_iter) c
         while (current_iter < max_iter)
         {
           // Newton-Rhapson: f = f - f' / f''
-          double t_new =
-              t_current -
-              getDerivative()->valueAt(t_current)[k] / getDerivative()->getDerivative()->valueAt(t_current)[k];
+          double t_new = t_current - getDerivative()->valueAt(t_current)[k] /
+                                         getDerivative()->getDerivative()->valueAt(t_current)[k];
 
           // if there is no change to t_current
           if (std::fabs(t_new - t_current) < epsilon)
@@ -338,10 +348,9 @@ PointVector Curve::getRoots(double step, double epsilon, std::size_t max_iter) c
             if (t_new >= -epsilon && t_new <= 1 + epsilon)
             {
               // check if same value wasn't found before
-              if (added_t.end() == std::find_if(added_t.begin(), added_t.end(), [t_new, epsilon](const double& val)
-                                                {
-                                                  return std::fabs(val - t_new) < epsilon;
-                                                }))
+              if (added_t.end() == std::find_if(added_t.begin(), added_t.end(), [t_new, epsilon](const double& val) {
+                    return std::fabs(val - t_new) < epsilon;
+                  }))
               {
                 // add new value and point
                 added_t.push_back(t_new);
@@ -380,14 +389,10 @@ BBox Curve::getBBox(bool use_roots) const
     }
 
     // find mininum and maximum along each axis
-    auto x_extremes = std::minmax_element(extremes.begin(), extremes.end(), [](const Point& lhs, const Point& rhs)
-                                          {
-                                            return lhs.x() < rhs.x();
-                                          });
-    auto y_extremes = std::minmax_element(extremes.begin(), extremes.end(), [](const Point& lhs, const Point& rhs)
-                                          {
-                                            return lhs.y() < rhs.y();
-                                          });
+    auto x_extremes = std::minmax_element(extremes.begin(), extremes.end(),
+                                          [](const Point& lhs, const Point& rhs) { return lhs.x() < rhs.x(); });
+    auto y_extremes = std::minmax_element(extremes.begin(), extremes.end(),
+                                          [](const Point& lhs, const Point& rhs) { return lhs.y() < rhs.y(); });
     if (use_roots)
       (const_cast<Curve*>(this))->cached_bounding_box_tight_ = std::make_shared<BBox>(
           Point(x_extremes.first->x(), y_extremes.first->y()), Point(x_extremes.second->x(), y_extremes.second->y()));
@@ -454,11 +459,9 @@ PointVector Curve::getPointsOfIntersection(const Curve& curve, bool stop_at_firs
     {
       // segments converged, check if not already found and add new
       Point new_point = part_a->valueAt(0.5);
-      if (points_of_intersection.end() == std::find_if(points_of_intersection.begin(), points_of_intersection.end(),
-                                                       [new_point, epsilon](const Point& point)
-                                                       {
-                                                         return (point - new_point).norm() < epsilon;
-                                                       }))
+      if (points_of_intersection.end() ==
+          std::find_if(points_of_intersection.begin(), points_of_intersection.end(),
+                       [new_point, epsilon](const Point& point) { return (point - new_point).norm() < epsilon; }))
       {
         points_of_intersection.push_back(new_point);
 
@@ -554,4 +557,4 @@ double Curve::projectPoint(const Point& point, double step, double epsilon) cons
 
   return t;
 }
-}
+} // namespace Bezier

@@ -1,5 +1,5 @@
-#include "polycurve.h"
-#include "bezier.h"
+#include "BezierCpp/polycurve.h"
+#include "BezierCpp/bezier.h"
 
 inline double binomial(uint n, uint k) { return tgamma(n + 1) / (tgamma(k + 1) * tgamma(n - k + 1)); }
 
@@ -217,6 +217,11 @@ double PolyCurve::getLength(double t) const
     l += curves_.at(k)->getLength();
   l += curves_.at(idx)->getLength(t - idx);
   return l;
+}
+
+double PolyCurve::getLength(double t1, double t2) const
+{
+  return getLength(t2) - getLength(t1);
 }
 
 std::pair<Point, Point> PolyCurve::getEndPoints() const

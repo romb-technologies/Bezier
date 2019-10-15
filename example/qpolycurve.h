@@ -3,7 +3,8 @@
 
 #include <QGraphicsItem>
 
-#include "polycurve.h"
+#include "BezierCpp/declarations.h"
+#include "BezierCpp/polycurve.h"
 
 class qPolyCurve : public QGraphicsItem, public Bezier::PolyCurve
 {

@@ -1,7 +1,5 @@
 #include "qcurve.h"
 
-#include "fw_curve.h"
-
 #include <QPainter>
 #include <QPen>
 
@@ -55,63 +53,17 @@ void qCurve::paint(QPainter* painter, const QStyleOptionGraphicsItem* option, QW
 
   if (draw_curvature_radious)
   {
-    QPainterPath curve_fw;
-    auto pfw = getFrontWheelPosition(*this, 0);
-    curve_fw.moveTo(pfw.x(), pfw.y());
-    for (double t = 1.0 / 100; t <= 1.0; t += 1.0 / 100)
+    for (double t = 1.0 / 100; t <= 1.0; t += 1.0 / 200)
     {
-        pfw = getFrontWheelPosition(*this, t);
-        curve_fw.lineTo(pfw.x(), pfw.y());
-
       painter->setPen(QColor(abs(255 * (0.5 - t)), (int)(255 * t), (int)(255 * (1 - t))));
-      auto p = getFrontWheelPosition(*this,t);
-      auto tfw = getFrontWheelCurveDerivation_1(*this, t);
-      tfw.normalize();
-      Bezier::Point nfw(-tfw.y(), tfw.x());
-      double kap = 1 / getFrontWheelCurveKappa(*this,t);
-      double kapd = getFrontWheelCurveKappaDerived(*this,t) / 100000;
-      auto n1 = p + nfw * kap;//curvatureAt(t);
-      auto n2 = p - nfw * kap;//curvatureAt(t);
+      auto p = valueAt(t);
+      auto tangent = tangentAt(t);
+      Bezier::Point normal(-tangent.y(), tangent.x());
+      double kappa = curvatureAt(t);
+      auto n1 = p + normal * kappa * 100;
+      auto n2 = p - normal * kappa * 100;
       painter->drawLine(QLineF(n1.x(), n1.y(), n2.x(), n2.y()));
     }
-    painter->setPen(Qt::green);
-    painter->setBrush(QBrush());
-    painter->drawPath(curve_fw);
-
-    QPainterPath curve_fw_d1;
-    Bezier::Point d1_fw = getFrontWheelCurveDerivation_1(*this, 0);
-    curve_fw_d1.moveTo(d1_fw.x(), d1_fw.y());
-    for (double t = 1.0 / 300; t <= 1.0; t += 1.0 / 300)
-    {
-        d1_fw = getFrontWheelCurveDerivation_1(*this, t);
-        curve_fw_d1.lineTo(d1_fw.x(), d1_fw.y());
-//      painter->setPen(QColor(abs(255 * (0.5 - t)), (int)(255 * t), (int)(255 * (1 - t))));
-//      auto p = valueAt(t);
-//      auto n1 = p + normalAt(t, false) * curvatureAt(t);
-//      auto n2 = p - normalAt(t, false) * curvatureAt(t);
-//      painter->drawLine(QLineF(n1.x(), n1.y(), n2.x(), n2.y()));
-    }
-    painter->setPen(Qt::blue);
-    painter->setBrush(QBrush());
-    painter->drawPath(curve_fw_d1);
-
-    QPainterPath curve_fw_d2;
-    auto d2_fw = getFrontWheelCurveDerivation_2(*this, 0);
-    curve_fw_d2.moveTo(d2_fw.x(), d2_fw.y());
-    for (double t = 1.0 / 300; t <= 1.0; t += 1.0 / 300)
-    {
-        d2_fw = getFrontWheelCurveDerivation_2(*this, t);
-        curve_fw_d2.lineTo(d2_fw.x(), d2_fw.y());
-//      painter->setPen(QColor(abs(255 * (0.5 - t)), (int)(255 * t), (int)(255 * (1 - t))));
-//      auto p = valueAt(t);
-//      auto n1 = p + normalAt(t, false) * curvatureAt(t);
-//      auto n2 = p - normalAt(t, false) * curvatureAt(t);
-//      painter->drawLine(QLineF(n1.x(), n1.y(), n2.x(), n2.y()));
-    }
-    painter->setPen(Qt::magenta);
-    painter->setBrush(QBrush());
-    painter->drawPath(curve_fw_d2);
-
   }
 }
 

@@ -3,7 +3,8 @@
 
 #include <QGraphicsItem>
 
-#include "bezier.h"
+#include "BezierCpp/declarations.h"
+#include "BezierCpp/bezier.h"
 
 class qCurve : public QGraphicsItem, public Bezier::Curve
 {

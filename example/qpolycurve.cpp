@@ -1,7 +1,9 @@
 #include "qpolycurve.h"
-#include "bezier.h"
+
 #include <QPainter>
 #include <QPen>
+
+#include "BezierCpp/bezier.h"
 
 bool qPolyCurve::getDraw_control_points() const
 {

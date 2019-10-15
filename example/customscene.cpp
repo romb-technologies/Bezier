@@ -10,10 +10,6 @@
 #define c_curve (static_cast<qCurve*>(curve))
 #define c_poly (static_cast<qPolyCurve*>(curve))
 
-#include "fw_curve.h"
-#include "polyline.h"
-#include <QElapsedTimer>
-
 void CustomScene::drawForeground(QPainter* painter, const QRectF& rect)
 {
   Q_UNUSED(rect)
@@ -194,11 +190,8 @@ void CustomScene::mouseMoveEvent(QGraphicsSceneMouseEvent* mouseEvent)
       {
         auto t1 = c_curve->projectPoint(p);
         auto p_c = c_curve->valueAt(t1);
-//        auto p1 = getFrontWheelPosition(*c_curve, t1);//c_curve->valueAt(t1);
-//        auto tan1 = getFrontWheelCurveDerivation_1(*c_curve, t1);//c_curve->tangentAt(t1);
-
-        auto p1 = getFrontWheelCurveDerivation_2(*c_curve, t1);//c_curve->valueAt(t1);
-        auto tan1 = getFrontWheelCurveDerivation_3(*c_curve, t1);//c_curve->tangentAt(t1);
+        auto p1 = c_curve->valueAt(t1);
+        auto tan1 = c_curve->tangentAt(t1);
         line[curve]->setLine(QLineF(QPointF(p.x(), p.y()), QPointF(p_c.x(), p_c.y())));
         tan[curve]->setLine(QLineF(QPointF(p1.x(), p1.y()) - 500 * QPointF(tan1.x(), tan1.y()),
                                    QPointF(p1.x(), p1.y()) + 500 * QPointF(tan1.x(), tan1.y())));
@@ -221,12 +214,6 @@ void CustomScene::mouseMoveEvent(QGraphicsSceneMouseEvent* mouseEvent)
     {
       c_curve->prepareGeometryChange();
       c_curve->manipulateControlPoint(cp_to_update.second, p);
-      QElapsedTimer timer;
-      timer.start();
-      qDebug() << c_curve->getLength() << " - " << timer.nsecsElapsed();
-      timer.restart();
-      qDebug() << Bezier::PolyLine(c_curve->getPolyline()).getLength() << " - " << timer.nsecsElapsed();
-      qDebug() << "---";
     }
     if (is_poly)
     {

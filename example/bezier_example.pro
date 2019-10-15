@@ -26,32 +26,30 @@ CONFIG += c++17
 QMAKE_CXXFLAGS += -march=native
 
 INCLUDEPATH += /usr/include/eigen3 \
-    ../BezierCpp
+               ../include
 
 SOURCES += \
         main.cpp \
         mainwindow.cpp \
-        ../BezierCpp/bezier.cpp \
-    qgraphicsviewzoom.cpp \
-    customscene.cpp \
-    ../BezierCpp/polycurve.cpp \
-../BezierCpp/polyline.cpp \
-    qcurve.cpp \
-    qpolycurve.cpp \
-    fw_curve.cpp
+        qgraphicsviewzoom.cpp \
+        customscene.cpp \
+        qcurve.cpp \
+        qpolycurve.cpp \
+        ../src/bezier.cpp \
+        ../src/polycurve.cpp \
+        ../src/offsetted_point.cpp
 
 HEADERS += \
         mainwindow.h \
-        ../BezierCpp/bezier.h \
-    qgraphicsviewzoom.h \
-    customscene.h \
-    ../BezierCpp/polycurve.h \
-../BezierCpp/declarations.h \
-../BezierCpp/polyline.h \
-    qcurve.h \
-    qpolycurve.h \
-    fw_curve.h \
-    ../BezierCpp/legendre_gauss.h
+        qgraphicsviewzoom.h \
+        customscene.h \
+        qcurve.h \
+        qpolycurve.h \
+        ../include/BezierCpp/bezier.h \
+        ../include/BezierCpp/polycurve.h \
+        ../include/BezierCpp/declarations.h \
+        ../include/BezierCpp/legendre_gauss.h \
+        ../include/BezierCpp/offsetted_point.h
 
 FORMS += \
         mainwindow.ui
