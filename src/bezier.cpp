@@ -4,6 +4,8 @@
 #include <iostream>
 #include <numeric>
 
+#include <unsupported/Eigen/MatrixFunctions>
+
 inline double binomial(uint n, uint k) { return tgamma(n + 1) / (tgamma(k + 1) * tgamma(n - k + 1)); }
 
 namespace Bezier
@@ -29,57 +31,59 @@ Curve::Coeffs Curve::bernsteinCoeffs() const
   if (bernstein_coeffs_.find(N_) == bernstein_coeffs_.end())
   {
     bernstein_coeffs_.insert(std::make_pair(N_, Coeffs::Zero(N_, N_)));
+    bernstein_coeffs_.at(N_).diagonal(-1) = Eigen::ArrayXd::LinSpaced(N_ - 1, 1, N_ - 1);
+    bernstein_coeffs_.at(N_) = bernstein_coeffs_.at(N_).exp();
+    for (uint k = 1; k < N_; k += 2)
+      bernstein_coeffs_.at(N_).diagonal(-static_cast<int>(k)) *= -1;
     for (uint k = 0; k < N_; k++)
-      for (uint i = 0; i <= k; i++)
-        bernstein_coeffs_.at(N_)(k, i) = std::pow(-1, i - k) * binomial(N_ - 1, k) * binomial(k, i);
+      bernstein_coeffs_.at(N_).row(k) *= binomial(N_ - 1, k);
   }
   return bernstein_coeffs_.at(N_);
 }
 
 Curve::Coeffs Curve::splittingCoeffsLeft(double z) const
 {
-  Curve::Coeffs coeffs(Coeffs::Zero(N_, N_));
   if (z == 0.5)
   {
     if (splitting_coeffs_left_.find(N_) == splitting_coeffs_left_.end())
     {
       splitting_coeffs_left_.insert(std::make_pair(N_, Coeffs::Zero(N_, N_)));
-      for (uint k = 0; k < N_; k++)
-        splitting_coeffs_left_.at(N_)(k, k) = std::pow(0.5, k);
+      splitting_coeffs_left_.at(N_).diagonal() = Eigen::pow(0.5, Eigen::ArrayXd::LinSpaced(N_, 0, N_ - 1));
       splitting_coeffs_left_.at(N_) = bernsteinCoeffs().inverse() * splitting_coeffs_left_.at(N_) * bernsteinCoeffs();
     }
-    coeffs = splitting_coeffs_left_.at(N_);
+    return splitting_coeffs_left_.at(N_);
   }
   else
   {
-    for (uint k = 0; k < N_; k++)
-      coeffs(k, k) = std::pow(z, k);
+    Curve::Coeffs coeffs(Coeffs::Zero(N_, N_));
+    coeffs.diagonal() = Eigen::pow(z, Eigen::ArrayXd::LinSpaced(N_, 0, N_ - 1));
     coeffs = bernsteinCoeffs().inverse() * coeffs * bernsteinCoeffs();
+    return coeffs;
   }
-  return coeffs;
 }
 
 Curve::Coeffs Curve::splittingCoeffsRight(double z) const
 {
-  Curve::Coeffs coeffs(Coeffs::Zero(N_, N_));
   if (z == 0.5)
   {
     if (splitting_coeffs_right_.find(N_) == splitting_coeffs_right_.end())
     {
       splitting_coeffs_right_.insert(std::make_pair(N_, Coeffs::Zero(N_, N_)));
+      Curve::Coeffs temp_splitting_coeffs_left = splittingCoeffsLeft();
       for (uint k = 0; k < N_; k++)
-        for (uint i = 0; i <= k; i++)
-          splitting_coeffs_right_.at(N_)(N_ - 1 - k, N_ - 1 - (k - i)) = splittingCoeffsLeft()(k, i);
+        splitting_coeffs_right_.at(N_).block(k, k, 1, N_ - k) =
+            temp_splitting_coeffs_left.block(N_ - 1 - k, 0, 1, N_ - k);
     }
-    coeffs = splitting_coeffs_right_.at(N_);
+    return splitting_coeffs_right_.at(N_);
   }
   else
   {
+    Curve::Coeffs coeffs(Coeffs::Zero(N_, N_));
+    Curve::Coeffs temp_splitting_coeffs_left = splittingCoeffsLeft(z);
     for (uint k = 0; k < N_; k++)
-      for (uint i = 0; i <= k; i++)
-        coeffs(N_ - 1 - k, N_ - 1 - (k - i)) = splittingCoeffsLeft(z)(k, i);
+      coeffs.block(k, k, 1, N_ - k) = temp_splitting_coeffs_left.block(N_ - 1 - k, 0, 1, N_ - k);
+    return coeffs;
   }
-  return coeffs;
 }
 
 Curve::Coeffs Curve::elevateOrderCoeffs(uint n) const
@@ -87,18 +91,8 @@ Curve::Coeffs Curve::elevateOrderCoeffs(uint n) const
   if (elevate_order_coeffs_.find(n) == elevate_order_coeffs_.end())
   {
     elevate_order_coeffs_.insert(std::make_pair(n, Coeffs::Zero(n + 1, n)));
-    for (uint k = 0; k < n + 1; k++)
-    {
-      if (k == 0)
-        elevate_order_coeffs_.at(n)(k, 0) = 1;
-      else if (k == n)
-        elevate_order_coeffs_.at(n)(k, k - 1) = 1;
-      else
-      {
-        elevate_order_coeffs_.at(n)(k, k - 1) = 1. * k / n;
-        elevate_order_coeffs_.at(n)(k, k) = 1 - 1. * k / n;
-      }
-    }
+    elevate_order_coeffs_.at(n).diagonal() = 1 - Eigen::ArrayXd::LinSpaced(n, 0, n - 1) / n;
+    elevate_order_coeffs_.at(n).diagonal(-1) = Eigen::ArrayXd::LinSpaced(n, 1, n) / n;
   }
   return elevate_order_coeffs_.at(n);
 }
@@ -112,7 +106,6 @@ Curve::Coeffs Curve::lowerOrderCoeffs(uint n) const
         (elevateOrderCoeffs(n - 1).transpose() * elevateOrderCoeffs(n - 1)).inverse() *
         elevateOrderCoeffs(n - 1).transpose();
   }
-
   return lower_order_coeffs_.at(n);
 }
 
@@ -557,4 +550,5 @@ double Curve::projectPoint(const Point& point, double step, double epsilon) cons
 
   return t;
 }
+
 } // namespace Bezier
