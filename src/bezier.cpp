@@ -261,7 +261,7 @@ Point Curve::valueAt(double t) const
 double Curve::curvatureAt(double t) const
 {
   Point d1 = getDerivative()->valueAt(t);
-  Point d2 = getDerivative()->getDerivative()->valueAt(t);
+  Point d2 = getDerivative(2)->valueAt(t);
 
   return (d1.x() * d2.y() - d1.y() * d2.x()) / std::pow(d1.norm(), 3);
 }
@@ -269,8 +269,8 @@ double Curve::curvatureAt(double t) const
 double Curve::curvatureDerivativeAt(double t) const
 {
   auto d1 = getDerivative()->valueAt(t);
-  auto d2 = getDerivative()->getDerivative()->valueAt(t);
-  auto d3 = getDerivative()->getDerivative()->getDerivative()->valueAt(t);
+  auto d2 = getDerivative(2)->valueAt(t);
+  auto d3 = getDerivative(3)->valueAt(t);
 
   return (d1.x() * d3.y() - d1.y() * d3.x()) / std::pow(d1.norm(), 3) -
          3 * d1.dot(d2) * (d1.x() * d2.y() - d1.y() * d2.x()) / std::pow(d1.norm(), 5);
@@ -311,6 +311,14 @@ ConstCurvePtr Curve::getDerivative() const
   return cached_derivative_;
 }
 
+ConstCurvePtr Curve::getDerivative(uint n) const
+{
+  ConstCurvePtr nth_derivative = getDerivative();
+  for (uint k = 1; k < n; k++)
+    nth_derivative = nth_derivative->getDerivative();
+  return nth_derivative;
+}
+
 PointVector Curve::getRoots(double step, double epsilon, std::size_t max_iter) const
 {
   if (!cached_roots_)
@@ -331,8 +339,7 @@ PointVector Curve::getRoots(double step, double epsilon, std::size_t max_iter) c
         while (current_iter < max_iter)
         {
           // Newton-Rhapson: f = f - f' / f''
-          double t_new = t_current - getDerivative()->valueAt(t_current)[k] /
-                                         getDerivative()->getDerivative()->valueAt(t_current)[k];
+          double t_new = t_current - getDerivative()->valueAt(t_current)[k] / getDerivative(2)->valueAt(t_current)[k];
 
           // if there is no change to t_current
           if (std::fabs(t_new - t_current) < epsilon)

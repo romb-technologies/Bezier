@@ -47,7 +47,7 @@ private:
   Eigen::MatrixX2d control_points_;
 
   // private caching
-  ConstCurvePtr cached_derivative_;              /*! If generated, stores derivative for later use */
+  ConstCurvePtr cached_derivative_;           /*! If generated, stores derivative for later use */
   std::shared_ptr<PointVector> cached_roots_; /*! If generated, stores roots for later use */
   std::shared_ptr<BBox>
       cached_bounding_box_tight_; /*! If generated, stores bounding box (use_roots = true) for later use */
@@ -78,7 +78,6 @@ private:
   Coeffs lowerOrderCoeffs(uint n) const;
 
 public:
-
   /*!
    * \brief Create the Bezier curve
    * \param points Nx2 matrix where each row is one of N control points that define the curve
@@ -223,6 +222,13 @@ public:
   ConstCurvePtr getDerivative() const;
 
   /*!
+   * \brief Get the nth derivative of a curve
+   * \param n Desired number of derivative
+   * \return Derivative curve
+   */
+  ConstCurvePtr getDerivative(uint n) const;
+
+  /*!
    * \brief Get the roots of curve on both axis
    * \param step Size of step in coarse search
    * \param epsilon Precision of resulting t
@@ -254,8 +260,7 @@ public:
    *
    * \warning self-intersection not yet implemented
    */
-  PointVector getPointsOfIntersection(const Curve& curve, bool stop_at_first = false,
-                                             double epsilon = 0.001) const;
+  PointVector getPointsOfIntersection(const Curve& curve, bool stop_at_first = false, double epsilon = 0.001) const;
 
   /*!
    * \brief Get the parameter t where curve is closest to given point
@@ -267,6 +272,6 @@ public:
   double projectPoint(const Point& point, double step = 0.01, double epsilon = 0.001) const;
 };
 
-}
+} // namespace Bezier
 
 #endif // BEZIER_H

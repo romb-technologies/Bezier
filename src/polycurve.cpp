@@ -45,25 +45,23 @@ void PolyCurve::applyContinuity(CurvePtr from, CurvePtr to, Continuity con)
   uint n = from->getOrder();
   uint m = to->getOrder();
 
-  auto F = [n, m](uint k)
-  {
+  auto F = [n, m](uint k) {
     // n! == tgamma(n +1)
-    return std::tgamma(m - k + 1) / std::tgamma(m + 1) *
-           std::tgamma(n + 1) / std::tgamma(n - k + 1);
+    return std::tgamma(m - k + 1) / std::tgamma(m + 1) * std::tgamma(n + 1) / std::tgamma(n - k + 1);
   };
 
-  auto R = [from, to, con](uint k)
-  {
-    if (k == 0 || con.type == 'C') return 1.0;
+  auto R = [from, to, con](uint k) {
+    if (k == 0 || con.type == 'C')
+      return 1.0;
     return to->getDerivative()->valueAt(0).norm() / from->getDerivative()->valueAt(1).norm();
-//    ConstCurvePtr der_q = from;
-//    ConstCurvePtr der_p = to;
-//    for(uint d = 0; d < k; d++)
-//    {
-//      der_q = der_q->getDerivative();
-//      der_p = der_p->getDerivative();
-//    }
-//    return der_p->valueAt(0).norm() / der_q->valueAt(1).norm();
+    //    ConstCurvePtr der_q = from;
+    //    ConstCurvePtr der_p = to;
+    //    for(uint d = 0; d < k; d++)
+    //    {
+    //      der_q = der_q->getDerivative();
+    //      der_p = der_p->getDerivative();
+    //    }
+    //    return der_p->valueAt(0).norm() / der_q->valueAt(1).norm();
   };
 
   for (uint x = 0; x <= con.order; x++)
@@ -74,7 +72,7 @@ void PolyCurve::applyContinuity(CurvePtr from, CurvePtr to, Continuity con)
     {
       double inner_sum = 0.0;
       for (uint k = i; k <= x; k++)
-        inner_sum += binomial(x-i, k-i)*F(k) * R(k);
+        inner_sum += binomial(x - i, k - i) * F(k) * R(k);
       new_point += std::pow(-1, i) * binomial(x, i) * P.at(n - i) * inner_sum;
     }
     N.push_back(new_point);
@@ -159,7 +157,8 @@ void PolyCurve::removeFirst() { curves_.pop_front(); }
 
 void PolyCurve::removeBack() { curves_.pop_back(); }
 
-void PolyCurve::setContinuity(uint idx, Continuity c) {
+void PolyCurve::setContinuity(uint idx, Continuity c)
+{
   continuity_[idx] = c;
   prepareForContinuity(idx);
 }
@@ -182,10 +181,7 @@ uint PolyCurve::getCurveIdx(const CurvePtr& curve) const
 
 CurvePtr PolyCurve::getCurvePtr(uint idx) const { return curves_.at(idx); }
 
-std::vector<CurvePtr> PolyCurve::getCurveList() const
-{
-  return std::vector<CurvePtr>(curves_.begin(), curves_.end());
-}
+std::vector<CurvePtr> PolyCurve::getCurveList() const { return std::vector<CurvePtr>(curves_.begin(), curves_.end()); }
 
 PointVector PolyCurve::getPolyline(double smoothness, double precision) const
 {
@@ -202,7 +198,7 @@ PointVector PolyCurve::getPolyline(double smoothness, double precision) const
 double PolyCurve::getLength() const
 {
   double l = 0;
-  for(auto& curve : curves_)
+  for (auto& curve : curves_)
     l += curve->getLength();
   return l;
 }
@@ -213,16 +209,14 @@ double PolyCurve::getLength(double t) const
   uint idx = static_cast<uint>(t);
   if (idx == getSize()) // for the last point of last curve
     --idx;
-  for (uint k = 0; k < idx; k++)
-    l += curves_.at(k)->getLength();
+
+  std::for_each(begin(curves_), begin(curves_) + idx, [&l](const Bezier::CurvePtr& curve) { l += curve->getLength(); });
   l += curves_.at(idx)->getLength(t - idx);
+
   return l;
 }
 
-double PolyCurve::getLength(double t1, double t2) const
-{
-  return getLength(t2) - getLength(t1);
-}
+double PolyCurve::getLength(double t1, double t2) const { return getLength(t2) - getLength(t1); }
 
 std::pair<Point, Point> PolyCurve::getEndPoints() const
 {
@@ -339,4 +333,4 @@ double PolyCurve::projectPoint(const Point& point, double step, double epsilon) 
   }
   return min_t;
 }
-}
+} // namespace Bezier
