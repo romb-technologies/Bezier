@@ -140,7 +140,7 @@ std::pair<Point, Point> Curve::getEndPoints() const
 
 PointVector Curve::getPolyline(double smoothness, double precision) const
 {
-  if (!cached_polyline_ || smoothness != cached_polyline_smootheness_)
+  if (!cached_polyline_ || cached_polyline_params_ != std::make_tuple(smoothness, precision))
   {
     PointVector* polyline = new PointVector;
     std::vector<std::shared_ptr<Curve>> subcurves;
@@ -165,7 +165,7 @@ PointVector Curve::getPolyline(double smoothness, double precision) const
         subcurves.push_back(std::make_shared<Bezier::Curve>(split.first));
       }
     }
-    (const_cast<Curve*>(this))->cached_polyline_smootheness_ = smoothness;
+    (const_cast<Curve*>(this))->cached_polyline_params_ = {smoothness, precision};
     (const_cast<Curve*>(this))->cached_polyline_.reset(polyline);
   }
   return *cached_polyline_;
@@ -321,8 +321,9 @@ ConstCurvePtr Curve::getDerivative(uint n) const
 
 PointVector Curve::getRoots(double step, double epsilon, std::size_t max_iter) const
 {
-  if (!cached_roots_)
+  if (!cached_roots_ || cached_roots_params_ != std::make_tuple(step, epsilon, max_iter))
   {
+    (const_cast<Curve*>(this))->cached_roots_params_ = {step, epsilon, max_iter};
     (const_cast<Curve*>(this))->cached_roots_ = std::make_shared<PointVector>();
     std::vector<double> added_t;
 
@@ -393,12 +394,10 @@ BBox Curve::getBBox(bool use_roots) const
                                           [](const Point& lhs, const Point& rhs) { return lhs.x() < rhs.x(); });
     auto y_extremes = std::minmax_element(extremes.begin(), extremes.end(),
                                           [](const Point& lhs, const Point& rhs) { return lhs.y() < rhs.y(); });
-    if (use_roots)
-      (const_cast<Curve*>(this))->cached_bounding_box_tight_ = std::make_shared<BBox>(
-          Point(x_extremes.first->x(), y_extremes.first->y()), Point(x_extremes.second->x(), y_extremes.second->y()));
-    else
-      (const_cast<Curve*>(this))->cached_bounding_box_relaxed_ = std::make_shared<BBox>(
-          Point(x_extremes.first->x(), y_extremes.first->y()), Point(x_extremes.second->x(), y_extremes.second->y()));
+    (use_roots ? (const_cast<Curve*>(this))->cached_bounding_box_tight_
+               : (const_cast<Curve*>(this))->cached_bounding_box_relaxed_) =
+        std::make_shared<BBox>(Point(x_extremes.first->x(), y_extremes.first->y()),
+                               Point(x_extremes.second->x(), y_extremes.second->y()));
   }
   return *(use_roots ? cached_bounding_box_tight_ : cached_bounding_box_relaxed_);
 }
