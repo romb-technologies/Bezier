@@ -1,13 +1,13 @@
 #include "BezierCpp/bezier.h"
 #include "BezierCpp/legendre_gauss.h"
 
+#include <exception>
 #include <iostream>
 #include <numeric>
-#include <exception>
 
 #include <unsupported/Eigen/MatrixFunctions>
 
-inline double binomial(uint n, uint k) { return tgamma(n + 1) / (tgamma(k + 1) * tgamma(n - k + 1)); }
+inline double binomial(uint n, uint k) { return std::tgamma(n + 1) / (std::tgamma(k + 1) * std::tgamma(n - k + 1)); }
 
 namespace Bezier
 {
@@ -242,7 +242,7 @@ void Curve::elevateOrder()
 void Curve::lowerOrder()
 {
   if (N_ == 2)
-    throw "Cannot further reduce the order of curve.";
+    throw std::logic_error{"Cannot further reduce the order of curve."};
   Eigen::MatrixXd new_points = lowerOrderCoeffs(N_) * control_points_;
   control_points_.resize(--N_, 2);
   control_points_ = new_points;
@@ -312,24 +312,19 @@ ConstCurvePtr Curve::getDerivative() const
   return cached_derivative_;
 }
 
-Point Curve::getDerivativeAt(double t) const
-{
-  return getDerivative()->valueAt(t);
-}
+Point Curve::getDerivativeAt(double t) const { return getDerivative()->valueAt(t); }
 
 ConstCurvePtr Curve::getDerivative(uint n) const
 {
-  if (n == 0) throw std::invalid_argument{"Parameter 'n' cannot be zero."};
+  if (n == 0)
+    throw std::invalid_argument{"Parameter 'n' cannot be zero."};
   ConstCurvePtr nth_derivative = getDerivative();
   for (uint k = 1; k < n; k++)
     nth_derivative = nth_derivative->getDerivative();
   return nth_derivative;
 }
 
-Point Curve::getDerivativeAt(uint n, double t) const
-{
-  return getDerivative(n)->valueAt(t);
-}
+Point Curve::getDerivativeAt(uint n, double t) const { return getDerivative(n)->valueAt(t); }
 
 PointVector Curve::getRoots(double step, double epsilon, std::size_t max_iter) const
 {
