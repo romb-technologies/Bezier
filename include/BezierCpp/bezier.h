@@ -142,6 +142,16 @@ public:
   double getLength(double t1, double t2) const;
 
   /*!
+   * \brief Compute parameter t which is S distance from given t
+   * \param t Curve parameter
+   * \param s Distance to iterate
+   * \param epsilon Precision of resulting t
+   * \param max_iter Maximum number of iterations for Newton-Rhapson
+   * \return New parameter t
+   */
+  double iterateByLength(double t, double s, double epsilon = 0.001, std::size_t max_iter = 15) const;
+
+  /*!
    * \brief Reverse order of control points
    */
   void reverse();

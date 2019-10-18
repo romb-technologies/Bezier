@@ -1,6 +1,8 @@
 #include "BezierCpp/polycurve.h"
 #include "BezierCpp/bezier.h"
 
+#include <numeric>
+
 inline double binomial(uint n, uint k) { return tgamma(n + 1) / (tgamma(k + 1) * tgamma(n - k + 1)); }
 
 namespace Bezier
@@ -124,15 +126,29 @@ double PolyCurve::getLength(double t) const
   uint idx;
   std::tie(idx, t) = getCurveIdx(t);
 
-  double length = 0;
-  std::for_each(begin(curves_), begin(curves_) + idx,
-                [&length](const Bezier::CurvePtr& curve) { length += curve->getLength(); });
-  length += curves_.at(idx)->getLength(t - idx);
-
-  return length;
+  return std::accumulate(begin(curves_), begin(curves_) + idx, curves_.at(idx)->getLength(t),
+                         [](double sum, Bezier::ConstCurvePtr curve) { return sum + curve->getLength(); });
 }
 
 double PolyCurve::getLength(double t1, double t2) const { return getLength(t2) - getLength(t1); }
+
+double PolyCurve::iterateByLength(double t, double s, double epsilon, std::size_t max_iter) const {
+  double s_t = getLength(t);
+  if(s_t + s < 0 || s_t + s > getLength()) throw std::out_of_range{"Resulting parameter t not in [0, n] range."};
+
+  uint idx;
+  std::tie(idx, t) = getCurveIdx(t);
+  s_t -= getLength(idx);
+
+  while(getCurvePtr(idx)->getLength() - s_t < s)
+  {
+    s -= getCurvePtr(idx++)->getLength() - s_t;
+    s_t = 0;
+    t = 0;
+  }
+
+  return idx + getCurvePtr(idx)->iterateByLength(t, s, epsilon, max_iter);
+}
 
 std::pair<Point, Point> PolyCurve::getEndPoints() const
 {
@@ -167,28 +183,28 @@ Point PolyCurve::valueAt(double t) const
 {
   uint idx;
   std::tie(idx, t) = getCurveIdx(t);
-  return getCurvePtr(idx)->valueAt(t - idx);
+  return getCurvePtr(idx)->valueAt(t);
 }
 
 double PolyCurve::curvatureAt(double t) const
 {
   uint idx;
   std::tie(idx, t) = getCurveIdx(t);
-  return getCurvePtr(idx)->curvatureAt(t - idx);
+  return getCurvePtr(idx)->curvatureAt(t);
 }
 
 Vec2 PolyCurve::tangentAt(double t, bool normalize) const
 {
   uint idx;
   std::tie(idx, t) = getCurveIdx(t);
-  return getCurvePtr(idx)->tangentAt(t - idx, normalize);
+  return getCurvePtr(idx)->tangentAt(t, normalize);
 }
 
 Vec2 PolyCurve::normalAt(double t, bool normalize) const
 {
   uint idx;
   std::tie(idx, t) = getCurveIdx(t);
-  return getCurvePtr(idx)->normalAt(t - idx, normalize);
+  return getCurvePtr(idx)->normalAt(t, normalize);
 }
 
 BBox PolyCurve::getBBox(bool use_roots) const

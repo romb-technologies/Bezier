@@ -2,7 +2,6 @@
 #include "BezierCpp/legendre_gauss.h"
 
 #include <exception>
-#include <iostream>
 #include <numeric>
 
 #include <unsupported/Eigen/MatrixFunctions>
@@ -186,6 +185,30 @@ double Curve::getLength() const
 double Curve::getLength(double t) const { return splitCurve(t).first.getLength(); }
 
 double Curve::getLength(double t1, double t2) const { return getLength(t2) - getLength(t1); }
+
+double Curve::iterateByLength(double t, double s, double epsilon, std::size_t max_iter) const
+{
+  const double s_t = getLength(t);
+  std::size_t current_iter = 0;
+
+  if (s_t + s < 0 || s_t + s > getLength()) throw std::out_of_range{"Resulting parameter t not in [0, 1] range."};
+
+  // it has to converge in max_iter steps
+  while (current_iter < max_iter)
+  {
+    // Newton-Rhapson
+    double t_new = t - (getLength(t) - s_t - s) / getDerivativeAt(t).norm();
+
+    // if there is no change to t
+    if (std::fabs(t_new - t) < epsilon)
+      break;
+
+    t = t_new;
+    current_iter++;
+  }
+
+  return t;
+}
 
 void Curve::reverse()
 {
