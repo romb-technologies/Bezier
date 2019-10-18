@@ -38,13 +38,12 @@ void CustomScene::drawForeground(QPainter* painter, const QRectF& rect)
       {
         Bezier::PointVector inter;
         if (items()[k]->type() == QGraphicsItem::UserType + 1 && items()[i]->type() == QGraphicsItem::UserType + 1)
-          inter = static_cast<qCurve*>(items()[i])
-                      ->getPointsOfIntersection(*static_cast<Bezier::Curve*>(static_cast<qCurve*>(items()[k])));
+          inter = static_cast<qCurve*>(items()[i])->getPointsOfIntersection(*static_cast<qCurve*>(items()[k]));
         if (items()[k]->type() == QGraphicsItem::UserType + 1 && items()[i]->type() == QGraphicsItem::UserType + 2)
           inter = static_cast<qPolyCurve*>(items()[i])
                       ->getPointsOfIntersection(*static_cast<Bezier::Curve*>(static_cast<qCurve*>(items()[k])));
         if (items()[k]->type() == QGraphicsItem::UserType + 2 && items()[i]->type() == QGraphicsItem::UserType + 1)
-          inter = static_cast<qCurve*>(items()[k])
+          inter = static_cast<qPolyCurve*>(items()[k])
                       ->getPointsOfIntersection(*static_cast<Bezier::Curve*>(static_cast<qCurve*>(items()[i])));
         if (items()[k]->type() == QGraphicsItem::UserType + 2 && items()[i]->type() == QGraphicsItem::UserType + 2)
           inter = static_cast<qPolyCurve*>(items()[i])
@@ -165,7 +164,7 @@ void CustomScene::mousePressEvent(QGraphicsSceneMouseEvent* mouseEvent)
           this->removeItem(curve);
           auto split = c_curve->splitCurve(t);
           delete curve;
-          qCurve* c1, *c2;
+          qCurve *c1, *c2;
           c1 = new qCurve(split.first);
           c2 = new qCurve(split.second);
           this->addItem(c1);
@@ -367,17 +366,17 @@ Delete - delete curve/polycurve");
       addItem(new_poly);
     update();
   }
-  if (keyEvent->key() >= 48 && keyEvent->key() <= 59) // num keys
-  {
-    Bezier::Continuity c;
-    c.order = keyEvent->key() - 48;
-    c.type = keyEvent->modifiers().testFlag(Qt::ControlModifier) ? 'G' : 'C';
-    for (auto&& curve : selectedItems())
-    {
-      if(is_poly)
-        for(uint k = 0; k < c_poly->getSize() - 1; k++)
-          c_poly->setContinuity(k, c);
-    }
-    update();
-  }
+  //  if (keyEvent->key() >= 48 && keyEvent->key() <= 59) // num keys
+  //  {
+  //    Bezier::Continuity c;
+  //    c.order = keyEvent->key() - 48;
+  //    c.type = keyEvent->modifiers().testFlag(Qt::ControlModifier) ? 'G' : 'C';
+  //    for (auto&& curve : selectedItems())
+  //    {
+  //      if(is_poly)
+  //        for(uint k = 0; k < c_poly->getSize() - 1; k++)
+  //          c_poly->setContinuity(k, c);
+  //    }
+  //    update();
+  //  }
 }

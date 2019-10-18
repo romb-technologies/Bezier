@@ -7,81 +7,6 @@ namespace Bezier
 {
 PolyCurve::PolyCurve(const std::deque<CurvePtr>& part_list) : curves_(part_list) {}
 
-void PolyCurve::prepareForContinuity(uint idx)
-{
-  // raise this curve enough for that only one end point can be affected
-  auto curve = getCurvePtr(idx);
-
-  while (curve->getOrder() < continuity_[idx].order + 1)
-    curve->elevateOrder();
-
-  if (idx > 0)
-  {
-    // backward
-    // no need to check order (it is always checked in forward direction)
-    getCurvePtr(idx - 1)->reverse();
-    getCurvePtr(idx)->reverse();
-    applyContinuity(getCurvePtr(idx), getCurvePtr(idx - 1), continuity_.at(idx - 1));
-    getCurvePtr(idx - 1)->reverse();
-    getCurvePtr(idx)->reverse();
-  }
-  if (idx < getSize() - 1)
-  {
-    // forward
-    // raise next curve enough for that only one end point can be affected
-    auto curve_f = getCurvePtr(idx + 1);
-    while (curve_f->getOrder() < continuity_[idx].order + 1)
-      curve_f->elevateOrder();
-    applyContinuity(getCurvePtr(idx), getCurvePtr(idx + 1), continuity_.at(idx));
-  }
-}
-
-void PolyCurve::applyContinuity(CurvePtr from, CurvePtr to, Continuity con)
-{
-  PointVector N;
-  PointVector P = from->getControlPoints();
-  PointVector Q = to->getControlPoints();
-
-  uint n = from->getOrder();
-  uint m = to->getOrder();
-
-  auto F = [n, m](uint k) {
-    // n! == tgamma(n +1)
-    return std::tgamma(m - k + 1) / std::tgamma(m + 1) * std::tgamma(n + 1) / std::tgamma(n - k + 1);
-  };
-
-  auto R = [from, to, con](uint k) {
-    if (k == 0 || con.type == 'C')
-      return 1.0;
-    return to->getDerivative()->valueAt(0).norm() / from->getDerivative()->valueAt(1).norm();
-    //    ConstCurvePtr der_q = from;
-    //    ConstCurvePtr der_p = to;
-    //    for(uint d = 0; d < k; d++)
-    //    {
-    //      der_q = der_q->getDerivative();
-    //      der_p = der_p->getDerivative();
-    //    }
-    //    return der_p->valueAt(0).norm() / der_q->valueAt(1).norm();
-  };
-
-  for (uint x = 0; x <= con.order; x++)
-  {
-    Point new_point;
-    new_point << 0, 0;
-    for (uint i = 0; i <= x; i++)
-    {
-      double inner_sum = 0.0;
-      for (uint k = i; k <= x; k++)
-        inner_sum += binomial(x - i, k - i) * F(k) * R(k);
-      new_point += std::pow(-1, i) * binomial(x, i) * P.at(n - i) * inner_sum;
-    }
-    N.push_back(new_point);
-  }
-
-  for (uint x = 0; x <= con.order; x++)
-    to->manipulateControlPoint(x, N.at(x));
-}
-
 PolyCurve::PolyCurve(CurvePtr& curve) { curves_.push_back(curve); }
 
 PolyCurve::PolyCurve(std::vector<CurvePtr>& curve_list)
@@ -92,7 +17,6 @@ PolyCurve::PolyCurve(std::vector<CurvePtr>& curve_list)
 
 void PolyCurve::insertAt(uint idx, CurvePtr& curve)
 {
-  // TODO: Continuity isn't implemented yet
   Point s_1, s_2, e_1, e_2;
   std::tie(s_1, e_1) = curve->getEndPoints();
   if (idx > 0) // check with curve before
@@ -129,7 +53,6 @@ void PolyCurve::insertAt(uint idx, CurvePtr& curve)
   }
 
   curves_.insert(curves_.begin() + idx, curve);
-  continuity_.resize(getSize() - 1);
 }
 
 void PolyCurve::insertFront(CurvePtr& curve) { insertAt(0, curve); }
@@ -157,26 +80,19 @@ void PolyCurve::removeFirst() { curves_.pop_front(); }
 
 void PolyCurve::removeBack() { curves_.pop_back(); }
 
-void PolyCurve::setContinuity(uint idx, Continuity c)
-{
-  continuity_[idx] = c;
-  prepareForContinuity(idx);
-}
-
-PolyCurve PolyCurve::getSubPolyCurve(uint idx_l, uint idx_r)
+PolyCurve PolyCurve::getSubPolyCurve(uint idx_l, uint idx_r) const
 {
   return PolyCurve(std::deque<CurvePtr>(curves_.begin() + idx_l, curves_.begin() + idx_r));
 }
 
 uint PolyCurve::getSize() const { return static_cast<uint>(curves_.size()); }
 
-uint PolyCurve::getCurveIdx(const CurvePtr& curve) const
+std::pair<uint, double> PolyCurve::getCurveIdx(double t) const
 {
-  uint idx = 0;
-  for (; idx < getSize(); idx++)
-    if (curve == curves_.at(idx))
-      break;
-  return idx;
+  uint idx = static_cast<uint>(t);
+  if (idx == getSize())
+    --idx; // for the last point of last curve
+  return {idx, t - idx};
 }
 
 CurvePtr PolyCurve::getCurvePtr(uint idx) const { return curves_.at(idx); }
@@ -205,15 +121,15 @@ double PolyCurve::getLength() const
 
 double PolyCurve::getLength(double t) const
 {
-  double l = 0;
-  uint idx = static_cast<uint>(t);
-  if (idx == getSize()) // for the last point of last curve
-    --idx;
+  uint idx;
+  std::tie(idx, t) = getCurveIdx(t);
 
-  std::for_each(begin(curves_), begin(curves_) + idx, [&l](const Bezier::CurvePtr& curve) { l += curve->getLength(); });
-  l += curves_.at(idx)->getLength(t - idx);
+  double length = 0;
+  std::for_each(begin(curves_), begin(curves_) + idx,
+                [&length](const Bezier::CurvePtr& curve) { length += curve->getLength(); });
+  length += curves_.at(idx)->getLength(t - idx);
 
-  return l;
+  return length;
 }
 
 double PolyCurve::getLength(double t1, double t2) const { return getLength(t2) - getLength(t1); }
@@ -241,7 +157,6 @@ void PolyCurve::manipulateControlPoint(uint idx, const Point& point)
     if (idx <= curve->getOrder())
     {
       curve->manipulateControlPoint(idx, point);
-      prepareForContinuity(getCurveIdx(curve));
       break;
     }
     else
@@ -250,33 +165,29 @@ void PolyCurve::manipulateControlPoint(uint idx, const Point& point)
 
 Point PolyCurve::valueAt(double t) const
 {
-  uint idx = static_cast<uint>(t);
-  if (idx == getSize()) // for the last point of last curve
-    --idx;
+  uint idx;
+  std::tie(idx, t) = getCurveIdx(t);
   return getCurvePtr(idx)->valueAt(t - idx);
 }
 
 double PolyCurve::curvatureAt(double t) const
 {
-  uint idx = static_cast<uint>(t);
-  if (idx == getSize()) // for the last point of last curve
-    --idx;
+  uint idx;
+  std::tie(idx, t) = getCurveIdx(t);
   return getCurvePtr(idx)->curvatureAt(t - idx);
 }
 
 Vec2 PolyCurve::tangentAt(double t, bool normalize) const
 {
-  uint idx = static_cast<uint>(t);
-  if (idx == getSize()) // for the last point of last curve
-    --idx;
+  uint idx;
+  std::tie(idx, t) = getCurveIdx(t);
   return getCurvePtr(idx)->tangentAt(t - idx, normalize);
 }
 
 Vec2 PolyCurve::normalAt(double t, bool normalize) const
 {
-  uint idx = static_cast<uint>(t);
-  if (idx == getSize()) // for the last point of last curve
-    --idx;
+  uint idx;
+  std::tie(idx, t) = getCurveIdx(t);
   return getCurvePtr(idx)->normalAt(t - idx, normalize);
 }
 
@@ -288,7 +199,8 @@ BBox PolyCurve::getBBox(bool use_roots) const
   return bbox;
 }
 
-PointVector PolyCurve::getPointsOfIntersection(const Curve& curve, bool stop_at_first, double epsilon) const
+template <>
+PointVector PolyCurve::getPointsOfIntersection<Curve>(const Curve& curve, bool stop_at_first, double epsilon) const
 {
   PointVector points;
   for (uint k = 0; k < getSize(); k++)
@@ -302,7 +214,9 @@ PointVector PolyCurve::getPointsOfIntersection(const Curve& curve, bool stop_at_
   return points;
 }
 
-PointVector PolyCurve::getPointsOfIntersection(const PolyCurve& poly_curve, bool stop_at_first, double epsilon) const
+template <>
+PointVector PolyCurve::getPointsOfIntersection<PolyCurve>(const PolyCurve& poly_curve, bool stop_at_first,
+                                                          double epsilon) const
 {
   PointVector points;
   for (uint k = 0; k < getSize(); k++)

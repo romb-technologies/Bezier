@@ -3,6 +3,7 @@
 
 #include <iostream>
 #include <numeric>
+#include <exception>
 
 #include <unsupported/Eigen/MatrixFunctions>
 
@@ -177,7 +178,7 @@ double Curve::getLength() const
   double sum = 0;
 
   for (uint k = 0; k < LegendreGauss::N; k++)
-    sum += LegendreGauss::weights.at(k) * getDerivative()->valueAt(z * LegendreGauss::abcissae.at(k) + z).norm();
+    sum += LegendreGauss::weights.at(k) * getDerivativeAt(z * LegendreGauss::abcissae.at(k) + z).norm();
 
   return z * sum;
 }
@@ -201,7 +202,7 @@ void Curve::manipulateControlPoint(uint idx, const Point& point)
 void Curve::manipulateCurvature(double t, const Point& point)
 {
   if (N_ < 3 || N_ > 4)
-    throw "Only quadratic and cubic curves can be manipulated";
+    throw std::logic_error{"Only quadratic and cubic curves can be manipulated"};
 
   double r =
       std::fabs((std::pow(t, N_ - 1) + std::pow(1 - t, N_ - 1) - 1) / (std::pow(t, N_ - 1) + std::pow(1 - t, N_ - 1)));
@@ -260,17 +261,17 @@ Point Curve::valueAt(double t) const
 
 double Curve::curvatureAt(double t) const
 {
-  Point d1 = getDerivative()->valueAt(t);
-  Point d2 = getDerivative(2)->valueAt(t);
+  Point d1 = getDerivativeAt(t);
+  Point d2 = getDerivativeAt(2, t);
 
   return (d1.x() * d2.y() - d1.y() * d2.x()) / std::pow(d1.norm(), 3);
 }
 
 double Curve::curvatureDerivativeAt(double t) const
 {
-  auto d1 = getDerivative()->valueAt(t);
-  auto d2 = getDerivative(2)->valueAt(t);
-  auto d3 = getDerivative(3)->valueAt(t);
+  auto d1 = getDerivativeAt(t);
+  auto d2 = getDerivativeAt(2, t);
+  auto d3 = getDerivativeAt(3, t);
 
   return (d1.x() * d3.y() - d1.y() * d3.x()) / std::pow(d1.norm(), 3) -
          3 * d1.dot(d2) * (d1.x() * d2.y() - d1.y() * d2.x()) / std::pow(d1.norm(), 5);
@@ -278,7 +279,7 @@ double Curve::curvatureDerivativeAt(double t) const
 
 Vec2 Curve::tangentAt(double t, bool normalize) const
 {
-  Point p(getDerivative()->valueAt(t));
+  Point p(getDerivativeAt(t));
   if (normalize && p.norm() > 0)
     p.normalize();
   return p;
@@ -311,12 +312,23 @@ ConstCurvePtr Curve::getDerivative() const
   return cached_derivative_;
 }
 
+Point Curve::getDerivativeAt(double t) const
+{
+  return getDerivative()->valueAt(t);
+}
+
 ConstCurvePtr Curve::getDerivative(uint n) const
 {
+  if (n == 0) throw std::invalid_argument{"Parameter 'n' cannot be zero."};
   ConstCurvePtr nth_derivative = getDerivative();
   for (uint k = 1; k < n; k++)
     nth_derivative = nth_derivative->getDerivative();
   return nth_derivative;
+}
+
+Point Curve::getDerivativeAt(uint n, double t) const
+{
+  return getDerivative(n)->valueAt(t);
 }
 
 PointVector Curve::getRoots(double step, double epsilon, std::size_t max_iter) const
@@ -340,7 +352,7 @@ PointVector Curve::getRoots(double step, double epsilon, std::size_t max_iter) c
         while (current_iter < max_iter)
         {
           // Newton-Rhapson: f = f - f' / f''
-          double t_new = t_current - getDerivative()->valueAt(t_current)[k] / getDerivative(2)->valueAt(t_current)[k];
+          double t_new = t_current - getDerivativeAt(t_current)[k] / getDerivativeAt(2, t_current)[k];
 
           // if there is no change to t_current
           if (std::fabs(t_new - t_current) < epsilon)

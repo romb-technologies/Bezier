@@ -5,23 +5,23 @@
 
 namespace Bezier {
 
-template<class T_curve>
-Point getOffsettedPoint(const T_curve& curve, double t, Bezier::Point offset);
+template<typename Curve_PolyCurve>
+Point getOffsettedPoint(const Curve_PolyCurve& curve, double t, Bezier::Point offset);
 
-template<class T_curve>
-Point getOffsettedPointDerivation_1(const T_curve& curve, double t, Bezier::Point offset);
+template<typename Curve_PolyCurve>
+Point getOffsettedPointDerivation_1(const Curve_PolyCurve& curve, double t, Bezier::Point offset);
 
-template<class T_curve>
-Point getOffsettedPointDerivation_2(const T_curve& curve, double t, Bezier::Point offset);
+template<typename Curve_PolyCurve>
+Point getOffsettedPointDerivation_2(const Curve_PolyCurve& curve, double t, Bezier::Point offset);
 
-template<class T_curve>
-Point getOffsettedPointDerivation_3(const T_curve& curve, double t, Bezier::Point offset);
+template<typename Curve_PolyCurve>
+Point getOffsettedPointDerivation_3(const Curve_PolyCurve& curve, double t, Bezier::Point offset);
 
-template<class T_curve>
-double getOffsettedPointKappa(const T_curve& curve, double t, Bezier::Point offset);
+template<typename Curve_PolyCurve>
+double getOffsettedPointKappa(const Curve_PolyCurve& curve, double t, Bezier::Point offset);
 
-template<class T_curve>
-double getOffsettedPointKappaDerived(const T_curve& curve, double t, Bezier::Point offset);
+template<typename Curve_PolyCurve>
+double getOffsettedPointKappaDerived(const Curve_PolyCurve& curve, double t, Bezier::Point offset);
 
 }
 

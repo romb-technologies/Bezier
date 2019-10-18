@@ -23,24 +23,10 @@ namespace Bezier
 {
 
 /*!
- * \brief A structure for declaring continuity type
- * \var type Type of order (C - parametric, G - geometric)
- * \var order Order of continuity
- */
-struct Continuity
-{
-  char type;
-  uint order;
-
-  Continuity(char type = 'C', uint order = 0) : type(type), order(order){}
-};
-
-/*!
  * \brief A Bezier polycurve class
  *
  * A class for linking multiple Bezier curves with at least
- * C0 continuity. It allows subcurve and continuity manipulation.
- * Both parametric and geometric continuity are supported.
+ * C0 continuity. It allows subcurve manipulation.
  *
  * \warning Range of parameter 't' depends on number of subcurves.
  * To access n-th subcurve, t has to be in range [n-1, n>
@@ -50,8 +36,6 @@ class PolyCurve
 private:
   /// Structure for holding underlying Bezier curves
   std::deque<CurvePtr> curves_;
-  /// Structure containing information about continuity of all curve neighbours
-  std::vector<Continuity> continuity_;
 
   /*!
    * \brief Constructor for easier creation of sub-polycurve
@@ -59,22 +43,7 @@ private:
    */
   PolyCurve(const std::deque<CurvePtr>& curve_list);
 
-  /*!
-   * \brief Preparation checks for applying continuity
-   * \param idx Index of subcurve
-   */
-  void prepareForContinuity(uint idx);
-
-  /*!
-   * \brief Calculate and apply continuity from one curve to its neighbour
-   * \param from Origin curve (curve on which calculations are based on)
-   * \param to Recipient curve (curve to which calculations are applied)
-   * \param con Continuity to apply
-   */
-  void applyContinuity(CurvePtr from, CurvePtr to, Continuity con);
-
 public:
-
   /*!
    * \brief Create the Bezier polycurve with only one subcurve
    * \param curve A single curve
@@ -123,18 +92,11 @@ public:
   void removeBack();
 
   /*!
-   * \brief Set continuity between two subcurves
-   * \param idx Index of subcurve joint
-   * \param c Type of continuity
-   */
-  void setContinuity(uint idx, Continuity c = Continuity());
-
-  /*!
    * \brief Get sub-polycurve
    * \param idx_l Index of first subcurve (start)
    * \param idx_r Index of last subcurve (end)
    */
-  PolyCurve getSubPolyCurve(uint idx_l, uint idx_r);
+  PolyCurve getSubPolyCurve(uint idx_l, uint idx_r) const;
 
   /*!
    * \brief Get number of subcurves
@@ -143,14 +105,14 @@ public:
   uint getSize() const;
 
   /*!
-   * \brief Get index of subcurve
-   * \param curve A subcurve pointer
-   * \return An index of subcurve
+   * \brief Resolve polycurve parameter to index and parameter of subcurve
+   * \param t A polycurve parameter
+   * \return A pair of subcurve index and parameter t
    */
-  uint getCurveIdx(const CurvePtr& curve) const;
+  std::pair<uint, double> getCurveIdx(double t) const;
 
   /*!
-   * \brief Get pointer of subcurve
+   * \brief Get pointer of a subcurve
    * \param idx Subcurve index
    * \return A shared pointer
    */
@@ -179,7 +141,7 @@ public:
 
   /*!
    * \brief Compute exact arc length with Legendre-Gauss quadrature
-   * \param t Curve parameter to which length is computed
+   * \param t A Polyurve parameter to which length is computed
    * \return Arc length from start to parameter t
    * \warning Precision depends on value of LEGENDRE_GAUSS_N at compile time
    */
@@ -187,8 +149,8 @@ public:
 
   /*!
    * \brief Compute exact arc length with Legendre-Gauss quadrature
-   * \param t1 Curve parameter from which length is computed
-   * \param t2 Curve parameter to which length is computed
+   * \param t1 A Polyurve parameter from which length is computed
+   * \param t2 A Polyurve parameter to which length is computed
    * \return Arc length between paramaters t1 and t2
    * \warning Precision depends on value of LEGENDRE_GAUSS_N at compile time
    */
@@ -222,14 +184,14 @@ public:
 
   /*!
    * \brief Get curvature of polycurve for a given t
-   * \param t Curve parameter
+   * \param t A Polyurve parameter
    * \return Curvature of a polycurve for a given t
    */
   double curvatureAt(double t) const;
 
   /*!
    * \brief Get the tangent of polycurve for a given t
-   * \param t Curve parameter
+   * \param t A Polyurve parameter
    * \param normalize If the resulting tangent should be normalized
    * \return Tangent of a polycurve for a given t
    */
@@ -237,7 +199,7 @@ public:
 
   /*!
    * \brief Get the normal of polycurve for a given t
-   * \param t Curve parameter
+   * \param t A Polyurve parameter
    * \param normalize If the resulting normal should be normalized
    * \return Normal of a polycurve for given t
    */
@@ -251,7 +213,7 @@ public:
   BBox getBBox(bool use_roots = true) const;
 
   /*!
-   * \brief Get the points of intersection with another curve
+   * \brief Get the points of intersection with another curve or polycurve
    * \param curve Curve to intersect with
    * \param stop_at_first If first point of intersection is enough
    * \param epsilon Precision of resulting intersection
@@ -259,19 +221,8 @@ public:
    *
    * \warning subcurve self-intersection not yet implemented
    */
-  std::vector<Point> getPointsOfIntersection(const Curve& curve, bool stop_at_first = false,
-                                             double epsilon = 0.001) const;
-
-  /*!
-   * \brief Get the points of intersection with another polycurve
-   * \param poly_curve Polycurve to intersect with
-   * \param stop_at_first If first point of intersection is enough
-   * \param epsilon Precision of resulting intersection
-   * \return A vector af points of intersection between curves
-   *
-   * \warning subcurve self-intersection not yet implemented
-   */
-  std::vector<Point> getPointsOfIntersection(const PolyCurve& poly_curve, bool stop_at_first = false,
+  template<typename Curve_PolyCurve>
+  std::vector<Point> getPointsOfIntersection(const Curve_PolyCurve& curve, bool stop_at_first = false,
                                              double epsilon = 0.001) const;
 
   /*!
@@ -283,5 +234,5 @@ public:
    */
   double projectPoint(const Point& point, double step = 0.01, double epsilon = 0.001) const;
 };
-}
+} // namespace Bezier
 #endif // POLYCURVE_H

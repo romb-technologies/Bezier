@@ -158,7 +158,7 @@ public:
    * \param t Curve parameter
    * \param point Point where curve should pass for a given t
    *
-   * Only works for quadratic and cubic curves
+   * \warning Only works for quadratic and cubic curves
    * \warning Resets cached data
    */
   void manipulateCurvature(double t, const Point& point);
@@ -223,11 +223,27 @@ public:
   ConstCurvePtr getDerivative() const;
 
   /*!
+   * \brief Get value of a derivative for a given t
+   * \param t Curve parameter
+   * \return Derivative curve
+   */
+  Point getDerivativeAt(double t) const;
+
+  /*!
    * \brief Get the nth derivative of a curve
    * \param n Desired number of derivative
    * \return Derivative curve
+   * \warning Parameter n cannot be zero
    */
   ConstCurvePtr getDerivative(uint n) const;
+
+  /*!
+   * \brief Get value of an nth derivative for a given t
+   * \param n Desired number of derivative
+   * \param t Curve parameter
+   * \return Derivative curve
+   */
+  Point getDerivativeAt(uint n, double t) const;
 
   /*!
    * \brief Get the roots of curve on both axis
