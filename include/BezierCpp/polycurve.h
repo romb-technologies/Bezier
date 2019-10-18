@@ -231,7 +231,7 @@ public:
    *
    * \warning subcurve self-intersection not yet implemented
    */
-  template<typename Curve_PolyCurve>
+  template <typename Curve_PolyCurve>
   std::vector<Point> getPointsOfIntersection(const Curve_PolyCurve& curve, bool stop_at_first = false,
                                              double epsilon = 0.001) const;
 

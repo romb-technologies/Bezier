@@ -2,6 +2,7 @@
 #include "BezierCpp/legendre_gauss.h"
 
 #include <exception>
+#include <iostream>
 #include <numeric>
 
 #include <unsupported/Eigen/MatrixFunctions>
@@ -144,17 +145,22 @@ PointVector Curve::getPolyline(double smoothness, double precision) const
   {
     PointVector* polyline = new PointVector;
     std::vector<std::shared_ptr<Curve>> subcurves;
-    subcurves.push_back(std::make_shared<Bezier::Curve>(this->getControlPoints()));
+    subcurves.push_back(std::make_shared<Bezier::Curve>(control_points_));
     polyline->push_back(control_points_.row(0));
     while (!subcurves.empty())
     {
       auto c = subcurves.back();
       subcurves.pop_back();
       auto cp = c->getControlPoints();
-      double hull = 0;
-      for (uint k = 1; k < cp.size(); k++)
-        hull += (cp.at(k - 1) - cp.at(k)).norm();
-      if (hull <= smoothness * (cp.front() - cp.back()).norm() || (cp.front() - cp.back()).norm() <= precision)
+
+      double string_length = (cp.front() - cp.back()).norm();
+
+      // we iterate from back so last control point is unchanged
+      std::adjacent_difference(cp.rbegin(), cp.rend(), cp.rbegin());
+      double hull_length = std::accumulate(cp.begin(), std::prev(cp.end()), 0.0,
+                                           [](double sum, const Point& p) { return sum + p.norm(); });
+
+      if (hull_length <= smoothness * string_length || string_length <= precision)
       {
         polyline->push_back(cp.back());
       }
@@ -191,12 +197,12 @@ double Curve::iterateByLength(double t, double s, double epsilon, std::size_t ma
   const double s_t = getLength(t);
   std::size_t current_iter = 0;
 
-  if (s_t + s < 0 || s_t + s > getLength()) throw std::out_of_range{"Resulting parameter t not in [0, 1] range."};
+  if (s_t + s < 0 || s_t + s > getLength())
+    throw std::out_of_range{"Resulting parameter t not in [0, 1] range."};
 
-  // it has to converge in max_iter steps
   while (current_iter < max_iter)
   {
-    // Newton-Rhapson
+    // Newton-Raphson
     double t_new = t - (getLength(t) - s_t - s) / getDerivativeAt(t).norm();
 
     // if there is no change to t
@@ -274,11 +280,7 @@ void Curve::lowerOrder()
 
 Point Curve::valueAt(double t) const
 {
-  Eigen::VectorXd power_basis;
-  power_basis.resize(N_);
-  for (uint k = 0; k < N_; k++)
-    power_basis(k) = std::pow(t, k);
-
+  Eigen::VectorXd power_basis = Eigen::pow(t, Eigen::ArrayXd::LinSpaced(N_, 0, N_ - 1));
   return (power_basis.transpose() * bernsteinCoeffs() * control_points_).transpose();
 }
 
@@ -318,18 +320,7 @@ ConstCurvePtr Curve::getDerivative() const
 {
   if (!cached_derivative_)
   {
-    Eigen::MatrixX2d new_points;
-    if (N_ == 1)
-    {
-      new_points.resize(1, 2);
-      new_points << 0, 0;
-    }
-    else
-    {
-      new_points.resize(N_ - 1, 2);
-      for (uint k = 0; k < N_ - 1; k++)
-        new_points.row(k).noalias() = (N_ - 1) * (control_points_.row(k + 1) - control_points_.row(k));
-    }
+    Eigen::MatrixX2d new_points = (N_ - 1) * (control_points_.bottomRows(N_ - 1) - control_points_.topRows(N_ - 1));
     (const_cast<Curve*>(this))->cached_derivative_ = std::make_shared<const Curve>(new_points);
   }
   return cached_derivative_;
@@ -369,7 +360,7 @@ PointVector Curve::getRoots(double step, double epsilon, std::size_t max_iter) c
         // it has to converge in max_iter steps
         while (current_iter < max_iter)
         {
-          // Newton-Rhapson: f = f - f' / f''
+          // Newton-Raphson
           double t_new = t_current - getDerivativeAt(t_current)[k] / getDerivativeAt(2, t_current)[k];
 
           // if there is no change to t_current
@@ -560,7 +551,7 @@ double Curve::projectPoint(const Point& point, double step, double epsilon) cons
   }
 
   // fine search
-  do
+  while (step > epsilon)
   {
     double new_dist1 = (valueAt(t - step / 2) - point).norm();
     double new_dist2 = (valueAt(t + step / 2) - point).norm();
@@ -575,7 +566,7 @@ double Curve::projectPoint(const Point& point, double step, double epsilon) cons
       t_dist = (new_dist1 < new_dist2 ? new_dist1 : new_dist2);
       t += new_dist1 < new_dist2 ? -step / 2 : step / 2;
     }
-  } while (step > epsilon);
+  }
 
   // if closest point is between <1, 1+step>
   if (t > 1)

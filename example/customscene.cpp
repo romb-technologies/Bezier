@@ -73,9 +73,9 @@ void CustomScene::mousePressEvent(QGraphicsSceneMouseEvent* mouseEvent)
         tan.insert(curve, addLine(QLineF(QPointF(p1.x(), p1.y()) - 150 * QPointF(tan1.x(), tan1.y()),
                                          QPointF(p1.x(), p1.y()) + 150 * QPointF(tan1.x(), tan1.y())),
                                   QPen(Qt::blue)));
-        auto t2 = c_curve->iterateByLength(t1, 10);
+        auto t2 = c_curve->iterateByLength(t1, 50);
         auto a = c_curve->valueAt(t2);
-        adv.insert(curve, addEllipse(QRectF(QPointF(a.x() - 3, a.y() - 3), QSizeF(6, 6)), QPen(Qt::yellow), QBrush(Qt::red, Qt::SolidPattern)));
+        byLength.insert(curve, addEllipse(QRectF(QPointF(a.x() - 3, a.y() - 3), QSizeF(6, 6)), QPen(Qt::yellow), QBrush(Qt::red, Qt::SolidPattern)));
       }
       if (is_poly)
       {
@@ -86,9 +86,9 @@ void CustomScene::mousePressEvent(QGraphicsSceneMouseEvent* mouseEvent)
         tan.insert(curve, addLine(QLineF(QPointF(p1.x(), p1.y()) - 150 * QPointF(tan1.x(), tan1.y()),
                                          QPointF(p1.x(), p1.y()) + 150 * QPointF(tan1.x(), tan1.y())),
                                   QPen(Qt::blue)));
-        auto t2 = c_poly->iterateByLength(t1, 10);
+        auto t2 = c_poly->iterateByLength(t1, 50);
         auto a = c_poly->valueAt(t2);
-        adv.insert(curve, addEllipse(QRectF(QPointF(a.x() - 3, a.y() - 3), QSizeF(6, 6)), QPen(Qt::yellow), QBrush(Qt::red, Qt::SolidPattern)));
+        byLength.insert(curve, addEllipse(QRectF(QPointF(a.x() - 3, a.y() - 3), QSizeF(6, 6)), QPen(Qt::yellow), QBrush(Qt::red, Qt::SolidPattern)));
       }
     }
     show_projection = true;
@@ -200,9 +200,9 @@ void CustomScene::mouseMoveEvent(QGraphicsSceneMouseEvent* mouseEvent)
         line[curve]->setLine(QLineF(QPointF(p.x(), p.y()), QPointF(p_c.x(), p_c.y())));
         tan[curve]->setLine(QLineF(QPointF(p1.x(), p1.y()) - 500 * QPointF(tan1.x(), tan1.y()),
                                    QPointF(p1.x(), p1.y()) + 500 * QPointF(tan1.x(), tan1.y())));
-        auto t2 = c_curve->iterateByLength(t1, 10);
+        auto t2 = c_curve->iterateByLength(t1, 50);
         auto a = c_curve->valueAt(t2);
-        adv[curve]->setRect(QRectF(QPointF(a.x() - 3, a.y() - 3), QSizeF(6, 6)));
+        byLength[curve]->setRect(QRectF(QPointF(a.x() - 3, a.y() - 3), QSizeF(6, 6)));
       }
       else if (is_poly)
       {
@@ -212,9 +212,9 @@ void CustomScene::mouseMoveEvent(QGraphicsSceneMouseEvent* mouseEvent)
         line[curve]->setLine(QLineF(QPointF(p.x(), p.y()), QPointF(p1.x(), p1.y())));
         tan[curve]->setLine(QLineF(QPointF(p1.x(), p1.y()) - 500 * QPointF(tan1.x(), tan1.y()),
                                    QPointF(p1.x(), p1.y()) + 500 * QPointF(tan1.x(), tan1.y())));
-        auto t2 = c_poly->iterateByLength(t1, 10);
+        auto t2 = c_poly->iterateByLength(t1, 50);
         auto a = c_poly->valueAt(t2);
-        adv[curve]->setRect(QRectF(QPointF(a.x() - 3, a.y() - 3), QSizeF(6, 6)));
+        byLength[curve]->setRect(QRectF(QPointF(a.x() - 3, a.y() - 3), QSizeF(6, 6)));
       }
     }
   }
@@ -262,11 +262,11 @@ void CustomScene::mouseReleaseEvent(QGraphicsSceneMouseEvent* mouseEvent)
         {
           removeItem(line[curve]);
           removeItem(tan[curve]);
-          removeItem(adv[curve]);
+          removeItem(byLength[curve]);
         }
       line.clear();
       tan.clear();
-      adv.clear();
+      byLength.clear();
       show_projection = false;
     }
   }

@@ -132,15 +132,17 @@ double PolyCurve::getLength(double t) const
 
 double PolyCurve::getLength(double t1, double t2) const { return getLength(t2) - getLength(t1); }
 
-double PolyCurve::iterateByLength(double t, double s, double epsilon, std::size_t max_iter) const {
+double PolyCurve::iterateByLength(double t, double s, double epsilon, std::size_t max_iter) const
+{
   double s_t = getLength(t);
-  if(s_t + s < 0 || s_t + s > getLength()) throw std::out_of_range{"Resulting parameter t not in [0, n] range."};
+  if (s_t + s < 0 || s_t + s > getLength())
+    throw std::out_of_range{"Resulting parameter t not in [0, n] range."};
 
   uint idx;
   std::tie(idx, t) = getCurveIdx(t);
   s_t -= getLength(idx);
 
-  while(getCurvePtr(idx)->getLength() - s_t < s)
+  while (getCurvePtr(idx)->getLength() - s_t < s)
   {
     s -= getCurvePtr(idx++)->getLength() - s_t;
     s_t = 0;

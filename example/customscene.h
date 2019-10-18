@@ -24,7 +24,7 @@ private:
   QGraphicsEllipseItem* dot;
   QMap<QGraphicsItem*, QGraphicsLineItem*> line;
   QMap<QGraphicsItem*, QGraphicsLineItem*> tan;
-  QMap<QGraphicsItem*, QGraphicsEllipseItem*> adv;
+  QMap<QGraphicsItem*, QGraphicsEllipseItem*> byLength;
   bool draw_box_ = false;
   bool draw_inter_ = false;
   bool show_projection = false;
