@@ -32,10 +32,8 @@ Curve::Coeffs Curve::bernsteinCoeffs() const
   if (bernstein_coeffs_.find(N_) == bernstein_coeffs_.end())
   {
     bernstein_coeffs_.insert(std::make_pair(N_, Coeffs::Zero(N_, N_)));
-    bernstein_coeffs_.at(N_).diagonal(-1) = Eigen::ArrayXd::LinSpaced(N_ - 1, 1, N_ - 1);
+    bernstein_coeffs_.at(N_).diagonal(-1) = -Eigen::ArrayXd::LinSpaced(N_ - 1, 1, N_ - 1);
     bernstein_coeffs_.at(N_) = bernstein_coeffs_.at(N_).exp();
-    for (uint k = 1; k < N_; k += 2)
-      bernstein_coeffs_.at(N_).diagonal(-static_cast<int>(k)) *= -1;
     for (uint k = 0; k < N_; k++)
       bernstein_coeffs_.at(N_).row(k) *= binomial(N_ - 1, k);
   }

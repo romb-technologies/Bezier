@@ -89,12 +89,10 @@ PolyCurve PolyCurve::getSubPolyCurve(uint idx_l, uint idx_r) const
 
 uint PolyCurve::getSize() const { return static_cast<uint>(curves_.size()); }
 
-std::pair<uint, double> PolyCurve::getCurveIdx(double t) const
+uint PolyCurve::getCurveIdx(double t) const
 {
   uint idx = static_cast<uint>(t);
-  if (idx == getSize())
-    --idx; // for the last point of last curve
-  return {idx, t - idx};
+  return idx - (idx == getSize());
 }
 
 CurvePtr PolyCurve::getCurvePtr(uint idx) const { return curves_.at(idx); }
@@ -107,8 +105,8 @@ PointVector PolyCurve::getPolyline(double smoothness, double precision) const
   for (uint k = 0; k < getSize(); k++)
   {
     auto new_poly = getCurvePtr(k)->getPolyline(smoothness, precision);
-    polyline.reserve(polyline.size() + new_poly.size() - (k > 0 ? 1 : 0));
-    polyline.insert(polyline.end(), new_poly.begin() + (k > 0 ? 1 : 0), new_poly.end());
+    polyline.reserve(polyline.size() + new_poly.size() - (k ? 1 : 0));
+    polyline.insert(polyline.end(), new_poly.begin() + (k ? 1 : 0), new_poly.end());
   }
   return polyline;
 }
@@ -123,10 +121,8 @@ double PolyCurve::getLength() const
 
 double PolyCurve::getLength(double t) const
 {
-  uint idx;
-  std::tie(idx, t) = getCurveIdx(t);
-
-  return std::accumulate(begin(curves_), begin(curves_) + idx, curves_.at(idx)->getLength(t),
+  uint idx = getCurveIdx(t);
+  return std::accumulate(begin(curves_), begin(curves_) + idx, curves_.at(idx)->getLength(t - idx),
                          [](double sum, Bezier::ConstCurvePtr curve) { return sum + curve->getLength(); });
 }
 
@@ -138,15 +134,20 @@ double PolyCurve::iterateByLength(double t, double s, double epsilon, std::size_
   if (s_t + s < 0 || s_t + s > getLength())
     throw std::out_of_range{"Resulting parameter t not in [0, n] range."};
 
-  uint idx;
-  std::tie(idx, t) = getCurveIdx(t);
+  uint idx = getCurveIdx(t);
+  t -= idx;
   s_t -= getLength(idx);
 
+  bool first_iteration = true;
   while (getCurvePtr(idx)->getLength() - s_t < s)
   {
     s -= getCurvePtr(idx++)->getLength() - s_t;
-    s_t = 0;
-    t = 0;
+    if (first_iteration)
+    {
+      first_iteration = false;
+      s_t = 0;
+      t = 0;
+    }
   }
 
   return idx + getCurvePtr(idx)->iterateByLength(t, s, epsilon, max_iter);
@@ -183,30 +184,26 @@ void PolyCurve::manipulateControlPoint(uint idx, const Point& point)
 
 Point PolyCurve::valueAt(double t) const
 {
-  uint idx;
-  std::tie(idx, t) = getCurveIdx(t);
-  return getCurvePtr(idx)->valueAt(t);
+  uint idx = getCurveIdx(t);
+  return getCurvePtr(idx)->valueAt(t - idx);
 }
 
 double PolyCurve::curvatureAt(double t) const
 {
-  uint idx;
-  std::tie(idx, t) = getCurveIdx(t);
-  return getCurvePtr(idx)->curvatureAt(t);
+  uint idx = getCurveIdx(t);
+  return getCurvePtr(idx)->curvatureAt(t - idx);
 }
 
 Vec2 PolyCurve::tangentAt(double t, bool normalize) const
 {
-  uint idx;
-  std::tie(idx, t) = getCurveIdx(t);
-  return getCurvePtr(idx)->tangentAt(t, normalize);
+  uint idx = getCurveIdx(t);
+  return getCurvePtr(idx)->tangentAt(t - idx, normalize);
 }
 
 Vec2 PolyCurve::normalAt(double t, bool normalize) const
 {
-  uint idx;
-  std::tie(idx, t) = getCurveIdx(t);
-  return getCurvePtr(idx)->normalAt(t, normalize);
+  uint idx = getCurveIdx(t);
+  return getCurvePtr(idx)->normalAt(t - idx, normalize);
 }
 
 BBox PolyCurve::getBBox(bool use_roots) const

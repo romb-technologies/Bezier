@@ -105,11 +105,11 @@ public:
   uint getSize() const;
 
   /*!
-   * \brief Resolve polycurve parameter to index and parameter of subcurve
+   * \brief Resolve polycurve parameter to subcurve index
    * \param t A polycurve parameter
-   * \return A pair of subcurve index and parameter t
+   * \return An index of of subcurve where parameter t is
    */
-  std::pair<uint, double> getCurveIdx(double t) const;
+  uint getCurveIdx(double t) const;
 
   /*!
    * \brief Get pointer of a subcurve
