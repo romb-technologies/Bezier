@@ -7,6 +7,7 @@
 
 #include <unsupported/Eigen/MatrixFunctions>
 
+inline double factorial(uint k) { return std::tgamma(k+1);}
 inline double binomial(uint n, uint k) { return std::tgamma(n + 1) / (std::tgamma(k + 1) * std::tgamma(n - k + 1)); }
 
 namespace Bezier
@@ -574,6 +575,70 @@ double Curve::projectPoint(const Point& point, double step, double epsilon) cons
     t = 0;
 
   return t;
+}
+
+void Curve::applyContinuity(const Curve &locked_curve, std::vector<double> &beta_coeffs)
+{
+    ulong c_order = beta_coeffs.size();
+
+    Eigen::MatrixXd pascal_alterating_matrix(Eigen::MatrixXd::Zero(c_order + 1, c_order + 1));
+    pascal_alterating_matrix.diagonal(-1) = -Eigen::ArrayXd::LinSpaced(c_order, 1, c_order);
+    pascal_alterating_matrix = pascal_alterating_matrix.exp();
+
+    Eigen::MatrixXd bell_matrix(Eigen::MatrixXd::Zero(c_order + 1, c_order + 1));
+    bell_matrix(0, c_order) = 1;
+
+    for (uint i = 0; i < c_order; i++) {
+        bell_matrix.block(1, c_order-i-1, i+1, 1) = bell_matrix.block(0, c_order-i, i+1, i+1) *
+                pascal_alterating_matrix.block(i, 0, 1, i+1).cwiseAbs().transpose().cwiseProduct(Eigen::Map<Eigen::MatrixXd>(beta_coeffs.data(), i+1, 1));
+    }
+
+    Eigen::MatrixXd factorial_matrix(Eigen::MatrixXd::Zero(c_order + 1, c_order + 1));
+    for (uint i = 0; i < c_order + 1; i++) {
+        factorial_matrix(i, i) = factorial(N_)/factorial(N_-i);
+    }
+    Eigen::MatrixX2d derivatives(Eigen::MatrixX2d::Zero(c_order + 1, 2));
+    derivatives.row(0) = locked_curve.valueAt(1);
+    for (uint i = 1; i < c_order + 1; i++)
+        derivatives.row(i) = locked_curve.getDerivativeAt(i, 1);
+
+    Eigen::MatrixXd temp_diag_bell = bell_matrix.colwise().reverse().transpose();
+     /*
+    Eigen::MatrixXd temp_diag_bell(Eigen::MatrixXd::Zero(c_order + 1, c_order + 1));
+
+
+    temp_diag_bell.diagonal(0) = bell_matrix.col(0);
+    temp_diag_bell(0, 0) = 1;
+    */
+    Eigen::MatrixXd rez = temp_diag_bell * derivatives;
+
+    Eigen::MatrixXd a = (factorial_matrix * pascal_alterating_matrix).inverse();
+    Eigen::MatrixXd b = a * rez;
+
+    for (uint i = 0; i < c_order+1; i++) {
+        Bezier::Point p = b.row(i);
+        manipulateControlPoint(i, p);
+    }
+
+    auto derivative_1 = locked_curve.getDerivative();
+    auto derivative_2 = derivative_1->getDerivative();
+    auto derivative_3 = derivative_2->getDerivative();
+
+    // First cp
+    Bezier::Point cp = (derivative_1->valueAt(1) * beta_coeffs.at(0))/getOrder() + getControlPoints().at(0);
+    //manipulateControlPoint(1, cp);
+
+    // Second cp
+    Bezier::Point der_sec = pow(beta_coeffs.at(0), 2)*derivative_2->valueAt(1) + beta_coeffs.at(1)*derivative_1->valueAt(1);
+    Bezier::Point cp_2 = der_sec/(getOrder()*(getOrder()-1))+2*cp-getControlPoints().at(0);
+    //manipulateControlPoint(2, cp_2);
+
+    // Third cp
+    Bezier::Point der_trd = pow(beta_coeffs.at(0), 3)*derivative_3->valueAt(1) +
+            3*beta_coeffs.at(0)*beta_coeffs.at(1)*derivative_2->valueAt(1) + beta_coeffs.at(2)*derivative_1->valueAt(1);
+    Bezier::Point cp_3 = der_trd/(getOrder()*(getOrder()-1)*(getOrder()-2))
+            + 3*cp_2 - 3*cp + getControlPoints().at(0);
+    //manipulateControlPoint(3, cp_3);
 }
 
 } // namespace Bezier

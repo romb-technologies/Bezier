@@ -11,6 +11,8 @@ class qCurve : public QGraphicsItem, public Bezier::Curve
 private:
   bool draw_control_points = false;
   bool draw_curvature_radious = false;
+  bool locked = false;
+
 public:
   qCurve(const Eigen::MatrixX2d& points) : QGraphicsItem(), Bezier::Curve(points) {}
   qCurve(const Bezier::Curve& curve) : QGraphicsItem(), Bezier::Curve(curve) {}
@@ -26,6 +28,8 @@ public:
   bool getDraw_control_points() const;
   bool getDraw_curvature_radious() const;
   Bezier::CurvePtr getSharedPtr();
+  bool getLocked() const;
+  void setLocked(bool value);
 };
 
 #endif // QCURVE_H

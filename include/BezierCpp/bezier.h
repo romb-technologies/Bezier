@@ -297,6 +297,8 @@ public:
    * \return Parameter t
    */
   double projectPoint(const Point& point, double step = 0.01, double epsilon = 0.001) const;
+
+  void applyContinuity(const Curve &locked_curve, std::vector<double>& beta_coeffs);
 };
 
 } // namespace Bezier

@@ -3,11 +3,14 @@
 #include <QGraphicsSceneMouseEvent>
 #include <QKeyEvent>
 #include <QMessageBox>
+#include <QElapsedTimer>
 
 #define is_curve (curve->type() == QGraphicsItem::UserType + 1)
+#define is_curve_item(x) (x->type() == QGraphicsItem::UserType + 1)
 #define is_poly (curve->type() == QGraphicsItem::UserType + 2)
 
 #define c_curve (static_cast<qCurve*>(curve))
+#define c_curve_item(x) (static_cast<qCurve*>(x))
 #define c_poly (static_cast<qPolyCurve*>(curve))
 
 void CustomScene::drawForeground(QPainter* painter, const QRectF& rect)
@@ -379,6 +382,48 @@ Delete - delete curve/polycurve");
       addItem(new_poly);
     update();
   }
+  if (keyEvent->key() == Qt::Key_L) {
+      for (auto&& curve : selectedItems()) {
+          if (is_curve) {
+              c_curve->setLocked(!c_curve->getLocked());
+          }
+      }
+      update();
+  }
+  if (keyEvent->key() == Qt::Key_Enter || keyEvent->key() == Qt::Key_Return) {
+      if (selectedItems().size() != 2) {
+          return;
+      }
+
+      qCurve* curve_locked = nullptr;
+      qCurve* curve_unlocked = nullptr;
+
+      if (c_curve_item(selectedItems().first())->getLocked()) {
+          curve_locked = c_curve_item(selectedItems().first());
+          curve_unlocked = c_curve_item(selectedItems().last());
+      }
+      else if (c_curve_item(selectedItems().last())->getLocked()) {
+          curve_locked = c_curve_item(selectedItems().last());
+          curve_unlocked = c_curve_item(selectedItems().first());
+      }
+
+      if (curve_locked != nullptr && curve_unlocked != nullptr) {
+          while (curve_locked->getOrder() < 5) {
+              curve_locked->elevateOrder();
+          }
+          while (curve_unlocked->getOrder() < 5) {
+              curve_unlocked->elevateOrder();
+          }
+
+          std::vector<double> beta_coeffs = {1, 0, 0, 0};
+          QElapsedTimer timer;
+          timer.start();
+          curve_unlocked->applyContinuity(*dynamic_cast<Bezier::Curve*>(curve_locked), beta_coeffs);
+          qDebug() << timer.elapsed();
+          timer.restart();
+      }
+  }
+
   //  if (keyEvent->key() >= 48 && keyEvent->key() <= 59) // num keys
   //  {
   //    Bezier::Continuity c;
