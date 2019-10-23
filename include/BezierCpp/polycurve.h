@@ -45,6 +45,11 @@ private:
 
 public:
   /*!
+   * \brief Create the empty Bezier polycurve
+   */
+  PolyCurve();
+
+  /*!
    * \brief Create the Bezier polycurve with only one subcurve
    * \param curve A single curve
    */
@@ -198,6 +203,13 @@ public:
    * \return Curvature of a polycurve for a given t
    */
   double curvatureAt(double t) const;
+
+  /*!
+   * \brief Get curvature derivative of curve for a given t
+   * \param t Curve parameter
+   * \return Curvature derivative of a curve for a given t
+   */
+  double curvatureDerivativeAt(double t) const;
 
   /*!
    * \brief Get the tangent of polycurve for a given t

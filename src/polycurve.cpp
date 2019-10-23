@@ -9,6 +9,8 @@ namespace Bezier
 {
 PolyCurve::PolyCurve(const std::deque<CurvePtr>& part_list) : curves_(part_list) {}
 
+PolyCurve::PolyCurve() {}
+
 PolyCurve::PolyCurve(CurvePtr& curve) { curves_.push_back(curve); }
 
 PolyCurve::PolyCurve(std::vector<CurvePtr>& curve_list)
@@ -131,8 +133,10 @@ double PolyCurve::getLength(double t1, double t2) const { return getLength(t2) -
 double PolyCurve::iterateByLength(double t, double s, double epsilon, std::size_t max_iter) const
 {
   double s_t = getLength(t);
-  if (s_t + s < 0 || s_t + s > getLength())
-    throw std::out_of_range{"Resulting parameter t not in [0, n] range."};
+//  if (s_t + s < 0 || s_t + s > getLength())
+//    throw std::out_of_range{"Resulting parameter t not in [0, n] range."};
+  if (s_t + s < 0) return 0;
+  if (s_t + s > getLength()) return getSize();
 
   uint idx = getCurveIdx(t);
   t -= idx;
@@ -192,6 +196,12 @@ double PolyCurve::curvatureAt(double t) const
 {
   uint idx = getCurveIdx(t);
   return getCurvePtr(idx)->curvatureAt(t - idx);
+}
+
+double PolyCurve::curvatureDerivativeAt(double t) const
+{
+  uint idx = getCurveIdx(t);
+  return getCurvePtr(idx)->curvatureDerivativeAt(t - idx);
 }
 
 Vec2 PolyCurve::tangentAt(double t, bool normalize) const

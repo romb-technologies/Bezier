@@ -2,7 +2,6 @@
 #include "BezierCpp/legendre_gauss.h"
 
 #include <exception>
-#include <iostream>
 #include <numeric>
 
 #include <unsupported/Eigen/MatrixFunctions>
@@ -193,18 +192,19 @@ double Curve::getLength(double t1, double t2) const { return getLength(t2) - get
 double Curve::iterateByLength(double t, double s, double epsilon, std::size_t max_iter) const
 {
   const double s_t = getLength(t);
+//  if (s_t + s < 0 || s_t + s > getLength())
+//    throw std::out_of_range{"Resulting parameter t not in [0, 1] range."};
+  if (s_t + s < 0) return 0;
+  if (s_t + s > getLength()) return 1;
+
   std::size_t current_iter = 0;
-
-  if (s_t + s < 0 || s_t + s > getLength())
-    throw std::out_of_range{"Resulting parameter t not in [0, 1] range."};
-
   while (current_iter < max_iter)
   {
     // Newton-Raphson
     double t_new = t - (getLength(t) - s_t - s) / getDerivativeAt(t).norm();
 
     // if there is no change to t
-    if (std::fabs(t_new - t) < epsilon)
+    if ((valueAt(t_new) - valueAt(t)).norm() < epsilon)
       break;
 
     t = t_new;

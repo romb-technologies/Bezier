@@ -10,7 +10,7 @@ include_directories(${BezierCpp_SOURCE_DIR}/include
 
 message(STATUS "${Eigen3_DIR}")
 
-add_library(beziercpp STATIC
+add_library(beziercpp SHARED
             src/bezier.cpp
             src/polycurve.cpp
             src/offsetted_point.cpp)
