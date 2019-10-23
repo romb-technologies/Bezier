@@ -415,12 +415,18 @@ Delete - delete curve/polycurve");
               curve_unlocked->elevateOrder();
           }
 
-          std::vector<double> beta_coeffs = {1, 0, 0, 0};
+          std::vector<double> beta_coeffs = {1, 0, 0};
           QElapsedTimer timer;
           timer.start();
           curve_unlocked->applyContinuity(*dynamic_cast<Bezier::Curve*>(curve_locked), beta_coeffs);
           qDebug() << timer.elapsed();
           timer.restart();
+          update();
+
+          auto cps = curve_locked->getControlPoints();
+          qDebug() << (cps.at(cps.size()-1) - cps.at(cps.size()-2)).norm();
+          cps = curve_unlocked->getControlPoints();
+          qDebug() << (cps.at(0) - cps.at(1)).norm();
       }
   }
 
