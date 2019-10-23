@@ -602,7 +602,7 @@ void Curve::applyContinuity(const Curve &locked_curve, std::vector<double> &beta
     for (uint i = 1; i < c_order + 1; i++)
         derivatives.row(i) = locked_curve.getDerivativeAt(i, 1);
 
-    Eigen::MatrixXd bell_transposed_matrix = bell_matrix.colwise().reverse().transpose();
+    Eigen::MatrixXd bell_transposed_matrix = bell_matrix.rowwise().reverse().transpose();
     Eigen::MatrixXd derivatives_wanted = bell_transposed_matrix * derivatives;
 
     Eigen::MatrixXd control_points = (factorial_matrix * pascal_alterating_matrix).inverse() * derivatives_wanted;
