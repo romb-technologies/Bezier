@@ -610,29 +610,6 @@ void Curve::applyContinuity(const Curve &locked_curve, std::vector<double> &beta
     for (uint i = 0; i < c_order + 1; i++) {
         manipulateControlPoint(i, control_points.row(i));
     }
-
-    /*
-    auto derivative_1 = locked_curve.getDerivativeAt(1, 1);
-    auto derivative_2 = locked_curve.getDerivativeAt(2, 1);
-    auto derivative_3 = locked_curve.getDerivativeAt(3, 1);
-
-    // First cp
-    Bezier::Point der_frs = derivative_1 * beta_coeffs.at(0);
-    Bezier::Point cp = (der_frs)/getOrder() + getControlPoints().at(0);
-    manipulateControlPoint(1, cp);
-
-    // Second cp
-    Bezier::Point der_sec = pow(beta_coeffs.at(0), 2)*derivative_2 + beta_coeffs.at(1)*derivative_1;
-    Bezier::Point cp_2 = der_sec/(getOrder()*(getOrder()-1))+2*cp-getControlPoints().at(0);
-    manipulateControlPoint(2, cp_2);
-
-    // Third cp
-    Bezier::Point der_trd = pow(beta_coeffs.at(0), 3)*derivative_3 +
-            3*beta_coeffs.at(0)*beta_coeffs.at(1)*derivative_2 + beta_coeffs.at(2)*derivative_1;
-    Bezier::Point cp_3 = der_trd/(getOrder()*(getOrder()-1)*(getOrder()-2))
-            + 3*cp_2 - 3*cp + getControlPoints().at(0);
-    manipulateControlPoint(3, cp_3);
-    */
 }
 
 } // namespace Bezier
