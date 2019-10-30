@@ -577,7 +577,7 @@ double Curve::projectPoint(const Point& point, double step, double epsilon) cons
   return t;
 }
 
-void Curve::applyContinuity(const Curve &locked_curve, std::vector<double> &beta_coeffs)
+void Curve::applyContinuity(const Curve &source_curve, std::vector<double> &beta_coeffs)
 {
     ulong c_order = beta_coeffs.size();
 
@@ -599,9 +599,9 @@ void Curve::applyContinuity(const Curve &locked_curve, std::vector<double> &beta
     }
 
     Eigen::MatrixXd derivatives(Eigen::MatrixXd::Zero(2, c_order + 1));
-    derivatives.col(0) = locked_curve.valueAt(1);
+    derivatives.col(0) = source_curve.valueAt(1);
     for (uint i = 1; i < c_order + 1; i++)
-        derivatives.col(i) = locked_curve.getDerivativeAt(i, 1);
+        derivatives.col(i) = source_curve.getDerivativeAt(i, 1);
 
     Eigen::MatrixXd derivatives_wanted = (derivatives * bell_matrix).rowwise().reverse().transpose();
 

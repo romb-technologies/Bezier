@@ -303,7 +303,7 @@ public:
    * \param locked_curve Curve on which calculation are based.
    * \param beta_coeffs Beta-constraints used to calculate continuity. Size defines continuity order.
    */
-  void applyContinuity(const Curve &locked_curve, std::vector<double>& beta_coeffs);
+  void applyContinuity(const Curve &source_curve, std::vector<double>& beta_coeffs);
 };
 
 } // namespace Bezier

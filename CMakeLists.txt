@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 2.8)
 project(BezierCpp)
 
-add_compile_options(-std=c++11 -mfpmath=sse -fPIC)
+add_compile_options(-std=c++11 -march=native -mfpmath=sse -fPIC)
 
 find_package(Eigen3 REQUIRED)
 
