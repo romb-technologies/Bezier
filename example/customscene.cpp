@@ -33,8 +33,8 @@ void CustomScene::drawForeground(QPainter* painter, const QRectF& rect)
   {
     painter->setPen(Qt::red);
     painter->setBrush(QBrush(Qt::red, Qt::SolidPattern));
-    for (int k = 0; k < items().size() - 1; k++)
-      for (int i = k + 1; i < items().size(); i++)
+    for (int k = 0; k < items().size(); k++)
+      for (int i = k; i < items().size(); i++)
       {
         Bezier::PointVector inter;
         if (items()[k]->type() == QGraphicsItem::UserType + 1 && items()[i]->type() == QGraphicsItem::UserType + 1)

@@ -192,10 +192,12 @@ double Curve::getLength(double t1, double t2) const { return getLength(t2) - get
 double Curve::iterateByLength(double t, double s, double epsilon, std::size_t max_iter) const
 {
   const double s_t = getLength(t);
-//  if (s_t + s < 0 || s_t + s > getLength())
-//    throw std::out_of_range{"Resulting parameter t not in [0, 1] range."};
-  if (s_t + s < 0) return 0;
-  if (s_t + s > getLength()) return 1;
+  //  if (s_t + s < 0 || s_t + s > getLength())
+  //    throw std::out_of_range{"Resulting parameter t not in [0, 1] range."};
+  if (s_t + s < 0)
+    return 0;
+  if (s_t + s > getLength())
+    return 1;
 
   std::size_t current_iter = 0;
   while (current_iter < max_iter)
@@ -456,7 +458,39 @@ PointVector Curve::getPointsOfIntersection(const Curve& curve, bool stop_at_firs
   }
   else
   {
-    // TODO: self-interserction
+    // self intersections
+
+    // get all inflection points (roots)
+    auto roots = getRoots();
+    std::map<double, Point> t_point_pair;
+    for (const auto& root : roots)
+      t_point_pair.insert(std::make_pair(projectPoint(root), root));
+
+    // divide curve into subcurves at inflection points
+    std::vector<ConstCurvePtr> subcurves;
+    for (auto& root_pair : t_point_pair)
+    {
+      if (subcurves.empty())
+      {
+        subcurves.push_back(
+            std::make_shared<Curve>(splittingCoeffsLeft(root_pair.first - epsilon / 2) * control_points_));
+        subcurves.push_back(
+            std::make_shared<Curve>(splittingCoeffsRight(root_pair.first + epsilon / 2) * control_points_));
+      }
+      else
+      {
+        double new_t = subcurves.back()->projectPoint(root_pair.second);
+        auto new_cp = subcurves.back()->control_points_;
+        subcurves.pop_back();
+        subcurves.push_back(std::make_shared<Curve>(splittingCoeffsLeft(new_t - epsilon / 2) * new_cp));
+        subcurves.push_back(std::make_shared<Curve>(splittingCoeffsRight(new_t + epsilon / 2) * new_cp));
+      }
+    }
+
+    // create all pairs of subcurves
+    for (uint k = 0; k < subcurves.size(); k++)
+      for (uint i = k + 1; i < subcurves.size(); i++)
+        subcurve_pairs.push_back(std::make_pair(subcurves.at(k), subcurves.at(i)));
   }
 
   while (!subcurve_pairs.empty())
