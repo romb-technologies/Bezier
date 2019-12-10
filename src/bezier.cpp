@@ -185,7 +185,13 @@ double Curve::getLength() const
   return z * sum;
 }
 
-double Curve::getLength(double t) const { return splitCurve(t).first.getLength(); }
+double Curve::getLength(double t) const
+{
+  // avoid division by zero further down the line
+  if (t == 0)
+    return 0;
+  return splitCurve(t).first.getLength();
+}
 
 double Curve::getLength(double t1, double t2) const { return getLength(t2) - getLength(t1); }
 
@@ -280,6 +286,7 @@ void Curve::lowerOrder()
 
 Point Curve::valueAt(double t) const
 {
+  if (N_ == 0) return Bezier::Point(0, 0);
   Eigen::VectorXd power_basis = Eigen::pow(t, Eigen::ArrayXd::LinSpaced(N_, 0, N_ - 1));
   return (power_basis.transpose() * bernsteinCoeffs() * control_points_).transpose();
 }

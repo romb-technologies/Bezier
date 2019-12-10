@@ -23,6 +23,15 @@ double getOffsettedPointKappa(const Curve_PolyCurve& curve, double t, Bezier::Po
 template<typename Curve_PolyCurve>
 double getOffsettedPointKappaDerived(const Curve_PolyCurve& curve, double t, Bezier::Point offset);
 
+template<typename Curve_PolyCurve>
+double getOffsettedPointPathLenght(const Curve_PolyCurve& curve, Bezier::Point offset);
+
+template<typename Curve_PolyCurve>
+double getOffsettedPointPathLenght(const Curve_PolyCurve& curve, double t, Bezier::Point offset);
+
+template<typename Curve_PolyCurve>
+double getOffsettedPointPathLenght(const Curve_PolyCurve& curve, double t1, double t2, Bezier::Point offset);
+
 }
 
 #endif // OFFSETTED_POINT_H

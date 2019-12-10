@@ -1,6 +1,9 @@
 #include "BezierCpp/offsetted_point.h"
 #include "BezierCpp/bezier.h"
 #include "BezierCpp/polycurve.h"
+#include "BezierCpp/legendre_gauss.h"
+
+#include <numeric>
 
 inline double LDx(Bezier::Point p, Bezier::Point offset) { return offset.x() * p.x() - offset.y() * p.y(); }
 
@@ -169,6 +172,57 @@ double getOffsettedPointKappaDerived<Bezier::PolyCurve>(const Bezier::PolyCurve&
     --idx;
 
   return getOffsettedPointKappaDerived<Bezier::Curve>(*poly_curve.getCurvePtr(idx), t - idx, offset);
+}
+
+template<>
+double getOffsettedPointPathLenght<Bezier::Curve>(const Bezier::Curve& curve, Point offset)
+{
+  constexpr double z = 0.5;
+  double sum = 0;
+
+  for (uint k = 0; k < LegendreGauss::N; k++)
+    sum += LegendreGauss::weights.at(k) * getOffsettedPointDerivation_1(curve, z * LegendreGauss::abcissae.at(k) + z, offset).norm();
+
+  return z * sum;
+}
+
+template<>
+double getOffsettedPointPathLenght<Bezier::PolyCurve>(const Bezier::PolyCurve& poly_curve, Point offset)
+{
+  double l = 0;
+  for (auto& curve : poly_curve.getCurveList())
+    l += getOffsettedPointPathLenght(*curve, offset);
+  return l;
+}
+
+template<>
+double getOffsettedPointPathLenght<Bezier::Curve>(const Bezier::Curve& curve, double t, Point offset)
+{
+  // avoid division by zero further down the line
+  if (t == 0)
+    return 0;
+  return getOffsettedPointPathLenght(curve.splitCurve(t).first, offset);
+}
+
+template<>
+double getOffsettedPointPathLenght<Bezier::PolyCurve>(const Bezier::PolyCurve& poly_curve, double t, Point offset)
+{
+  uint idx = poly_curve.getCurveIdx(t);
+  auto curve_list = poly_curve.getCurveList();
+  return std::accumulate(begin(curve_list), begin(curve_list) + idx, getOffsettedPointPathLenght(*curve_list.at(idx), t -idx, offset),
+                         [offset](double sum, Bezier::ConstCurvePtr curve) { return sum + getOffsettedPointPathLenght(*curve, offset); });
+}
+
+template<>
+double getOffsettedPointPathLenght<Bezier::Curve>(const Bezier::Curve& curve, double t1, double t2, Point offset)
+{
+  return getOffsettedPointPathLenght(curve, t2, offset) - getOffsettedPointPathLenght(curve, t1, offset);
+}
+
+template<>
+double getOffsettedPointPathLenght<Bezier::PolyCurve>(const Bezier::PolyCurve& poly_curve, double t1, double t2, Point offset)
+{
+  return getOffsettedPointPathLenght(poly_curve, t2, offset) - getOffsettedPointPathLenght(poly_curve, t1, offset);
 }
 
 } // namespace Bezier
