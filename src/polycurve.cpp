@@ -19,6 +19,8 @@ PolyCurve::PolyCurve(std::vector<CurvePtr>& curve_list)
     insertBack(curve);
 }
 
+PolyCurve::PolyCurve(const PolyCurve& poly_curve) : PolyCurve(poly_curve.curves_) {}
+
 void PolyCurve::insertAt(uint idx, CurvePtr& curve)
 {
   Point s_1, s_2, e_1, e_2;
@@ -115,28 +117,33 @@ PointVector PolyCurve::getPolyline(double smoothness, double precision) const
 
 double PolyCurve::getLength() const
 {
-  double l = 0;
-  for (auto& curve : curves_)
-    l += curve->getLength();
-  return l;
+  return getLength(0, getSize());
 }
 
 double PolyCurve::getLength(double t) const
 {
-  uint idx = getCurveIdx(t);
-  return std::accumulate(begin(curves_), begin(curves_) + idx, curves_.at(idx)->getLength(t - idx),
-                         [](double sum, Bezier::ConstCurvePtr curve) { return sum + curve->getLength(); });
+  return getLength(0, t);
 }
 
-double PolyCurve::getLength(double t1, double t2) const { return getLength(t2) - getLength(t1); }
+double PolyCurve::getLength(double t1, double t2) const
+{
+  uint idx1 = getCurveIdx(t1);
+  uint idx2 = getCurveIdx(t2);
+
+  return std::accumulate(begin(curves_) + idx1 + 1, begin(curves_) + idx2,
+                         curves_.at(idx1)->getLength(t1 - idx1, 1.0) + curves_.at(idx2)->getLength(0.0, t2 - idx2),
+                         [](double sum, Bezier::ConstCurvePtr curve) { return sum + curve->getLength(); });
+}
 
 double PolyCurve::iterateByLength(double t, double s, double epsilon, std::size_t max_iter) const
 {
   double s_t = getLength(t);
-//  if (s_t + s < 0 || s_t + s > getLength())
-//    throw std::out_of_range{"Resulting parameter t not in [0, n] range."};
-  if (s_t + s < 0) return 0;
-  if (s_t + s > getLength()) return getSize();
+  //  if (s_t + s < 0 || s_t + s > getLength())
+  //    throw std::out_of_range{"Resulting parameter t not in [0, n] range."};
+  if (s_t + s < 0)
+    return 0;
+  if (s_t + s > getLength())
+    return getSize();
 
   uint idx = getCurveIdx(t);
   t -= idx;

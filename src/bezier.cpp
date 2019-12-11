@@ -121,6 +121,8 @@ Curve::Curve(const PointVector& points)
     control_points_.row(k) = points.at(k);
 }
 
+Curve::Curve(const Curve& curve) : Curve(curve.getControlPoints()) {}
+
 uint Curve::getOrder() { return N_ - 1; }
 
 PointVector Curve::getControlPoints() const
@@ -176,24 +178,24 @@ PointVector Curve::getPolyline(double smoothness, double precision) const
 
 double Curve::getLength() const
 {
-  constexpr double z = 0.5;
-  double sum = 0;
-
-  for (uint k = 0; k < LegendreGauss::N; k++)
-    sum += LegendreGauss::weights.at(k) * getDerivativeAt(z * LegendreGauss::abcissae.at(k) + z).norm();
-
-  return z * sum;
+  return getLength(0.0, 1.0);
 }
 
 double Curve::getLength(double t) const
 {
-  // avoid division by zero further down the line
-  if (t == 0)
-    return 0;
-  return splitCurve(t).first.getLength();
+  return getLength(0.0, t);
 }
 
-double Curve::getLength(double t1, double t2) const { return getLength(t2) - getLength(t1); }
+double Curve::getLength(double t1, double t2) const
+{
+  double sum = 0;
+
+  for (uint k = 0; k < LegendreGauss::N; k++)
+    sum += LegendreGauss::weights.at(k) *
+           getDerivativeAt(LegendreGauss::abcissae.at(k) * (t2 - t1) / 2 + (t1 + t2) / 2).norm();
+
+  return sum * (t2 - t1) / 2;
+}
 
 double Curve::iterateByLength(double t, double s, double epsilon, std::size_t max_iter) const
 {
@@ -286,7 +288,8 @@ void Curve::lowerOrder()
 
 Point Curve::valueAt(double t) const
 {
-  if (N_ == 0) return Bezier::Point(0, 0);
+  if (N_ == 0)
+    return Bezier::Point(0, 0);
   Eigen::VectorXd power_basis = Eigen::pow(t, Eigen::ArrayXd::LinSpaced(N_, 0, N_ - 1));
   return (power_basis.transpose() * bernsteinCoeffs() * control_points_).transpose();
 }

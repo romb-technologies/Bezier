@@ -62,6 +62,12 @@ public:
   PolyCurve(std::vector<CurvePtr>& curve_list);
 
   /*!
+   * \brief Create a copy of Bezier polycurve
+   * \param polycurve A Bezier polycurve to copy
+   */
+  PolyCurve(const PolyCurve& poly_curve);
+
+  /*!
    * \brief Insert new curve into polycurve
    * \param idx Index where to insert new curve
    * \param curve A curve to insert
@@ -256,5 +262,6 @@ public:
    */
   double projectPoint(const Point& point, double step = 0.01, double epsilon = 0.001) const;
 };
+
 } // namespace Bezier
 #endif // POLYCURVE_H

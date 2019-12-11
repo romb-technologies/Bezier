@@ -92,6 +92,12 @@ public:
   Curve(const PointVector& points);
 
   /*!
+   * \brief Create the Bezier curve copy
+   * \param curve A Bezier curve to copy
+   */
+  Curve(const Curve& curve);
+
+  /*!
    * \brief Get order of curve (Nth order curve is described with N+1 points);
    * \return Order of curve
    */
