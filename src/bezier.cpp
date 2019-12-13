@@ -213,13 +213,14 @@ double Curve::iterateByLength(double t, double s, double epsilon, std::size_t ma
   while (current_iter < max_iter)
   {
     // Newton-Raphson
-    double t_new = t - (getLength(t) - s_t - s) / getDerivativeAt(t).norm();
+    double f = (getLength(t) - s_t - s);
+    double f_d = getDerivativeAt(t).norm();
+    t -= f / f_d;
 
     // if there is no change to t
-    if ((valueAt(t_new) - valueAt(t)).norm() < epsilon)
+    if (std::fabs(f) < epsilon)
       break;
 
-    t = t_new;
     current_iter++;
   }
 
@@ -361,40 +362,42 @@ PointVector Curve::getRoots(double step, double epsilon, std::size_t max_iter) c
     std::vector<double> added_t;
 
     // check both axes
-    for (long k = 0; k < 2; k++)
+    for (uint k = 0; k < 2; k++)
     {
       double t = 0;
       while (t <= 1.0)
       {
-        double t_current = t;
+        double t_newton = t;
         std::size_t current_iter = 0;
 
         // it has to converge in max_iter steps
         while (current_iter < max_iter)
         {
           // Newton-Raphson
-          double t_new = t_current - getDerivativeAt(t_current)[k] / getDerivativeAt(2, t_current)[k];
-
+          double f = getDerivativeAt(t_newton)[k];
+          double f_d = getDerivativeAt(2, t_newton)[k];
+          t_newton -= f / f_d;
           // if there is no change to t_current
-          if (std::fabs(t_new - t_current) < epsilon)
+          if (std::fabs(f) < epsilon)
           {
             // check if between [0, 1]
-            if (t_new >= -epsilon && t_new <= 1 + epsilon)
+            if (t_newton >= 0.0 && t_newton <= 1.0)
             {
               // check if same value wasn't found before
-              if (added_t.end() == std::find_if(added_t.begin(), added_t.end(), [t_new, epsilon](const double& val) {
-                    return std::fabs(val - t_new) < epsilon;
+              if (added_t.end() == std::find_if(added_t.begin(), added_t.end(), [t_newton, epsilon](const double& val) {
+                    return std::fabs(val - t_newton) < epsilon;
                   }))
               {
                 // add new value and point
-                added_t.push_back(t_new);
-                (const_cast<Curve*>(this))->cached_roots_->push_back(valueAt(t_new));
-                break;
+                added_t.push_back(t_newton);
+                (const_cast<Curve*>(this))->cached_roots_->push_back(valueAt(t_newton));
               }
             }
+
+            // this t_newton converged
+            break;
           }
 
-          t_current = t_new;
           current_iter++;
         }
 
@@ -578,7 +581,7 @@ PointVector Curve::getPointsOfIntersection(const Curve& curve, bool stop_at_firs
   return points_of_intersection;
 }
 
-double Curve::projectPoint(const Point& point, double step, double epsilon) const
+double Curve::projectPoint(const Point& point, double step, double epsilon, std::size_t max_iter) const
 {
   double t = 0;
   double t_dist = (valueAt(t) - point).norm();
@@ -598,7 +601,8 @@ double Curve::projectPoint(const Point& point, double step, double epsilon) cons
   // function to minimize is a dot product between projection vector and tangent
   // - projection vector is a vector between point we are projecting and our current guess
   double t_old = t;
-  while(true)
+  std::size_t current_iter = 0;
+  while (current_iter < max_iter)
   {
     Point P = valueAt(t);
     Point d1 = getDerivativeAt(t);
@@ -610,8 +614,10 @@ double Curve::projectPoint(const Point& point, double step, double epsilon) cons
     {
       return t_old;
     }
-    if (f < epsilon)
+    if (std::fabs(f) < epsilon)
       return t;
+
+    current_iter++;
   }
 }
 
