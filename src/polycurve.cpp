@@ -115,24 +115,23 @@ PointVector PolyCurve::getPolyline(double smoothness, double precision) const
   return polyline;
 }
 
-double PolyCurve::getLength() const
-{
-  return getLength(0, getSize());
-}
+double PolyCurve::getLength() const { return getLength(0, getSize()); }
 
-double PolyCurve::getLength(double t) const
-{
-  return getLength(0, t);
-}
+double PolyCurve::getLength(double t) const { return getLength(0, t); }
 
 double PolyCurve::getLength(double t1, double t2) const
 {
   uint idx1 = getCurveIdx(t1);
   uint idx2 = getCurveIdx(t2);
 
-  return std::accumulate(begin(curves_) + idx1 + 1, begin(curves_) + idx2,
-                         curves_.at(idx1)->getLength(t1 - idx1, 1.0) + curves_.at(idx2)->getLength(0.0, t2 - idx2),
-                         [](double sum, Bezier::ConstCurvePtr curve) { return sum + curve->getLength(); });
+  if (idx1 == idx2)
+    return curves_.at(idx1)->getLength(t1 - idx1, t2 - idx2);
+  else if (idx1 + 1 == idx2)
+    return curves_.at(idx1)->getLength(t1 - idx1, 1.0) + curves_.at(idx2)->getLength(0.0, t2 - idx2);
+  else
+    return std::accumulate(begin(curves_) + idx1 + 1, begin(curves_) + idx2,
+                           curves_.at(idx1)->getLength(t1 - idx1, 1.0) + curves_.at(idx2)->getLength(0.0, t2 - idx2),
+                           [](double sum, Bezier::ConstCurvePtr curve) { return sum + curve->getLength(); });
 }
 
 double PolyCurve::iterateByLength(double t, double s, double epsilon, std::size_t max_iter) const
