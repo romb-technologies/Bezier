@@ -4,6 +4,8 @@
 #include <exception>
 #include <numeric>
 
+#include <iostream>
+
 #include <unsupported/Eigen/MatrixFunctions>
 
 inline double binomial(uint n, uint k) { return std::tgamma(n + 1) / (std::tgamma(k + 1) * std::tgamma(n - k + 1)); }
@@ -592,32 +594,25 @@ double Curve::projectPoint(const Point& point, double step, double epsilon) cons
     }
   }
 
-  // fine search
-  while (step > epsilon)
+  // Fine search - Newton-Raphson
+  // function to minimize is a dot product between projection vector and tangent
+  // - projection vector is a vector between point we are projecting and our current guess
+  double t_old = t;
+  while(true)
   {
-    double new_dist1 = (valueAt(t - step / 2) - point).norm();
-    double new_dist2 = (valueAt(t + step / 2) - point).norm();
-
-    if (new_dist1 >= t_dist && new_dist2 >= t_dist)
+    Point P = valueAt(t);
+    Point d1 = getDerivativeAt(t);
+    Point d2 = getDerivativeAt(2, t);
+    double f = (point - P).dot(d1);
+    double f_d = (point - P).dot(d2) - d1.dot(d1);
+    t -= f / f_d;
+    if (t < 0 || t > 1)
     {
-      step /= 2;
-      continue;
+      return t_old;
     }
-    if ((new_dist1 < new_dist2 ? new_dist1 : new_dist2) < t_dist)
-    {
-      t_dist = (new_dist1 < new_dist2 ? new_dist1 : new_dist2);
-      t += new_dist1 < new_dist2 ? -step / 2 : step / 2;
-    }
+    if (f < epsilon)
+      return t;
   }
-
-  // if closest point is between <1, 1+step>
-  if (t > 1)
-    t = 1;
-  // if closest point is between < -step, 0>
-  if (t < 0)
-    t = 0;
-
-  return t;
 }
 
 } // namespace Bezier
