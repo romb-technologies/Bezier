@@ -16,6 +16,16 @@ Bezier::CurvePtr qCurve::getSharedPtr()
   return shared_from_this();
 }
 
+bool qCurve::getLocked() const
+{
+    return locked;
+}
+
+void qCurve::setLocked(bool value)
+{
+    locked = value;
+}
+
 int qCurve::type() const { return QGraphicsItem::UserType + 1; }
 
 void qCurve::paint(QPainter* painter, const QStyleOptionGraphicsItem* option, QWidget* widget)
@@ -27,7 +37,10 @@ void qCurve::paint(QPainter* painter, const QStyleOptionGraphicsItem* option, QW
 
   painter->setRenderHints(QPainter::Antialiasing | QPainter::SmoothPixmapTransform, true);
 
-  painter->setPen(QPen(isSelected() ? Qt::DashDotLine : Qt::SolidLine));
+  QPen pen;
+  pen.setStyle(isSelected() ? Qt::DashDotLine : Qt::SolidLine);
+  pen.setColor(getLocked() ? Qt::red : Qt::black);
+  painter->setPen(pen);
   QPainterPath curve;
   auto poly = getPolyline();
   curve.moveTo(poly[0].x(), poly[0].y());

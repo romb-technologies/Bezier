@@ -303,6 +303,13 @@ public:
    * \return Parameter t
    */
   double projectPoint(const Point& point, double step = 0.01, double epsilon = 0.001) const;
+
+  /*!
+   * \brief applyContinuity Apply geometric continuity based on the another curve.
+   * \param locked_curve Curve on which calculation are based.
+   * \param beta_coeffs Beta-constraints used to calculate continuity. Size defines continuity order.
+   */
+  void applyContinuity(const Curve &source_curve, std::vector<double>& beta_coeffs);
 };
 
 } // namespace Bezier

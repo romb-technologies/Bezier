@@ -18,7 +18,7 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent), ui(new Ui::MainWi
       48, 236,
       180, 110;
 
-  cp2 << 175, 128,
+  cp2 << 180, 110,
       175, 160,
       60, 48,
       164, 165,

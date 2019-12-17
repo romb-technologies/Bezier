@@ -8,7 +8,8 @@
 
 #include <unsupported/Eigen/MatrixFunctions>
 
-inline double binomial(uint n, uint k) { return std::tgamma(n + 1) / (std::tgamma(k + 1) * std::tgamma(n - k + 1)); }
+inline double factorial(uint k) { return std::tgamma(k+1);}
+inline double binomial(uint n, uint k) { return factorial(n) / (factorial(k) * factorial(n - k)); }
 
 namespace Bezier
 {
@@ -619,6 +620,41 @@ double Curve::projectPoint(const Point& point, double step, double epsilon, std:
 
     current_iter++;
   }
+}
+
+void Curve::applyContinuity(const Curve &source_curve, std::vector<double> &beta_coeffs)
+{
+    ulong c_order = beta_coeffs.size();
+
+    Eigen::MatrixXd pascal_alterating_matrix(Eigen::MatrixXd::Zero(c_order + 1, c_order + 1));
+    pascal_alterating_matrix.diagonal(-1) = -Eigen::ArrayXd::LinSpaced(c_order, 1, c_order);
+    pascal_alterating_matrix = pascal_alterating_matrix.exp();
+
+    Eigen::MatrixXd bell_matrix(Eigen::MatrixXd::Zero(c_order + 1, c_order + 1));
+    bell_matrix(0, c_order) = 1;
+
+    for (uint i = 0; i < c_order; i++) {
+        bell_matrix.block(1, c_order-i-1, i+1, 1) = bell_matrix.block(0, c_order-i, i+1, i+1) *
+                pascal_alterating_matrix.block(i, 0, 1, i+1).cwiseAbs().transpose().cwiseProduct(Eigen::Map<Eigen::MatrixXd>(beta_coeffs.data(), i+1, 1));
+    }
+
+    Eigen::MatrixXd factorial_matrix(Eigen::MatrixXd::Zero(c_order + 1, c_order + 1));
+    for (uint i = 0; i < c_order + 1; i++) {
+        factorial_matrix(i, i) = factorial(N_-1)/factorial(N_-1-i);
+    }
+
+    Eigen::MatrixXd derivatives(Eigen::MatrixXd::Zero(2, c_order + 1));
+    derivatives.col(0) = source_curve.valueAt(1);
+    for (uint i = 1; i < c_order + 1; i++)
+        derivatives.col(i) = source_curve.getDerivativeAt(i, 1);
+
+    Eigen::MatrixXd derivatives_wanted = (derivatives * bell_matrix).rowwise().reverse().transpose();
+
+    Eigen::MatrixXd control_points = (factorial_matrix * pascal_alterating_matrix).inverse() * derivatives_wanted;
+
+    for (uint i = 0; i < c_order + 1; i++) {
+        manipulateControlPoint(i, control_points.row(i));
+    }
 }
 
 } // namespace Bezier
