@@ -8,7 +8,7 @@
 #include <unsupported/Eigen/MatrixFunctions>
 
 inline double factorial(uint k) { return std::tgamma(k+1);}
-inline double binomial(uint n, uint k) { return std::tgamma(n + 1) / (std::tgamma(k + 1) * std::tgamma(n - k + 1)); }
+inline double binomial(uint n, uint k) { return factorial(n) / (factorial(k) * factorial(n - k)); }
 
 namespace Bezier
 {

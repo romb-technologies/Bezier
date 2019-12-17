@@ -3,7 +3,6 @@
 #include <QGraphicsSceneMouseEvent>
 #include <QKeyEvent>
 #include <QMessageBox>
-#include <QElapsedTimer>
 
 #define is_curve (curve->type() == QGraphicsItem::UserType + 1)
 #define is_curve_item(x) (x->type() == QGraphicsItem::UserType + 1)
@@ -416,17 +415,8 @@ Delete - delete curve/polycurve");
           }
 
           std::vector<double> beta_coeffs = {1, 0, 0};
-          QElapsedTimer timer;
-          timer.start();
           curve_unlocked->applyContinuity(*dynamic_cast<Bezier::Curve*>(curve_locked), beta_coeffs);
-          qDebug() << timer.elapsed();
-          timer.restart();
           update();
-
-          auto cps = curve_locked->getControlPoints();
-          qDebug() << (cps.at(cps.size()-1) - cps.at(cps.size()-2)).norm();
-          cps = curve_unlocked->getControlPoints();
-          qDebug() << (cps.at(0) - cps.at(1)).norm();
       }
   }
 
