@@ -8,7 +8,7 @@
 
 #include <unsupported/Eigen/MatrixFunctions>
 
-inline double factorial(uint k) { return std::tgamma(k+1);}
+inline double factorial(uint k) { return std::tgamma(k + 1); }
 inline double binomial(uint n, uint k) { return factorial(n) / (factorial(k) * factorial(n - k)); }
 
 namespace Bezier
@@ -146,31 +146,27 @@ PointVector Curve::getPolyline(double smoothness, double precision) const
   if (!cached_polyline_ || cached_polyline_params_ != std::make_tuple(smoothness, precision))
   {
     PointVector* polyline = new PointVector;
-    std::vector<std::shared_ptr<Curve>> subcurves;
-    subcurves.push_back(std::make_shared<Bezier::Curve>(control_points_));
+    std::vector<Eigen::MatrixX2d> subcurves;
+    subcurves.push_back(control_points_);
     polyline->push_back(control_points_.row(0));
     while (!subcurves.empty())
     {
-      auto c = subcurves.back();
+      auto cp = subcurves.back();
       subcurves.pop_back();
-      auto cp = c->getControlPoints();
 
-      double string_length = (cp.front() - cp.back()).norm();
-
-      // we iterate from back so last control point is unchanged
-      std::adjacent_difference(cp.rbegin(), cp.rend(), cp.rbegin());
-      double hull_length = std::accumulate(cp.begin(), std::prev(cp.end()), 0.0,
-                                           [](double sum, const Point& p) { return sum + p.norm(); });
+      double string_length = (cp.row(0) - cp.row(N_ - 1)).norm();
+      double hull_length = 0.0;
+      for (uint k = 1; k < N_; k++)
+        hull_length += (cp.row(k) - cp.row(k - 1)).norm();
 
       if (hull_length <= smoothness * string_length || string_length <= precision)
       {
-        polyline->push_back(cp.back());
+        polyline->push_back(cp.row(N_ - 1));
       }
       else
       {
-        auto split = c->splitCurve();
-        subcurves.push_back(std::make_shared<Bezier::Curve>(split.second));
-        subcurves.push_back(std::make_shared<Bezier::Curve>(split.first));
+        subcurves.push_back(splittingCoeffsRight(0.5) * cp);
+        subcurves.push_back(splittingCoeffsLeft(0.5) * cp);
       }
     }
     (const_cast<Curve*>(this))->cached_polyline_params_ = {smoothness, precision};
@@ -179,15 +175,9 @@ PointVector Curve::getPolyline(double smoothness, double precision) const
   return *cached_polyline_;
 }
 
-double Curve::getLength() const
-{
-  return getLength(0.0, 1.0);
-}
+double Curve::getLength() const { return getLength(0.0, 1.0); }
 
-double Curve::getLength(double t) const
-{
-  return getLength(0.0, t);
-}
+double Curve::getLength(double t) const { return getLength(0.0, t); }
 
 double Curve::getLength(double t1, double t2) const
 {
@@ -622,39 +612,46 @@ double Curve::projectPoint(const Point& point, double step, double epsilon, std:
   }
 }
 
-void Curve::applyContinuity(const Curve &source_curve, std::vector<double> &beta_coeffs)
+void Curve::applyContinuity(const Curve& source_curve, std::vector<double>& beta_coeffs)
 {
-    ulong c_order = beta_coeffs.size();
+  ulong c_order = beta_coeffs.size();
 
-    Eigen::MatrixXd pascal_alterating_matrix(Eigen::MatrixXd::Zero(c_order + 1, c_order + 1));
-    pascal_alterating_matrix.diagonal(-1) = -Eigen::ArrayXd::LinSpaced(c_order, 1, c_order);
-    pascal_alterating_matrix = pascal_alterating_matrix.exp();
+  Eigen::MatrixXd pascal_alterating_matrix(Eigen::MatrixXd::Zero(c_order + 1, c_order + 1));
+  pascal_alterating_matrix.diagonal(-1) = -Eigen::ArrayXd::LinSpaced(c_order, 1, c_order);
+  pascal_alterating_matrix = pascal_alterating_matrix.exp();
 
-    Eigen::MatrixXd bell_matrix(Eigen::MatrixXd::Zero(c_order + 1, c_order + 1));
-    bell_matrix(0, c_order) = 1;
+  Eigen::MatrixXd bell_matrix(Eigen::MatrixXd::Zero(c_order + 1, c_order + 1));
+  bell_matrix(0, c_order) = 1;
 
-    for (uint i = 0; i < c_order; i++) {
-        bell_matrix.block(1, c_order-i-1, i+1, 1) = bell_matrix.block(0, c_order-i, i+1, i+1) *
-                pascal_alterating_matrix.block(i, 0, 1, i+1).cwiseAbs().transpose().cwiseProduct(Eigen::Map<Eigen::MatrixXd>(beta_coeffs.data(), i+1, 1));
-    }
+  for (uint i = 0; i < c_order; i++)
+  {
+    bell_matrix.block(1, c_order - i - 1, i + 1, 1) =
+        bell_matrix.block(0, c_order - i, i + 1, i + 1) *
+        pascal_alterating_matrix.block(i, 0, 1, i + 1)
+            .cwiseAbs()
+            .transpose()
+            .cwiseProduct(Eigen::Map<Eigen::MatrixXd>(beta_coeffs.data(), i + 1, 1));
+  }
 
-    Eigen::MatrixXd factorial_matrix(Eigen::MatrixXd::Zero(c_order + 1, c_order + 1));
-    for (uint i = 0; i < c_order + 1; i++) {
-        factorial_matrix(i, i) = factorial(N_-1)/factorial(N_-1-i);
-    }
+  Eigen::MatrixXd factorial_matrix(Eigen::MatrixXd::Zero(c_order + 1, c_order + 1));
+  for (uint i = 0; i < c_order + 1; i++)
+  {
+    factorial_matrix(i, i) = factorial(N_ - 1) / factorial(N_ - 1 - i);
+  }
 
-    Eigen::MatrixXd derivatives(Eigen::MatrixXd::Zero(2, c_order + 1));
-    derivatives.col(0) = source_curve.valueAt(1);
-    for (uint i = 1; i < c_order + 1; i++)
-        derivatives.col(i) = source_curve.getDerivativeAt(i, 1);
+  Eigen::MatrixXd derivatives(Eigen::MatrixXd::Zero(2, c_order + 1));
+  derivatives.col(0) = source_curve.valueAt(1);
+  for (uint i = 1; i < c_order + 1; i++)
+    derivatives.col(i) = source_curve.getDerivativeAt(i, 1);
 
-    Eigen::MatrixXd derivatives_wanted = (derivatives * bell_matrix).rowwise().reverse().transpose();
+  Eigen::MatrixXd derivatives_wanted = (derivatives * bell_matrix).rowwise().reverse().transpose();
 
-    Eigen::MatrixXd control_points = (factorial_matrix * pascal_alterating_matrix).inverse() * derivatives_wanted;
+  Eigen::MatrixXd control_points = (factorial_matrix * pascal_alterating_matrix).inverse() * derivatives_wanted;
 
-    for (uint i = 0; i < c_order + 1; i++) {
-        manipulateControlPoint(i, control_points.row(i));
-    }
+  for (uint i = 0; i < c_order + 1; i++)
+  {
+    manipulateControlPoint(i, control_points.row(i));
+  }
 }
 
 } // namespace Bezier

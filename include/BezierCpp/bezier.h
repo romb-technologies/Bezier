@@ -54,7 +54,7 @@ private:
       cached_bounding_box_tight_; /*! If generated, stores bounding box (use_roots = true) for later use */
   std::shared_ptr<BBox>
       cached_bounding_box_relaxed_; /*! If generated, stores bounding box (use_roots = false) for later use */
-  std::shared_ptr<PointVector> cached_polyline_;                   /*! If generated, stores polyline for later use */
+  std::shared_ptr<PointVector> cached_polyline_;               /*! If generated, stores polyline for later use */
   std::tuple<double, double> cached_polyline_params_ = {0, 0}; /*! Smootheness and precision of cached polyline */
 
   /// Reset all privately cached data
@@ -302,14 +302,14 @@ public:
    * \param epsilon Precision of resulting projection
    * \return Parameter t
    */
-  double projectPoint(const Point& point, double step = 0.01, double epsilon = 0.001) const;
+  double projectPoint(const Point& point, double step = 0.01, double epsilon = 0.001, std::size_t max_iter = 15) const;
 
   /*!
    * \brief applyContinuity Apply geometric continuity based on the another curve.
    * \param locked_curve Curve on which calculation are based.
    * \param beta_coeffs Beta-constraints used to calculate continuity. Size defines continuity order.
    */
-  void applyContinuity(const Curve &source_curve, std::vector<double>& beta_coeffs);
+  void applyContinuity(const Curve& source_curve, std::vector<double>& beta_coeffs);
 };
 
 } // namespace Bezier
