@@ -169,7 +169,7 @@ PointVector Curve::getPolyline(double smoothness, double precision) const
         subcurves.push_back(splittingCoeffsLeft(0.5) * cp);
       }
     }
-    (const_cast<Curve*>(this))->cached_polyline_params_ = {smoothness, precision};
+    (const_cast<Curve*>(this))->cached_polyline_params_ = std::make_tuple(smoothness, precision);
     (const_cast<Curve*>(this))->cached_polyline_.reset(polyline);
   }
   return *cached_polyline_;
@@ -348,7 +348,7 @@ PointVector Curve::getRoots(double step, double epsilon, std::size_t max_iter) c
 {
   if (!cached_roots_ || cached_roots_params_ != std::make_tuple(step, epsilon, max_iter))
   {
-    (const_cast<Curve*>(this))->cached_roots_params_ = {step, epsilon, max_iter};
+    (const_cast<Curve*>(this))->cached_roots_params_ = std::make_tuple(step, epsilon, max_iter);
     (const_cast<Curve*>(this))->cached_roots_ = std::make_shared<PointVector>();
     std::vector<double> added_t;
 
