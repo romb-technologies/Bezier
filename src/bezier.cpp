@@ -324,8 +324,10 @@ ConstCurvePtr Curve::getDerivative() const
 {
   if (!cached_derivative_)
   {
-    Eigen::MatrixX2d new_points = (N_ - 1) * (control_points_.bottomRows(N_ - 1) - control_points_.topRows(N_ - 1));
-    (const_cast<Curve*>(this))->cached_derivative_ = std::make_shared<const Curve>(new_points);
+    (const_cast<Curve*>(this))->cached_derivative_ =
+        N_ == 1 ? std::make_shared<const Curve>(PointVector{Point(0, 0)})
+                : std::make_shared<const Curve>(
+                      ((N_ - 1) * (control_points_.bottomRows(N_ - 1) - control_points_.topRows(N_ - 1))).eval());
   }
   return cached_derivative_;
 }
