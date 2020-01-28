@@ -49,13 +49,13 @@ private:
   // private caching
   ConstCurvePtr cached_derivative_;           /*! If generated, stores derivative for later use */
   std::shared_ptr<PointVector> cached_roots_; /*! If generated, stores roots for later use */
-  std::tuple<double, double, std::size_t> cached_roots_params_ {0, 0, 0}; /*! epsilon and max_iter of cached roots */
+  std::tuple<double, double, std::size_t> cached_roots_params_{0, 0, 0}; /*! epsilon and max_iter of cached roots */
   std::shared_ptr<BBox>
       cached_bounding_box_tight_; /*! If generated, stores bounding box (use_roots = true) for later use */
   std::shared_ptr<BBox>
       cached_bounding_box_relaxed_; /*! If generated, stores bounding box (use_roots = false) for later use */
-  std::shared_ptr<PointVector> cached_polyline_;               /*! If generated, stores polyline for later use */
-  std::tuple<double, double> cached_polyline_params_ {0, 0}; /*! Smootheness and precision of cached polyline */
+  std::shared_ptr<PointVector> cached_polyline_;            /*! If generated, stores polyline for later use */
+  std::tuple<double, double> cached_polyline_params_{0, 0}; /*! Smootheness and precision of cached polyline */
 
   /// Reset all privately cached data
   inline void resetCache();

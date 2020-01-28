@@ -4,6 +4,7 @@
 #include "BezierCpp/legendre_gauss.h"
 
 #include <numeric>
+#include <limits>
 
 inline double LDx(Bezier::Point p, Bezier::Point offset) { return offset.x() * p.x() - offset.y() * p.y(); }
 
@@ -199,7 +200,8 @@ template<>
 double getOffsettedPointPathLenght<Bezier::Curve>(const Bezier::Curve& curve, double t, Point offset)
 {
   // avoid division by zero further down the line
-  if (t == 0)
+  // magic number: sometimes point projection of first point returns t valua very close to numeric limit
+  if (t <= 2 * std::numeric_limits<double>::epsilon())
     return 0;
   return getOffsettedPointPathLenght(curve.splitCurve(t).first, offset);
 }
