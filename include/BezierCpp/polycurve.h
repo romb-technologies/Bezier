@@ -234,6 +234,21 @@ public:
   Vec2 normalAt(double t, bool normalize = true) const;
 
   /*!
+   * \brief Get value of a derivative for a given t
+   * \param t Curve parameter
+   * \return Derivative curve
+   */
+  Point derivativeAt(double t) const;
+
+  /*!
+   * \brief Get value of an nth derivative for a given t
+   * \param n Desired number of derivative
+   * \param t Curve parameter
+   * \return Derivative curve
+   */
+  Point derivativeAt(uint n, double t) const;
+
+  /*!
    * \brief Get the bounding box of polycurve
    * \param use_roots If algorithm should use roots
    * \return Bounding box (if use_roots is false, returns the bounding box of control points)

@@ -222,6 +222,18 @@ Vec2 PolyCurve::normalAt(double t, bool normalize) const
   return getCurvePtr(idx)->normalAt(t - idx, normalize);
 }
 
+Point PolyCurve::derivativeAt(double t) const
+{
+  uint idx = getCurveIdx(t);
+  return getCurvePtr(idx)->derivativeAt(t - idx);
+}
+
+Point PolyCurve::derivativeAt(uint n, double t) const
+{
+  uint idx = getCurveIdx(t);
+  return getCurvePtr(idx)->derivativeAt(n, t - idx);
+}
+
 BBox PolyCurve::getBBox(bool use_roots) const
 {
   BBox bbox;

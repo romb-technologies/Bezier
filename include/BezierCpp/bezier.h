@@ -236,14 +236,7 @@ public:
    * \brief Get the derivative of a curve
    * \return Derivative curve
    */
-  ConstCurvePtr getDerivative() const;
-
-  /*!
-   * \brief Get value of a derivative for a given t
-   * \param t Curve parameter
-   * \return Derivative curve
-   */
-  Point getDerivativeAt(double t) const;
+  ConstCurvePtr derivative() const;
 
   /*!
    * \brief Get the nth derivative of a curve
@@ -251,7 +244,14 @@ public:
    * \return Derivative curve
    * \warning Parameter n cannot be zero
    */
-  ConstCurvePtr getDerivative(uint n) const;
+  ConstCurvePtr derivative(uint n) const;
+
+  /*!
+   * \brief Get value of a derivative for a given t
+   * \param t Curve parameter
+   * \return Derivative curve
+   */
+  Point derivativeAt(double t) const;
 
   /*!
    * \brief Get value of an nth derivative for a given t
@@ -259,7 +259,7 @@ public:
    * \param t Curve parameter
    * \return Derivative curve
    */
-  Point getDerivativeAt(uint n, double t) const;
+  Point derivativeAt(uint n, double t) const;
 
   /*!
    * \brief Get the roots of curve on both axis

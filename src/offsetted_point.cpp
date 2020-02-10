@@ -18,7 +18,7 @@ template <> Bezier::Point getOffsettedPoint<Bezier::Curve>(const Bezier::Curve& 
   Bezier::Point p_off;
 
   auto P = curve.valueAt(t);
-  auto d1 = curve.getDerivativeAt(t);
+  auto d1 = curve.derivativeAt(t);
 
   p_off.x() = P.x() + LDx(d1, offset) / d1.norm();
   p_off.y() = P.y() + LDy(d1, offset) / d1.norm();
@@ -41,8 +41,8 @@ Bezier::Point getOffsettedPointDerivation_1<Bezier::Curve>(const Bezier::Curve& 
 {
   Bezier::Point d1_off;
 
-  auto d1 = curve.getDerivativeAt(t);
-  auto d2 = curve.getDerivativeAt(2, t);
+  auto d1 = curve.derivativeAt(t);
+  auto d2 = curve.derivativeAt(2, t);
 
   auto n1 = d1.x() * d2.x() + d1.y() * d2.y();
 
@@ -68,9 +68,9 @@ Bezier::Point getOffsettedPointDerivation_2<Bezier::Curve>(const Bezier::Curve& 
 {
   Bezier::Point d2_off;
 
-  auto d1 = curve.getDerivativeAt(t);
-  auto d2 = curve.getDerivativeAt(2, t);
-  auto d3 = curve.getDerivativeAt(3, t);
+  auto d1 = curve.derivativeAt(t);
+  auto d2 = curve.derivativeAt(2, t);
+  auto d3 = curve.derivativeAt(3, t);
 
   auto n1 = d2.x() * d2.x() + d2.y() * d2.y() + d1.x() * d3.x() + d1.y() * d3.y();
   auto n2 = d1.x() * d2.x() + d1.y() * d2.y();
@@ -102,10 +102,10 @@ Bezier::Point getOffsettedPointDerivation_3<Bezier::Curve>(const Bezier::Curve& 
 {
   Bezier::Point d3_off;
 
-  auto d1 = curve.getDerivativeAt(t);
-  auto d2 = curve.getDerivativeAt(2, t);
-  auto d3 = curve.getDerivativeAt(3, t);
-  auto d4 = curve.getDerivativeAt(4, t);
+  auto d1 = curve.derivativeAt(t);
+  auto d2 = curve.derivativeAt(2, t);
+  auto d3 = curve.derivativeAt(3, t);
+  auto d4 = curve.derivativeAt(4, t);
 
   auto n1 = (d2.x() * d2.x() + d2.y() * d2.y()) + (d3.x() * d1.x() + d3.y() * d1.y());
   auto n2 = 3 * (d3.x() * d2.x() + d3.y() * d2.y()) + (d4.x() * d1.x() + d4.y() * d1.y());

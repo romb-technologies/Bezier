@@ -185,7 +185,7 @@ double Curve::getLength(double t1, double t2) const
 
   for (uint k = 0; k < LegendreGauss::N; k++)
     sum += LegendreGauss::weights.at(k) *
-           getDerivativeAt(LegendreGauss::abcissae.at(k) * (t2 - t1) / 2 + (t1 + t2) / 2).norm();
+           derivativeAt(LegendreGauss::abcissae.at(k) * (t2 - t1) / 2 + (t1 + t2) / 2).norm();
 
   return sum * (t2 - t1) / 2;
 }
@@ -205,7 +205,7 @@ double Curve::iterateByLength(double t, double s, double epsilon, std::size_t ma
   {
     // Newton-Raphson
     double f = (getLength(t) - s_t - s);
-    double f_d = getDerivativeAt(t).norm();
+    double f_d = derivativeAt(t).norm();
     t -= f / f_d;
 
     // if there is no change to t
@@ -290,17 +290,17 @@ Point Curve::valueAt(double t) const
 
 double Curve::curvatureAt(double t) const
 {
-  Point d1 = getDerivativeAt(t);
-  Point d2 = getDerivativeAt(2, t);
+  Point d1 = derivativeAt(t);
+  Point d2 = derivativeAt(2, t);
 
   return (d1.x() * d2.y() - d1.y() * d2.x()) / std::pow(d1.norm(), 3);
 }
 
 double Curve::curvatureDerivativeAt(double t) const
 {
-  auto d1 = getDerivativeAt(t);
-  auto d2 = getDerivativeAt(2, t);
-  auto d3 = getDerivativeAt(3, t);
+  auto d1 = derivativeAt(t);
+  auto d2 = derivativeAt(2, t);
+  auto d3 = derivativeAt(3, t);
 
   return (d1.x() * d3.y() - d1.y() * d3.x()) / std::pow(d1.norm(), 3) -
          3 * d1.dot(d2) * (d1.x() * d2.y() - d1.y() * d2.x()) / std::pow(d1.norm(), 5);
@@ -308,7 +308,7 @@ double Curve::curvatureDerivativeAt(double t) const
 
 Vec2 Curve::tangentAt(double t, bool normalize) const
 {
-  Point p(getDerivativeAt(t));
+  Point p(derivativeAt(t));
   if (normalize && p.norm() > 0)
     p.normalize();
   return p;
@@ -320,7 +320,7 @@ Vec2 Curve::normalAt(double t, bool normalize) const
   return Vec2(-tangent.y(), tangent.x());
 }
 
-ConstCurvePtr Curve::getDerivative() const
+ConstCurvePtr Curve::derivative() const
 {
   if (!cached_derivative_)
   {
@@ -332,19 +332,19 @@ ConstCurvePtr Curve::getDerivative() const
   return cached_derivative_;
 }
 
-Point Curve::getDerivativeAt(double t) const { return getDerivative()->valueAt(t); }
-
-ConstCurvePtr Curve::getDerivative(uint n) const
+ConstCurvePtr Curve::derivative(uint n) const
 {
   if (n == 0)
     throw std::invalid_argument{"Parameter 'n' cannot be zero."};
-  ConstCurvePtr nth_derivative = getDerivative();
+  ConstCurvePtr nth_derivative = derivative();
   for (uint k = 1; k < n; k++)
-    nth_derivative = nth_derivative->getDerivative();
+    nth_derivative = nth_derivative->derivative();
   return nth_derivative;
 }
 
-Point Curve::getDerivativeAt(uint n, double t) const { return getDerivative(n)->valueAt(t); }
+Point Curve::derivativeAt(double t) const { return derivative()->valueAt(t); }
+
+Point Curve::derivativeAt(uint n, double t) const { return derivative(n)->valueAt(t); }
 
 PointVector Curve::getRoots(double step, double epsilon, std::size_t max_iter) const
 {
@@ -367,8 +367,8 @@ PointVector Curve::getRoots(double step, double epsilon, std::size_t max_iter) c
         while (current_iter < max_iter)
         {
           // Newton-Raphson
-          double f = getDerivativeAt(t_newton)[k];
-          double f_d = getDerivativeAt(2, t_newton)[k];
+          double f = derivativeAt(t_newton)[k];
+          double f_d = derivativeAt(2, t_newton)[k];
           t_newton -= f / f_d;
           // if there is no change to t_current
           if (std::fabs(f) < epsilon)
@@ -598,8 +598,8 @@ double Curve::projectPoint(const Point& point, double step, double epsilon, std:
   while (current_iter < max_iter)
   {
     Point P = valueAt(t);
-    Point d1 = getDerivativeAt(t);
-    Point d2 = getDerivativeAt(2, t);
+    Point d1 = derivativeAt(t);
+    Point d2 = derivativeAt(2, t);
     double f = (point - P).dot(d1);
     double f_d = (point - P).dot(d2) - d1.dot(d1);
     t -= f / f_d;
@@ -644,7 +644,7 @@ void Curve::applyContinuity(const Curve& source_curve, std::vector<double>& beta
   Eigen::MatrixXd derivatives(Eigen::MatrixXd::Zero(2, c_order + 1));
   derivatives.col(0) = source_curve.valueAt(1);
   for (uint i = 1; i < c_order + 1; i++)
-    derivatives.col(i) = source_curve.getDerivativeAt(i, 1);
+    derivatives.col(i) = source_curve.derivativeAt(i, 1);
 
   Eigen::MatrixXd derivatives_wanted = (derivatives * bell_matrix).rowwise().reverse().transpose();
 
