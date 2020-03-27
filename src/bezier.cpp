@@ -1,18 +1,14 @@
 #include "BezierCpp/bezier.h"
 #include "BezierCpp/legendre_gauss.h"
 
-#include <exception>
 #include <numeric>
-
-#include <iostream>
 
 #include <unsupported/Eigen/MatrixFunctions>
 
 inline double factorial(uint k) { return std::tgamma(k + 1); }
 inline double binomial(uint n, uint k) { return factorial(n) / (factorial(k) * factorial(n - k)); }
 
-namespace Bezier
-{
+using namespace Bezier;
 
 Curve::CoeffsMap Curve::bernstein_coeffs_ = CoeffsMap();
 Curve::CoeffsMap Curve::splitting_coeffs_left_ = CoeffsMap();
@@ -124,11 +120,11 @@ Curve::Curve(const PointVector& points)
     control_points_.row(k) = points.at(k);
 }
 
-Curve::Curve(const Curve& curve) : Curve(curve.getControlPoints()) {}
+Curve::Curve(const Curve& curve) : Curve(curve.controlPoints()) {}
 
-uint Curve::getOrder() { return N_ - 1; }
+uint Curve::order() { return N_ - 1; }
 
-PointVector Curve::getControlPoints() const
+PointVector Curve::controlPoints() const
 {
   PointVector points(N_);
   for (uint k = 0; k < N_; k++)
@@ -136,12 +132,12 @@ PointVector Curve::getControlPoints() const
   return points;
 }
 
-std::pair<Point, Point> Curve::getEndPoints() const
+std::pair<Point, Point> Curve::endPoints() const
 {
   return std::make_pair(control_points_.row(0), control_points_.row(N_ - 1));
 }
 
-PointVector Curve::getPolyline(double smoothness, double precision) const
+PointVector Curve::polyline(double smoothness, double precision) const
 {
   if (!cached_polyline_ || cached_polyline_params_ != std::make_tuple(smoothness, precision))
   {
@@ -169,17 +165,18 @@ PointVector Curve::getPolyline(double smoothness, double precision) const
         subcurves.push_back(splittingCoeffsLeft(0.5) * cp);
       }
     }
+
     (const_cast<Curve*>(this))->cached_polyline_params_ = std::make_tuple(smoothness, precision);
     (const_cast<Curve*>(this))->cached_polyline_.reset(polyline);
   }
   return *cached_polyline_;
 }
 
-double Curve::getLength() const { return getLength(0.0, 1.0); }
+double Curve::length() const { return length(0.0, 1.0); }
 
-double Curve::getLength(double t) const { return getLength(0.0, t); }
+double Curve::length(double t) const { return length(0.0, t); }
 
-double Curve::getLength(double t1, double t2) const
+double Curve::length(double t1, double t2) const
 {
   double sum = 0;
 
@@ -192,19 +189,18 @@ double Curve::getLength(double t1, double t2) const
 
 double Curve::iterateByLength(double t, double s, double epsilon, std::size_t max_iter) const
 {
-  const double s_t = getLength(t);
-  //  if (s_t + s < 0 || s_t + s > getLength())
-  //    throw std::out_of_range{"Resulting parameter t not in [0, 1] range."};
+  const double s_t = length(t);
+
   if (s_t + s < 0)
     return 0;
-  if (s_t + s > getLength())
+  if (s_t + s > length())
     return 1;
 
   std::size_t current_iter = 0;
   while (current_iter < max_iter)
   {
     // Newton-Raphson
-    double f = (getLength(t) - s_t - s);
+    double f = (length(t) - s_t - s);
     double f_d = derivativeAt(t).norm();
     t -= f / f_d;
 
@@ -346,12 +342,12 @@ Point Curve::derivativeAt(double t) const { return derivative()->valueAt(t); }
 
 Point Curve::derivativeAt(uint n, double t) const { return derivative(n)->valueAt(t); }
 
-PointVector Curve::getRoots(double step, double epsilon, std::size_t max_iter) const
+PointVector Curve::roots(double step, double epsilon, std::size_t max_iter) const
 {
   if (!cached_roots_ || cached_roots_params_ != std::make_tuple(step, epsilon, max_iter))
   {
     (const_cast<Curve*>(this))->cached_roots_params_ = std::make_tuple(step, epsilon, max_iter);
-    (const_cast<Curve*>(this))->cached_roots_ = std::make_shared<PointVector>();
+    (const_cast<Curve*>(this))->cached_roots_.reset(new PointVector());
     std::vector<double> added_t;
 
     // check both axes
@@ -401,14 +397,14 @@ PointVector Curve::getRoots(double step, double epsilon, std::size_t max_iter) c
   return *cached_roots_;
 }
 
-BBox Curve::getBBox(bool use_roots) const
+BBox Curve::boundingBox(bool use_roots) const
 {
   if (!(use_roots ? cached_bounding_box_tight_ : cached_bounding_box_relaxed_))
   {
     PointVector extremes;
     if (use_roots)
     {
-      extremes = getRoots();
+      extremes = roots();
       extremes.push_back(control_points_.row(0));
       extremes.push_back(control_points_.row(N_ - 1));
     }
@@ -424,9 +420,9 @@ BBox Curve::getBBox(bool use_roots) const
     auto y_extremes = std::minmax_element(extremes.begin(), extremes.end(),
                                           [](const Point& lhs, const Point& rhs) { return lhs.y() < rhs.y(); });
     (use_roots ? (const_cast<Curve*>(this))->cached_bounding_box_tight_
-               : (const_cast<Curve*>(this))->cached_bounding_box_relaxed_) =
-        std::make_shared<BBox>(Point(x_extremes.first->x(), y_extremes.first->y()),
-                               Point(x_extremes.second->x(), y_extremes.second->y()));
+               : (const_cast<Curve*>(this))->cached_bounding_box_relaxed_)
+        .reset(new BBox(Point(x_extremes.first->x(), y_extremes.first->y()),
+                        Point(x_extremes.second->x(), y_extremes.second->y())));
   }
   return *(use_roots ? cached_bounding_box_tight_ : cached_bounding_box_relaxed_);
 }
@@ -437,61 +433,42 @@ std::pair<Curve, Curve> Curve::splitCurve(double z) const
                         Curve(splittingCoeffsRight(z) * control_points_));
 }
 
-PointVector Curve::getPointsOfIntersection(const Curve& curve, bool stop_at_first, double epsilon) const
+PointVector Curve::pointsOfIntersection(const Curve& curve, bool stop_at_first, double epsilon) const
 {
   PointVector points_of_intersection;
-  std::vector<std::pair<ConstCurvePtr, ConstCurvePtr>> subcurve_pairs;
+
+  std::vector<std::pair<Eigen::MatrixX2d, Eigen::MatrixX2d>> subcurve_pairs;
 
   if (this != &curve)
   {
-    // we don't know if shared_ptr of "this" and "curve" exists
-    // if not, make temporary copies and use them
-    subcurve_pairs.push_back(std::make_pair(std::shared_ptr<Curve>(), std::shared_ptr<Curve>()));
-    try // for "this"
-    {
-      subcurve_pairs.front().first = this->shared_from_this();
-    }
-    catch (std::bad_weak_ptr const&)
-    {
-      subcurve_pairs.front().first = std::make_shared<const Curve>(*this);
-    }
-    try // for "curve"
-    {
-      subcurve_pairs.front().second = curve.shared_from_this();
-    }
-    catch (std::bad_weak_ptr const&)
-    {
-      subcurve_pairs.front().second = std::make_shared<const Curve>(curve);
-    }
+    subcurve_pairs.push_back(std::make_pair(control_points_, curve.control_points_));
   }
   else
   {
     // self intersections
 
     // get all inflection points (roots)
-    auto roots = getRoots();
     std::map<double, Point> t_point_pair;
-    for (const auto& root : roots)
+    for (const auto& root : roots())
       t_point_pair.insert(std::make_pair(projectPoint(root), root));
 
     // divide curve into subcurves at inflection points
-    std::vector<ConstCurvePtr> subcurves;
-    for (auto& root_pair : t_point_pair)
+    std::vector<Eigen::MatrixX2d> subcurves;
+    for (const auto& root_pair : t_point_pair)
     {
       if (subcurves.empty())
       {
-        subcurves.push_back(
-            std::make_shared<Curve>(splittingCoeffsLeft(root_pair.first - epsilon / 2) * control_points_));
-        subcurves.push_back(
-            std::make_shared<Curve>(splittingCoeffsRight(root_pair.first + epsilon / 2) * control_points_));
+        subcurves.push_back(splittingCoeffsLeft(root_pair.first - epsilon / 2) * control_points_);
+        subcurves.push_back(splittingCoeffsRight(root_pair.first + epsilon / 2) * control_points_);
       }
       else
       {
-        double new_t = subcurves.back()->projectPoint(root_pair.second);
-        auto new_cp = subcurves.back()->control_points_;
+        Curve temp_curve(subcurves.back());
+        double new_t = temp_curve.projectPoint(root_pair.second);
+        auto new_cp = subcurves.back();
         subcurves.pop_back();
-        subcurves.push_back(std::make_shared<Curve>(splittingCoeffsLeft(new_t - epsilon / 2) * new_cp));
-        subcurves.push_back(std::make_shared<Curve>(splittingCoeffsRight(new_t + epsilon / 2) * new_cp));
+        subcurves.push_back(splittingCoeffsLeft(new_t - epsilon / 2) * new_cp);
+        subcurves.push_back(splittingCoeffsRight(new_t + epsilon / 2) * new_cp);
       }
     }
 
@@ -501,14 +478,18 @@ PointVector Curve::getPointsOfIntersection(const Curve& curve, bool stop_at_firs
         subcurve_pairs.push_back(std::make_pair(subcurves.at(k), subcurves.at(i)));
   }
 
+  auto bbox = [](Eigen::MatrixX2d cp) {
+    return BBox(Point(cp.col(0).minCoeff(), cp.col(1).minCoeff()), Point(cp.col(0).maxCoeff(), cp.col(1).maxCoeff()));
+  };
+
   while (!subcurve_pairs.empty())
   {
-    ConstCurvePtr part_a = std::get<0>(subcurve_pairs.back());
-    ConstCurvePtr part_b = std::get<1>(subcurve_pairs.back());
+    Eigen::MatrixX2d part_a = std::get<0>(subcurve_pairs.back());
+    Eigen::MatrixX2d part_b = std::get<1>(subcurve_pairs.back());
     subcurve_pairs.pop_back();
 
-    BBox bbox1 = part_a->getBBox(false); // very slow with tight BBox (roots)
-    BBox bbox2 = part_b->getBBox(false); // very slow with tight BBox (roots)
+    BBox bbox1 = bbox(part_a);
+    BBox bbox2 = bbox(part_b);
     if (!bbox1.intersects(bbox2))
     {
       // no intersection
@@ -518,7 +499,7 @@ PointVector Curve::getPointsOfIntersection(const Curve& curve, bool stop_at_firs
     if (bbox1.diagonal().norm() < epsilon && bbox2.diagonal().norm() < epsilon)
     {
       // segments converged, check if not already found and add new
-      Point new_point = part_a->valueAt(0.5);
+      Point new_point = bbox1.center();
       if (points_of_intersection.end() ==
           std::find_if(points_of_intersection.begin(), points_of_intersection.end(),
                        [new_point, epsilon](const Point& point) { return (point - new_point).norm() < epsilon; }))
@@ -536,8 +517,8 @@ PointVector Curve::getPointsOfIntersection(const Curve& curve, bool stop_at_firs
     // divide both segments in half and new pairs
     // LIFO : we want to first discover closest intersection (smallest t on this curve)
     // so it is important which pair of subcurves is inserted first
-    std::vector<ConstCurvePtr> subcurves_a;
-    std::vector<ConstCurvePtr> subcurves_b;
+    std::vector<Eigen::MatrixX2d> subcurves_a;
+    std::vector<Eigen::MatrixX2d> subcurves_b;
 
     if (bbox1.diagonal().norm() < epsilon)
     {
@@ -548,8 +529,8 @@ PointVector Curve::getPointsOfIntersection(const Curve& curve, bool stop_at_firs
     {
       // divide into two subcurves
       // first insert 2nd subcurve t = [0.5 to 1]
-      subcurves_a.push_back(std::make_shared<Curve>(part_a->splittingCoeffsRight() * part_a->control_points_));
-      subcurves_a.push_back(std::make_shared<Curve>(part_a->splittingCoeffsLeft() * part_a->control_points_));
+      subcurves_a.push_back(splittingCoeffsRight() * part_a);
+      subcurves_a.push_back(splittingCoeffsLeft() * part_a);
     }
 
     if (bbox2.diagonal().norm() < epsilon)
@@ -561,8 +542,8 @@ PointVector Curve::getPointsOfIntersection(const Curve& curve, bool stop_at_firs
     else
     {
       // divide into two subcurves
-      subcurves_b.push_back(std::make_shared<Curve>(part_b->splittingCoeffsRight() * part_b->control_points_));
-      subcurves_b.push_back(std::make_shared<Curve>(part_b->splittingCoeffsLeft() * part_b->control_points_));
+      subcurves_b.push_back(curve.splittingCoeffsRight() * part_b);
+      subcurves_b.push_back(curve.splittingCoeffsLeft() * part_b);
     }
 
     // insert all combinations for next iteration
@@ -571,6 +552,7 @@ PointVector Curve::getPointsOfIntersection(const Curve& curve, bool stop_at_firs
       for (auto&& subcurve_a : subcurves_a)
         subcurve_pairs.push_back(std::make_pair(subcurve_a, subcurve_b));
   }
+
   return points_of_intersection;
 }
 
@@ -604,19 +586,19 @@ double Curve::projectPoint(const Point& point, double step, double epsilon, std:
     double f_d = (point - P).dot(d2) - d1.dot(d1);
     t -= f / f_d;
     if (t < 0 || t > 1)
-    {
       return t_old;
-    }
     if (std::fabs(f) < epsilon)
-      return t;
-
-    current_iter++;
+      if (t_dist < (valueAt(t) - point).norm())
+        return t_old;
+      else
+        return t;
   }
+  current_iter++;
 }
 
 void Curve::applyContinuity(const Curve& source_curve, std::vector<double>& beta_coeffs)
 {
-  ulong c_order = beta_coeffs.size();
+  uint c_order = beta_coeffs.size();
 
   Eigen::MatrixXd pascal_alterating_matrix(Eigen::MatrixXd::Zero(c_order + 1, c_order + 1));
   pascal_alterating_matrix.diagonal(-1) = -Eigen::ArrayXd::LinSpaced(c_order, 1, c_order);
@@ -655,5 +637,3 @@ void Curve::applyContinuity(const Curve& source_curve, std::vector<double>& beta
     manipulateControlPoint(i, control_points.row(i));
   }
 }
-
-} // namespace Bezier

@@ -107,33 +107,33 @@ public:
    * \param idx_l Index of first subcurve (start)
    * \param idx_r Index of last subcurve (end)
    */
-  PolyCurve getSubPolyCurve(uint idx_l, uint idx_r) const;
+  PolyCurve subPolyCurve(uint idx_l, uint idx_r) const;
 
   /*!
    * \brief Get number of subcurves
    * \return Number of subcurves
    */
-  uint getSize() const;
+  uint size() const;
 
   /*!
    * \brief Resolve polycurve parameter to subcurve index
    * \param t A polycurve parameter
    * \return An index of of subcurve where parameter t is
    */
-  uint getCurveIdx(double t) const;
+  uint curveIdx(double t) const;
 
   /*!
    * \brief Get pointer of a subcurve
    * \param idx Subcurve index
    * \return A shared pointer
    */
-  CurvePtr getCurvePtr(uint idx) const;
+  CurvePtr curvePtr(uint idx) const;
 
   /*!
    * \brief Get list of all subcurves
    * \return A vector of pointers
    */
-  std::vector<CurvePtr> getCurveList() const;
+  std::vector<CurvePtr> curveList() const;
 
   /*!
    * \brief Get a polyline representation of polycurve as a vector of points on curve
@@ -141,14 +141,14 @@ public:
    * \param precision Minimal distance between two subsequent points
    * \return A vector of polyline vertices
    */
-  PointVector getPolyline(double smoothness = 1.0001, double precision = 1.0) const;
+  PointVector polyline(double smoothness = 1.0001, double precision = 1.0) const;
 
   /*!
    * \brief Compute exaxt arc length with Legendre-Gauss quadrature
    * \return Arc length
    * \warning Precision depends on value of LEGENDRE_GAUSS_N at compile time
    */
-  double getLength() const;
+  double length() const;
 
   /*!
    * \brief Compute exact arc length with Legendre-Gauss quadrature
@@ -156,7 +156,7 @@ public:
    * \return Arc length from start to parameter t
    * \warning Precision depends on value of LEGENDRE_GAUSS_N at compile time
    */
-  double getLength(double t) const;
+  double length(double t) const;
 
   /*!
    * \brief Compute exact arc length with Legendre-Gauss quadrature
@@ -165,7 +165,7 @@ public:
    * \return Arc length between paramaters t1 and t2
    * \warning Precision depends on value of LEGENDRE_GAUSS_N at compile time
    */
-  double getLength(double t1, double t2) const;
+  double length(double t1, double t2) const;
 
   /*!
    * \brief Compute parameter t which is S distance from given t
@@ -181,13 +181,13 @@ public:
    * \brief Get first and last control points
    * \return A pair of end points
    */
-  std::pair<Point, Point> getEndPoints() const;
+  std::pair<Point, Point> endPoints() const;
 
   /*!
    * \brief Get the control points of all subcurves
    * \return A vector of control points
    */
-  PointVector getControlPoints() const;
+  PointVector controlPoints() const;
 
   /*!
    * \brief Set the new coordinates to a control point
@@ -253,7 +253,7 @@ public:
    * \param use_roots If algorithm should use roots
    * \return Bounding box (if use_roots is false, returns the bounding box of control points)
    */
-  BBox getBBox(bool use_roots = true) const;
+  BBox boundingBox(bool use_roots = true) const;
 
   /*!
    * \brief Get the points of intersection with another curve or polycurve
@@ -265,7 +265,7 @@ public:
    * \warning subcurve self-intersection not yet implemented
    */
   template <typename Curve_PolyCurve>
-  std::vector<Point> getPointsOfIntersection(const Curve_PolyCurve& curve, bool stop_at_first = false,
+  std::vector<Point> pointsOfIntersection(const Curve_PolyCurve& curve, bool stop_at_first = false,
                                              double epsilon = 0.001) const;
 
   /*!

@@ -3,7 +3,7 @@ project(BezierCpp
   LANGUAGES CXX
   VERSION 0.2.0)
 
-add_compile_options(-std=c++11 -mfpmath=sse -fPIC)
+add_compile_options(-std=c++11 -march=native -fPIC)
 
 find_package(Eigen3 REQUIRED)
 include_directories(SYSTEM ${EIGEN3_INCLUDE_DIR})

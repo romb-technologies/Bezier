@@ -1,10 +1,10 @@
 #include "BezierCpp/offsetted_point.h"
 #include "BezierCpp/bezier.h"
-#include "BezierCpp/polycurve.h"
 #include "BezierCpp/legendre_gauss.h"
+#include "BezierCpp/polycurve.h"
 
-#include <numeric>
 #include <limits>
+#include <numeric>
 
 inline double LDx(Bezier::Point p, Bezier::Point offset) { return offset.x() * p.x() - offset.y() * p.y(); }
 
@@ -13,7 +13,7 @@ inline double LDy(Bezier::Point p, Bezier::Point offset) { return offset.x() * p
 namespace Bezier
 {
 
-template <> Bezier::Point getOffsettedPoint<Bezier::Curve>(const Bezier::Curve& curve, double t, Bezier::Point offset)
+template <> Bezier::Point offsettedPoint<Bezier::Curve>(const Bezier::Curve& curve, double t, Bezier::Point offset)
 {
   Bezier::Point p_off;
 
@@ -27,17 +27,17 @@ template <> Bezier::Point getOffsettedPoint<Bezier::Curve>(const Bezier::Curve& 
 }
 
 template <>
-Bezier::Point getOffsettedPoint<Bezier::PolyCurve>(const Bezier::PolyCurve& poly_curve, double t, Bezier::Point offset)
+Bezier::Point offsettedPoint<Bezier::PolyCurve>(const Bezier::PolyCurve& poly_curve, double t, Bezier::Point offset)
 {
   uint idx = static_cast<uint>(t);
-  if (idx == poly_curve.getSize()) // for the last point of last curve
+  if (idx == poly_curve.size()) // for the last point of last curve
     --idx;
 
-  return getOffsettedPoint<Bezier::Curve>(*poly_curve.getCurvePtr(idx), t - idx, offset);
+  return offsettedPoint<Bezier::Curve>(*poly_curve.curvePtr(idx), t - idx, offset);
 }
 
 template <>
-Bezier::Point getOffsettedPointDerivation_1<Bezier::Curve>(const Bezier::Curve& curve, double t, Bezier::Point offset)
+Bezier::Point offsettedPointDerivation_1<Bezier::Curve>(const Bezier::Curve& curve, double t, Bezier::Point offset)
 {
   Bezier::Point d1_off;
 
@@ -53,18 +53,18 @@ Bezier::Point getOffsettedPointDerivation_1<Bezier::Curve>(const Bezier::Curve& 
 }
 
 template <>
-Bezier::Point getOffsettedPointDerivation_1<Bezier::PolyCurve>(const Bezier::PolyCurve& poly_curve, double t,
+Bezier::Point offsettedPointDerivation_1<Bezier::PolyCurve>(const Bezier::PolyCurve& poly_curve, double t,
                                                                Bezier::Point offset)
 {
   uint idx = static_cast<uint>(t);
-  if (idx == poly_curve.getSize()) // for the last point of last curve
+  if (idx == poly_curve.size()) // for the last point of last curve
     --idx;
 
-  return getOffsettedPointDerivation_1<Bezier::Curve>(*poly_curve.getCurvePtr(idx), t - idx, offset);
+  return offsettedPointDerivation_1<Bezier::Curve>(*poly_curve.curvePtr(idx), t - idx, offset);
 }
 
 template <>
-Bezier::Point getOffsettedPointDerivation_2<Bezier::Curve>(const Bezier::Curve& curve, double t, Bezier::Point offset)
+Bezier::Point offsettedPointDerivation_2<Bezier::Curve>(const Bezier::Curve& curve, double t, Bezier::Point offset)
 {
   Bezier::Point d2_off;
 
@@ -87,18 +87,18 @@ Bezier::Point getOffsettedPointDerivation_2<Bezier::Curve>(const Bezier::Curve& 
 }
 
 template <>
-Bezier::Point getOffsettedPointDerivation_2<Bezier::PolyCurve>(const Bezier::PolyCurve& poly_curve, double t,
+Bezier::Point offsettedPointDerivation_2<Bezier::PolyCurve>(const Bezier::PolyCurve& poly_curve, double t,
                                                                Bezier::Point offset)
 {
   uint idx = static_cast<uint>(t);
-  if (idx == poly_curve.getSize()) // for the last point of last curve
+  if (idx == poly_curve.size()) // for the last point of last curve
     --idx;
 
-  return getOffsettedPointDerivation_2<Bezier::Curve>(*poly_curve.getCurvePtr(idx), t - idx, offset);
+  return offsettedPointDerivation_2<Bezier::Curve>(*poly_curve.curvePtr(idx), t - idx, offset);
 }
 
 template <>
-Bezier::Point getOffsettedPointDerivation_3<Bezier::Curve>(const Bezier::Curve& curve, double t, Bezier::Point offset)
+Bezier::Point offsettedPointDerivation_3<Bezier::Curve>(const Bezier::Curve& curve, double t, Bezier::Point offset)
 {
   Bezier::Point d3_off;
 
@@ -125,106 +125,106 @@ Bezier::Point getOffsettedPointDerivation_3<Bezier::Curve>(const Bezier::Curve& 
 }
 
 template <>
-Bezier::Point getOffsettedPointDerivation_3<Bezier::PolyCurve>(const Bezier::PolyCurve& poly_curve, double t,
+Bezier::Point offsettedPointDerivation_3<Bezier::PolyCurve>(const Bezier::PolyCurve& poly_curve, double t,
                                                                Bezier::Point offset)
 {
   uint idx = static_cast<uint>(t);
-  if (idx == poly_curve.getSize()) // for the last point of last curve
+  if (idx == poly_curve.size()) // for the last point of last curve
     --idx;
 
-  return getOffsettedPointDerivation_3<Bezier::Curve>(*poly_curve.getCurvePtr(idx), t - idx, offset);
+  return offsettedPointDerivation_3<Bezier::Curve>(*poly_curve.curvePtr(idx), t - idx, offset);
 }
 
-template <> double getOffsettedPointKappa<Bezier::Curve>(const Bezier::Curve& curve, double t, Bezier::Point offset)
+template <> double offsettedPointKappa<Bezier::Curve>(const Bezier::Curve& curve, double t, Bezier::Point offset)
 {
-  auto d1 = getOffsettedPointDerivation_1(curve, t, offset);
-  auto d2 = getOffsettedPointDerivation_2(curve, t, offset);
+  auto d1 = offsettedPointDerivation_1(curve, t, offset);
+  auto d2 = offsettedPointDerivation_2(curve, t, offset);
 
   return std::fabs((d1.x() * d2.y() - d1.y() * d2.x()) / pow(d1.norm(), 3));
 }
 
 template <>
-double getOffsettedPointKappa<Bezier::PolyCurve>(const Bezier::PolyCurve& poly_curve, double t, Bezier::Point offset)
+double offsettedPointKappa<Bezier::PolyCurve>(const Bezier::PolyCurve& poly_curve, double t, Bezier::Point offset)
 {
   uint idx = static_cast<uint>(t);
-  if (idx == poly_curve.getSize()) // for the last point of last curve
+  if (idx == poly_curve.size()) // for the last point of last curve
     --idx;
 
-  return getOffsettedPointKappa<Bezier::Curve>(*poly_curve.getCurvePtr(idx), t - idx, offset);
+  return offsettedPointKappa<Bezier::Curve>(*poly_curve.curvePtr(idx), t - idx, offset);
 }
 
 template <>
-double getOffsettedPointKappaDerived<Bezier::Curve>(const Bezier::Curve& curve, double t, Bezier::Point offset)
+double offsettedPointKappaDerived<Bezier::Curve>(const Bezier::Curve& curve, double t, Bezier::Point offset)
 {
-  auto d1 = getOffsettedPointDerivation_1(curve, t, offset);
-  auto d2 = getOffsettedPointDerivation_2(curve, t, offset);
-  auto d3 = getOffsettedPointDerivation_3(curve, t, offset);
+  auto d1 = offsettedPointDerivation_1(curve, t, offset);
+  auto d2 = offsettedPointDerivation_2(curve, t, offset);
+  auto d3 = offsettedPointDerivation_3(curve, t, offset);
 
   return d1.x() * d3.y() + d2.x() * d2.y() - d1.y() * d3.x() / pow(d1.norm(), 3) - d2.x() * d2.y() / pow(d1.norm(), 3) +
          (d1.x() * d2.x() + d1.y() * d2.y()) / pow(d1.norm(), 5) * d1.y() * d2.x() * 3.0;
 }
 
 template <>
-double getOffsettedPointKappaDerived<Bezier::PolyCurve>(const Bezier::PolyCurve& poly_curve, double t,
+double offsettedPointKappaDerived<Bezier::PolyCurve>(const Bezier::PolyCurve& poly_curve, double t,
                                                         Bezier::Point offset)
 {
   uint idx = static_cast<uint>(t);
-  if (idx == poly_curve.getSize()) // for the last point of last curve
+  if (idx == poly_curve.size()) // for the last point of last curve
     --idx;
 
-  return getOffsettedPointKappaDerived<Bezier::Curve>(*poly_curve.getCurvePtr(idx), t - idx, offset);
+  return offsettedPointKappaDerived<Bezier::Curve>(*poly_curve.curvePtr(idx), t - idx, offset);
 }
 
-template<>
-double getOffsettedPointPathLenght<Bezier::Curve>(const Bezier::Curve& curve, Point offset)
+template <> double offsettedPointPathLenght<Bezier::Curve>(const Bezier::Curve& curve, Point offset)
 {
   constexpr double z = 0.5;
   double sum = 0;
 
   for (uint k = 0; k < LegendreGauss::N; k++)
-    sum += LegendreGauss::weights.at(k) * getOffsettedPointDerivation_1(curve, z * LegendreGauss::abcissae.at(k) + z, offset).norm();
+    sum += LegendreGauss::weights.at(k) *
+           offsettedPointDerivation_1(curve, z * LegendreGauss::abcissae.at(k) + z, offset).norm();
 
   return z * sum;
 }
 
-template<>
-double getOffsettedPointPathLenght<Bezier::PolyCurve>(const Bezier::PolyCurve& poly_curve, Point offset)
+template <> double offsettedPointPathLenght<Bezier::PolyCurve>(const Bezier::PolyCurve& poly_curve, Point offset)
 {
   double l = 0;
-  for (auto& curve : poly_curve.getCurveList())
-    l += getOffsettedPointPathLenght(*curve, offset);
+  for (auto& curve : poly_curve.curveList())
+    l += offsettedPointPathLenght(*curve, offset);
   return l;
 }
 
-template<>
-double getOffsettedPointPathLenght<Bezier::Curve>(const Bezier::Curve& curve, double t, Point offset)
+template <> double offsettedPointPathLenght<Bezier::Curve>(const Bezier::Curve& curve, double t, Point offset)
 {
   // avoid division by zero further down the line
   // magic number: sometimes point projection of first point returns t valua very close to numeric limit
   if (t <= 2 * std::numeric_limits<double>::epsilon())
     return 0;
-  return getOffsettedPointPathLenght(curve.splitCurve(t).first, offset);
+  return offsettedPointPathLenght(curve.splitCurve(t).first, offset);
 }
 
-template<>
-double getOffsettedPointPathLenght<Bezier::PolyCurve>(const Bezier::PolyCurve& poly_curve, double t, Point offset)
+template <>
+double offsettedPointPathLenght<Bezier::PolyCurve>(const Bezier::PolyCurve& poly_curve, double t, Point offset)
 {
-  uint idx = poly_curve.getCurveIdx(t);
-  auto curve_list = poly_curve.getCurveList();
-  return std::accumulate(begin(curve_list), begin(curve_list) + idx, getOffsettedPointPathLenght(*curve_list.at(idx), t -idx, offset),
-                         [offset](double sum, Bezier::ConstCurvePtr curve) { return sum + getOffsettedPointPathLenght(*curve, offset); });
+  uint idx = poly_curve.curveIdx(t);
+  auto curve_list = poly_curve.curveList();
+  return std::accumulate(
+      begin(curve_list), begin(curve_list) + idx, offsettedPointPathLenght(*curve_list.at(idx), t - idx, offset),
+      [offset](double sum, Bezier::ConstCurvePtr curve) { return sum + offsettedPointPathLenght(*curve, offset); });
 }
 
-template<>
-double getOffsettedPointPathLenght<Bezier::Curve>(const Bezier::Curve& curve, double t1, double t2, Point offset)
+template <>
+double offsettedPointPathLenght<Bezier::Curve>(const Bezier::Curve& curve, double t1, double t2, Point offset)
 {
-  return getOffsettedPointPathLenght(curve, t2, offset) - getOffsettedPointPathLenght(curve, t1, offset);
+  return offsettedPointPathLenght(curve, t2, offset) - offsettedPointPathLenght(curve, t1, offset);
 }
 
-template<>
-double getOffsettedPointPathLenght<Bezier::PolyCurve>(const Bezier::PolyCurve& poly_curve, double t1, double t2, Point offset)
+template <>
+double offsettedPointPathLenght<Bezier::PolyCurve>(const Bezier::PolyCurve& poly_curve, double t1, double t2,
+                                                      Point offset)
 {
-  return getOffsettedPointPathLenght(poly_curve, t2, offset) - getOffsettedPointPathLenght(poly_curve, t1, offset);
+  return offsettedPointPathLenght(poly_curve, t2, offset) - offsettedPointPathLenght(poly_curve, t1, offset);
 }
 
 } // namespace Bezier

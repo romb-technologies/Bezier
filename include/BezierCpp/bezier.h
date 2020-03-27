@@ -29,7 +29,7 @@ namespace Bezier
  * Private caching is used for data concerning individual curve, while
  * static caching is used for common data (coefficient matrices)
  */
-class Curve : public std::enable_shared_from_this<Curve>
+class Curve
 {
 private:
   /*!
@@ -48,13 +48,13 @@ private:
 
   // private caching
   ConstCurvePtr cached_derivative_;           /*! If generated, stores derivative for later use */
-  std::shared_ptr<PointVector> cached_roots_; /*! If generated, stores roots for later use */
+  std::unique_ptr<PointVector> cached_roots_; /*! If generated, stores roots for later use */
   std::tuple<double, double, std::size_t> cached_roots_params_{0, 0, 0}; /*! epsilon and max_iter of cached roots */
-  std::shared_ptr<BBox>
+  std::unique_ptr<BBox>
       cached_bounding_box_tight_; /*! If generated, stores bounding box (use_roots = true) for later use */
-  std::shared_ptr<BBox>
+  std::unique_ptr<BBox>
       cached_bounding_box_relaxed_; /*! If generated, stores bounding box (use_roots = false) for later use */
-  std::shared_ptr<PointVector> cached_polyline_;            /*! If generated, stores polyline for later use */
+  std::unique_ptr<PointVector> cached_polyline_;            /*! If generated, stores polyline for later use */
   std::tuple<double, double> cached_polyline_params_{0, 0}; /*! Smootheness and precision of cached polyline */
 
   /// Reset all privately cached data
@@ -101,19 +101,19 @@ public:
    * \brief Get order of curve (Nth order curve is described with N+1 points);
    * \return Order of curve
    */
-  uint getOrder();
+  uint order();
 
   /*!
    * \brief Get the control points
    * \return A vector of control points
    */
-  PointVector getControlPoints() const;
+  PointVector controlPoints() const;
 
   /*!
    * \brief Get first and last control points
    * \return A pair of end points
    */
-  std::pair<Point, Point> getEndPoints() const;
+  std::pair<Point, Point> endPoints() const;
 
   /*!
    * \brief Get a polyline representation of curve as a vector of points on curve
@@ -121,14 +121,14 @@ public:
    * \param precision Minimal distance between two subsequent points
    * \return A vector of polyline vertices
    */
-  PointVector getPolyline(double smoothness = 1.0001, double precision = 1.0) const;
+  PointVector polyline(double smoothness = 1.0001, double precision = 1.0) const;
 
   /*!
    * \brief Compute exaxt arc length with Legendre-Gauss quadrature
    * \return Arc length
    * \warning Precision depends on value of LEGENDRE_GAUSS_N at compile time
    */
-  double getLength() const;
+  double length() const;
 
   /*!
    * \brief Compute exact arc length with Legendre-Gauss quadrature
@@ -136,7 +136,7 @@ public:
    * \return Arc length from start to parameter t
    * \warning Precision depends on value of LEGENDRE_GAUSS_N at compile time
    */
-  double getLength(double t) const;
+  double length(double t) const;
 
   /*!
    * \brief Compute exact arc length with Legendre-Gauss quadrature
@@ -145,7 +145,7 @@ public:
    * \return Arc length between paramaters t1 and t2
    * \warning Precision depends on value of LEGENDRE_GAUSS_N at compile time
    */
-  double getLength(double t1, double t2) const;
+  double length(double t1, double t2) const;
 
   /*!
    * \brief Compute parameter t which is S distance from given t
@@ -268,14 +268,14 @@ public:
    * \param max_iter Maximum number of iterations for Newton-Rhapson
    * \return A vector of extreme points
    */
-  PointVector getRoots(double step = 0.1, double epsilon = 0.001, std::size_t max_iter = 15) const;
+  PointVector roots(double step = 0.1, double epsilon = 0.001, std::size_t max_iter = 15) const;
 
   /*!
    * \brief Get the bounding box of curve
    * \param use_roots If algorithm should use roots
    * \return Bounding box (if use_roots is false, returns the bounding box of control points)
    */
-  BBox getBBox(bool use_roots = true) const;
+  BBox boundingBox(bool use_roots = true) const;
 
   /*!
    * \brief Split the curve into two subcurves
@@ -293,7 +293,7 @@ public:
    *
    * \warning self-intersection not yet implemented
    */
-  PointVector getPointsOfIntersection(const Curve& curve, bool stop_at_first = false, double epsilon = 0.001) const;
+  PointVector pointsOfIntersection(const Curve& curve, bool stop_at_first = false, double epsilon = 0.001) const;
 
   /*!
    * \brief Get the parameter t where curve is closest to given point

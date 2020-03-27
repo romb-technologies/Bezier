@@ -6,31 +6,31 @@
 namespace Bezier {
 
 template<typename Curve_PolyCurve>
-Point getOffsettedPoint(const Curve_PolyCurve& curve, double t, Bezier::Point offset);
+Point offsettedPoint(const Curve_PolyCurve& curve, double t, Bezier::Point offset);
 
 template<typename Curve_PolyCurve>
-Point getOffsettedPointDerivation_1(const Curve_PolyCurve& curve, double t, Bezier::Point offset);
+Point offsettedPointDerivation_1(const Curve_PolyCurve& curve, double t, Bezier::Point offset);
 
 template<typename Curve_PolyCurve>
-Point getOffsettedPointDerivation_2(const Curve_PolyCurve& curve, double t, Bezier::Point offset);
+Point offsettedPointDerivation_2(const Curve_PolyCurve& curve, double t, Bezier::Point offset);
 
 template<typename Curve_PolyCurve>
-Point getOffsettedPointDerivation_3(const Curve_PolyCurve& curve, double t, Bezier::Point offset);
+Point offsettedPointDerivation_3(const Curve_PolyCurve& curve, double t, Bezier::Point offset);
 
 template<typename Curve_PolyCurve>
-double getOffsettedPointKappa(const Curve_PolyCurve& curve, double t, Bezier::Point offset);
+double offsettedPointKappa(const Curve_PolyCurve& curve, double t, Bezier::Point offset);
 
 template<typename Curve_PolyCurve>
-double getOffsettedPointKappaDerived(const Curve_PolyCurve& curve, double t, Bezier::Point offset);
+double offsettedPointKappaDerived(const Curve_PolyCurve& curve, double t, Bezier::Point offset);
 
 template<typename Curve_PolyCurve>
-double getOffsettedPointPathLenght(const Curve_PolyCurve& curve, Bezier::Point offset);
+double offsettedPointPathLenght(const Curve_PolyCurve& curve, Bezier::Point offset);
 
 template<typename Curve_PolyCurve>
-double getOffsettedPointPathLenght(const Curve_PolyCurve& curve, double t, Bezier::Point offset);
+double offsettedPointPathLenght(const Curve_PolyCurve& curve, double t, Bezier::Point offset);
 
 template<typename Curve_PolyCurve>
-double getOffsettedPointPathLenght(const Curve_PolyCurve& curve, double t1, double t2, Bezier::Point offset);
+double offsettedPointPathLenght(const Curve_PolyCurve& curve, double t1, double t2, Bezier::Point offset);
 
 }
 

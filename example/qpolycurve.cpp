@@ -5,46 +5,32 @@
 
 #include "BezierCpp/bezier.h"
 
-bool qPolyCurve::getDraw_control_points() const
-{
-  return draw_control_points;
-}
+bool qPolyCurve::getDraw_control_points() const { return draw_control_points; }
 
-void qPolyCurve::setDraw_control_points(bool value)
-{
-  draw_control_points = value;
-}
+void qPolyCurve::setDraw_control_points(bool value) { draw_control_points = value; }
 
-bool qPolyCurve::getDraw_curvature_radious() const
-{
-  return draw_curvature_radious;
-}
+bool qPolyCurve::getDraw_curvature_radious() const { return draw_curvature_radious; }
 
-void qPolyCurve::setDraw_curvature_radious(bool value)
-{
-  draw_curvature_radious = value;
-}
+void qPolyCurve::setDraw_curvature_radious(bool value) { draw_curvature_radious = value; }
 
 int qPolyCurve::type() const { return QGraphicsItem::UserType + 2; }
 
 inline double kappaDerived(qPolyCurve* pcurve, double t)
 {
-  auto det = [](Bezier::Vec2 a, Bezier::Vec2 b)
-  {
-    return a.x() * b.y() - a.y() * b.x();
-  };
+  auto det = [](Bezier::Vec2 a, Bezier::Vec2 b) { return a.x() * b.y() - a.y() * b.x(); };
 
   uint idx = t;
   t = t - idx;
-  if (idx == pcurve->getSize()){
+  if (idx == pcurve->size())
+  {
     idx--;
     t = 1;
   }
-  auto curve = pcurve->getCurvePtr(idx);
+  auto curve = pcurve->curvePtr(idx);
 
-  auto d1 = curve->getDerivative()->valueAt(t);
-  auto d2 = curve->getDerivative()->getDerivative()->valueAt(t);
-  auto d3 = curve->getDerivative()->getDerivative()->getDerivative()->valueAt(t);
+  auto d1 = curve->derivativeAt(t);
+  auto d2 = curve->derivativeAt(2, t);
+  auto d3 = curve->derivativeAt(3, t);
 
   return (det(d1, d3) * d1.squaredNorm() - 3 * d1.dot(d2) * det(d1, d2)) / std::pow(d1.norm(), 5);
 }
@@ -62,7 +48,7 @@ void qPolyCurve::paint(QPainter* painter, const QStyleOptionGraphicsItem* option
   painter->setPen(pen);
 
   QPainterPath curve;
-  auto poly = getPolyline();
+  auto poly = polyline();
   curve.moveTo(poly[0].x(), poly[0].y());
   for (uint k = 1; k < poly.size(); k++)
     curve.lineTo(poly[k].x(), poly[k].y());
@@ -72,7 +58,7 @@ void qPolyCurve::paint(QPainter* painter, const QStyleOptionGraphicsItem* option
   {
     const int d = 6;
     painter->setBrush(QBrush(Qt::blue, Qt::SolidPattern));
-    Bezier::PointVector points = getControlPoints();
+    Bezier::PointVector points = controlPoints();
     for (uint k = 1; k < points.size(); k++)
     {
       painter->setPen(Qt::blue);
@@ -87,11 +73,10 @@ void qPolyCurve::paint(QPainter* painter, const QStyleOptionGraphicsItem* option
   if (draw_curvature_radious)
   {
     painter->setPen(Qt::green);
-    for (double t = 0; t <= getSize(); t += 1.0 / 500)
+    for (double t = 0; t <= size(); t += 1.0 / 500)
     {
-      painter->setPen(QColor(static_cast<int>(std::fabs(255 * (0.5 - t / getSize()))),
-                             static_cast<int>(255 * t / getSize()),
-                             static_cast<int>(255 * (1 - t / getSize()))));
+      painter->setPen(QColor(static_cast<int>(std::fabs(255 * (0.5 - t / size()))),
+                             static_cast<int>(255 * t / size()), static_cast<int>(255 * (1 - t / size()))));
       auto p = valueAt(t);
       auto n1 = p + normalAt(t, false) * kappaDerived(this, t);
       auto n2 = p - normalAt(t, false) * kappaDerived(this, t);
@@ -102,6 +87,6 @@ void qPolyCurve::paint(QPainter* painter, const QStyleOptionGraphicsItem* option
 
 QRectF qPolyCurve::boundingRect() const
 {
-  auto bbox = getBBox(false);
+  auto bbox = boundingBox(false);
   return QRectF(QPointF(bbox.min().x(), bbox.min().y()), QPointF(bbox.max().x(), bbox.max().y()));
 }

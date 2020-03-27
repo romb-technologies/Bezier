@@ -11,11 +11,6 @@ bool qCurve::getDraw_control_points() const { return draw_control_points; }
 
 bool qCurve::getDraw_curvature_radious() const { return draw_curvature_radious; }
 
-Bezier::CurvePtr qCurve::getSharedPtr()
-{
-  return shared_from_this();
-}
-
 bool qCurve::getLocked() const
 {
     return locked;
@@ -42,7 +37,7 @@ void qCurve::paint(QPainter* painter, const QStyleOptionGraphicsItem* option, QW
   pen.setColor(getLocked() ? Qt::red : Qt::black);
   painter->setPen(pen);
   QPainterPath curve;
-  auto poly = getPolyline();
+  auto poly = polyline();
   curve.moveTo(poly[0].x(), poly[0].y());
   for (uint k = 1; k < poly.size(); k++)
     curve.lineTo(poly[k].x(), poly[k].y());
@@ -52,7 +47,7 @@ void qCurve::paint(QPainter* painter, const QStyleOptionGraphicsItem* option, QW
   {
     const int d = 6;
     painter->setBrush(QBrush(Qt::blue, Qt::SolidPattern));
-    Bezier::PointVector points = getControlPoints();
+    Bezier::PointVector points = controlPoints();
     for (uint k = 1; k < points.size(); k++)
     {
       painter->setPen(Qt::blue);
@@ -82,6 +77,6 @@ void qCurve::paint(QPainter* painter, const QStyleOptionGraphicsItem* option, QW
 
 QRectF qCurve::boundingRect() const
 {
-  auto bbox = getBBox(false);
+  auto bbox = boundingBox(false);
   return QRectF(QPointF(bbox.min().x(), bbox.min().y()), QPointF(bbox.max().x(), bbox.max().y()));
 }
