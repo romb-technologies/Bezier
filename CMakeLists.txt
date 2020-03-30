@@ -11,7 +11,6 @@ include_directories(SYSTEM ${EIGEN3_INCLUDE_DIR})
 set(BezierCpp_SRC
   src/bezier.cpp
   src/polycurve.cpp
-  src/offsetted_point.cpp
   )
 
 set(BezierCpp_INC
@@ -19,7 +18,6 @@ set(BezierCpp_INC
   include/BezierCpp/legendre_gauss.h
   include/BezierCpp/bezier.h
   include/BezierCpp/polycurve.h
-  include/BezierCpp/offsetted_point.h
   )
 
 # Options

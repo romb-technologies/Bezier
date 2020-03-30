@@ -37,7 +37,6 @@ SOURCES += \
         qpolycurve.cpp \
         ../src/bezier.cpp \
         ../src/polycurve.cpp \
-        ../src/offsetted_point.cpp
 
 HEADERS += \
         mainwindow.h \
@@ -49,7 +48,6 @@ HEADERS += \
         ../include/BezierCpp/polycurve.h \
         ../include/BezierCpp/declarations.h \
         ../include/BezierCpp/legendre_gauss.h \
-        ../include/BezierCpp/offsetted_point.h
 
 FORMS += \
         mainwindow.ui
