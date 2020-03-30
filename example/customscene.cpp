@@ -372,13 +372,10 @@ Delete - delete curve/polycurve");
   }
   if (keyEvent->key() == 16777223) // Delete
   {
-    qPolyCurve* new_poly = nullptr;
     for (auto&& curve : selectedItems())
     {
       removeItem(curve);
     }
-    if (new_poly)
-      addItem(new_poly);
     update();
   }
   if (keyEvent->key() == Qt::Key_L) {

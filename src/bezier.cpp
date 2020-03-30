@@ -592,8 +592,8 @@ double Curve::projectPoint(const Point& point, double step, double epsilon, std:
         return t_old;
       else
         return t;
+    current_iter++;
   }
-  current_iter++;
 }
 
 void Curve::applyContinuity(const Curve& source_curve, std::vector<double>& beta_coeffs)
