@@ -21,7 +21,7 @@ void CustomScene::drawForeground(QPainter* painter, const QRectF& rect)
     painter->setPen(Qt::blue);
     for (auto&& curve : items())
     {
-      Bezier::BBox bbox;
+      Bezier::BoundingBox bbox;
       if (is_curve)
         bbox = c_curve->boundingBox(true);
       if (is_poly)
@@ -359,7 +359,7 @@ Delete - delete curve/polycurve");
     for (auto&& curve : selectedItems())
       if (is_curve)
       {
-        Bezier::CurvePtr ptr(c_curve);
+        std::shared_ptr<Bezier::Curve> ptr(c_curve);
         if (new_poly)
           new_poly->insertBack(ptr);
         else

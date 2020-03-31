@@ -2,6 +2,8 @@
 #define LEGENDRE_GAUSS_H
 
 /*
+ * Legendre-Gauss coefficients used for calculating exact length of parametric curves
+ *
  * Abcissae and weights taken from:
  * https://pomax.github.io/bezierinfo/legendre-gauss.html
 */

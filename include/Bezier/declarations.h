@@ -19,9 +19,7 @@
 
 #include <Eigen/Dense>
 #include <vector>
-#include <map>
 #include <memory>
-#include <deque>
 
 /*!
  * Nominal namespace containing class pre-definitions and typedefs
@@ -57,36 +55,20 @@ class PolyLine;
 class PolyCurve;
 
 /*!
- * \brief Shared pointer of Curve
- */
-typedef std::shared_ptr<Curve> CurvePtr;
-/*!
- * \brief Shared pointer of const Curve
- */
-typedef std::shared_ptr<const Curve> ConstCurvePtr;
-/*!
  * \brief Point in xy plane
  */
 typedef Eigen::Vector2d Point;
 /*!
  * \brief A Vector in xy plane
  */
-typedef Eigen::Vector2d Vec2;
+typedef Eigen::Vector2d Vector;
 /*!
  * \brief A vector of Points
  */
 typedef std::vector<Point> PointVector;
 /*!
- * \brief Bounding box
+ * \brief Bounding box class
  */
-typedef Eigen::AlignedBox2d BBox;
-/*!
- * \brief Shared pointer of Polycurve
- */
-typedef std::shared_ptr<PolyCurve> PolyCurvePtr;
-/*!
- * \brief Shared pointer of const Polycurve
- */
-typedef std::shared_ptr<const PolyCurve> ConstPolyCurvePtr;
+typedef Eigen::AlignedBox2d BoundingBox;
 }
 #endif // DECLARATIONS_H

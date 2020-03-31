@@ -1,5 +1,5 @@
-#include "BezierCpp/bezier.h"
-#include "BezierCpp/legendre_gauss.h"
+#include "Bezier/bezier.h"
+#include "Bezier/legendre_gauss.h"
 
 #include <numeric>
 
@@ -302,7 +302,7 @@ double Curve::curvatureDerivativeAt(double t) const
          3 * d1.dot(d2) * (d1.x() * d2.y() - d1.y() * d2.x()) / std::pow(d1.norm(), 5);
 }
 
-Vec2 Curve::tangentAt(double t, bool normalize) const
+Vector Curve::tangentAt(double t, bool normalize) const
 {
   Point p(derivativeAt(t));
   if (normalize && p.norm() > 0)
@@ -310,13 +310,13 @@ Vec2 Curve::tangentAt(double t, bool normalize) const
   return p;
 }
 
-Vec2 Curve::normalAt(double t, bool normalize) const
+Vector Curve::normalAt(double t, bool normalize) const
 {
   Point tangent = tangentAt(t, normalize);
-  return Vec2(-tangent.y(), tangent.x());
+  return Vector(-tangent.y(), tangent.x());
 }
 
-ConstCurvePtr Curve::derivative() const
+std::shared_ptr<const Curve> Curve::derivative() const
 {
   if (!cached_derivative_)
   {
@@ -328,11 +328,11 @@ ConstCurvePtr Curve::derivative() const
   return cached_derivative_;
 }
 
-ConstCurvePtr Curve::derivative(uint n) const
+std::shared_ptr<const Curve> Curve::derivative(uint n) const
 {
   if (n == 0)
     throw std::invalid_argument{"Parameter 'n' cannot be zero."};
-  ConstCurvePtr nth_derivative = derivative();
+  std::shared_ptr<const Curve> nth_derivative = derivative();
   for (uint k = 1; k < n; k++)
     nth_derivative = nth_derivative->derivative();
   return nth_derivative;
@@ -397,7 +397,7 @@ PointVector Curve::roots(double step, double epsilon, std::size_t max_iter) cons
   return *cached_roots_;
 }
 
-BBox Curve::boundingBox(bool use_roots) const
+BoundingBox Curve::boundingBox(bool use_roots) const
 {
   if (!(use_roots ? cached_bounding_box_tight_ : cached_bounding_box_relaxed_))
   {
@@ -421,7 +421,7 @@ BBox Curve::boundingBox(bool use_roots) const
                                           [](const Point& lhs, const Point& rhs) { return lhs.y() < rhs.y(); });
     (use_roots ? (const_cast<Curve*>(this))->cached_bounding_box_tight_
                : (const_cast<Curve*>(this))->cached_bounding_box_relaxed_)
-        .reset(new BBox(Point(x_extremes.first->x(), y_extremes.first->y()),
+        .reset(new BoundingBox(Point(x_extremes.first->x(), y_extremes.first->y()),
                         Point(x_extremes.second->x(), y_extremes.second->y())));
   }
   return *(use_roots ? cached_bounding_box_tight_ : cached_bounding_box_relaxed_);
@@ -479,7 +479,7 @@ PointVector Curve::pointsOfIntersection(const Curve& curve, bool stop_at_first, 
   }
 
   auto bbox = [](Eigen::MatrixX2d cp) {
-    return BBox(Point(cp.col(0).minCoeff(), cp.col(1).minCoeff()), Point(cp.col(0).maxCoeff(), cp.col(1).maxCoeff()));
+    return BoundingBox(Point(cp.col(0).minCoeff(), cp.col(1).minCoeff()), Point(cp.col(0).maxCoeff(), cp.col(1).maxCoeff()));
   };
 
   while (!subcurve_pairs.empty())
@@ -488,8 +488,8 @@ PointVector Curve::pointsOfIntersection(const Curve& curve, bool stop_at_first, 
     Eigen::MatrixX2d part_b = std::get<1>(subcurve_pairs.back());
     subcurve_pairs.pop_back();
 
-    BBox bbox1 = bbox(part_a);
-    BBox bbox2 = bbox(part_b);
+    BoundingBox bbox1 = bbox(part_a);
+    BoundingBox bbox2 = bbox(part_b);
     if (!bbox1.intersects(bbox2))
     {
       // no intersection

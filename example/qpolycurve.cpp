@@ -3,7 +3,7 @@
 #include <QPainter>
 #include <QPen>
 
-#include "BezierCpp/bezier.h"
+#include "Bezier/bezier.h"
 
 bool qPolyCurve::getDraw_control_points() const { return draw_control_points; }
 
@@ -14,26 +14,6 @@ bool qPolyCurve::getDraw_curvature_radious() const { return draw_curvature_radio
 void qPolyCurve::setDraw_curvature_radious(bool value) { draw_curvature_radious = value; }
 
 int qPolyCurve::type() const { return QGraphicsItem::UserType + 2; }
-
-inline double kappaDerived(qPolyCurve* pcurve, double t)
-{
-  auto det = [](Bezier::Vec2 a, Bezier::Vec2 b) { return a.x() * b.y() - a.y() * b.x(); };
-
-  uint idx = t;
-  t = t - idx;
-  if (idx == pcurve->size())
-  {
-    idx--;
-    t = 1;
-  }
-  auto curve = pcurve->curvePtr(idx);
-
-  auto d1 = curve->derivativeAt(t);
-  auto d2 = curve->derivativeAt(2, t);
-  auto d3 = curve->derivativeAt(3, t);
-
-  return (det(d1, d3) * d1.squaredNorm() - 3 * d1.dot(d2) * det(d1, d2)) / std::pow(d1.norm(), 5);
-}
 
 void qPolyCurve::paint(QPainter* painter, const QStyleOptionGraphicsItem* option, QWidget* widget)
 {
@@ -78,8 +58,8 @@ void qPolyCurve::paint(QPainter* painter, const QStyleOptionGraphicsItem* option
       painter->setPen(QColor(static_cast<int>(std::fabs(255 * (0.5 - t / size()))),
                              static_cast<int>(255 * t / size()), static_cast<int>(255 * (1 - t / size()))));
       auto p = valueAt(t);
-      auto n1 = p + normalAt(t, false) * kappaDerived(this, t);
-      auto n2 = p - normalAt(t, false) * kappaDerived(this, t);
+      auto n1 = p + normalAt(t, false) * curvatureDerivativeAt(t);
+      auto n2 = p - normalAt(t, false) * curvatureDerivativeAt(t);
       painter->drawLine(QLineF(n1.x(), n1.y(), n2.x(), n2.y()));
     }
   }

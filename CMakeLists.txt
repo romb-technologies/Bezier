@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.1)
-project(BezierCpp
+project(Bezier
   LANGUAGES CXX
   VERSION 0.2.0)
 
@@ -8,16 +8,16 @@ add_compile_options(-std=c++11 -march=native -fPIC)
 find_package(Eigen3 REQUIRED)
 include_directories(SYSTEM ${EIGEN3_INCLUDE_DIR})
 
-set(BezierCpp_SRC
+set(Bezier_SRC
   src/bezier.cpp
   src/polycurve.cpp
   )
 
-set(BezierCpp_INC
-  include/BezierCpp/declarations.h
-  include/BezierCpp/legendre_gauss.h
-  include/BezierCpp/bezier.h
-  include/BezierCpp/polycurve.h
+set(Bezier_INC
+  include/Bezier/declarations.h
+  include/Bezier/legendre_gauss.h
+  include/Bezier/bezier.h
+  include/Bezier/polycurve.h
   )
 
 # Options
@@ -32,23 +32,23 @@ option(BUILD_SHARED_LIBS "Build shared library (.so) instead of static one (/.a)
 # build rules
 
 if(BUILD_SHARED_LIBS)
-  add_library(BezierCpp SHARED ${BezierCpp_SRC})
+  add_library(bezier SHARED ${Bezier_SRC})
 else()
-  add_library(BezierCpp STATIC ${BezierCpp_SRC})
+  add_library(bezier STATIC ${Bezier_SRC})
 endif()
 
-target_include_directories(BezierCpp PUBLIC
-  $<BUILD_INTERFACE:${BezierCpp_SOURCE_DIR}/include>
+target_include_directories(bezier PUBLIC
+  $<BUILD_INTERFACE:${Bezier_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>
 )
 
-target_compile_definitions(BezierCpp PRIVATE LEGENDRE_GAUSS_N=${LEGENDRE_GAUSS_PRECISION})
+target_compile_definitions(bezier PRIVATE LEGENDRE_GAUSS_N=${LEGENDRE_GAUSS_PRECISION})
 
-set_target_properties(BezierCpp PROPERTIES VERSION ${PROJECT_VERSION})
-set_target_properties(BezierCpp PROPERTIES PUBLIC_HEADER "${BezierCpp_INC}")
+set_target_properties(bezier PROPERTIES VERSION ${PROJECT_VERSION})
+set_target_properties(bezier PROPERTIES PUBLIC_HEADER "${Bezier_INC}")
 
 # install rules
-install(TARGETS BezierCpp
-  EXPORT BezierCpp-export DESTINATION "lib"
-  PUBLIC_HEADER DESTINATION "include/BezierCpp")
-install(EXPORT BezierCpp-export DESTINATION "lib/cmake/BezierCpp" FILE BezierCppConfig.cmake)
+install(TARGETS bezier
+  EXPORT bezier-export DESTINATION "lib"
+  PUBLIC_HEADER DESTINATION "include/Bezier")
+install(EXPORT bezier-export DESTINATION "lib/cmake/Bezier" FILE BezierConfig.cmake)

@@ -1,5 +1,5 @@
-#include "BezierCpp/polycurve.h"
-#include "BezierCpp/bezier.h"
+#include "Bezier/polycurve.h"
+#include "Bezier/bezier.h"
 
 #include <numeric>
 
@@ -7,13 +7,13 @@ inline double binomial(uint n, uint k) { return tgamma(n + 1) / (tgamma(k + 1) *
 
 using namespace Bezier;
 
-PolyCurve::PolyCurve(const std::deque<CurvePtr>& part_list) : curves_(part_list) {}
+PolyCurve::PolyCurve(const std::deque<std::shared_ptr<Curve>>& part_list) : curves_(part_list) {}
 
 PolyCurve::PolyCurve() {}
 
-PolyCurve::PolyCurve(CurvePtr& curve) { curves_.push_back(curve); }
+PolyCurve::PolyCurve(std::shared_ptr<Curve> &curve) { curves_.push_back(curve); }
 
-PolyCurve::PolyCurve(std::vector<CurvePtr>& curve_list)
+PolyCurve::PolyCurve(std::vector<std::shared_ptr<Curve>>& curve_list)
 {
   for (auto&& curve : curve_list)
     insertBack(curve);
@@ -21,7 +21,7 @@ PolyCurve::PolyCurve(std::vector<CurvePtr>& curve_list)
 
 PolyCurve::PolyCurve(const PolyCurve& poly_curve) : PolyCurve(poly_curve.curves_) {}
 
-void PolyCurve::insertAt(uint idx, CurvePtr& curve)
+void PolyCurve::insertAt(uint idx, std::shared_ptr<Curve>& curve)
 {
   Point s_1, s_2, e_1, e_2;
   std::tie(s_1, e_1) = curve->endPoints();
@@ -61,9 +61,9 @@ void PolyCurve::insertAt(uint idx, CurvePtr& curve)
   curves_.insert(curves_.begin() + idx, curve);
 }
 
-void PolyCurve::insertFront(CurvePtr& curve) { insertAt(0, curve); }
+void PolyCurve::insertFront(std::shared_ptr<Curve>& curve) { insertAt(0, curve); }
 
-void PolyCurve::insertBack(CurvePtr& curve) { insertAt(size(), curve); }
+void PolyCurve::insertBack(std::shared_ptr<Curve>& curve) { insertAt(size(), curve); }
 
 void PolyCurve::removeAt(uint idx)
 {
@@ -88,7 +88,7 @@ void PolyCurve::removeBack() { curves_.pop_back(); }
 
 PolyCurve PolyCurve::subPolyCurve(uint idx_l, uint idx_r) const
 {
-  return PolyCurve(std::deque<CurvePtr>(curves_.begin() + idx_l, curves_.begin() + idx_r));
+  return PolyCurve(std::deque<std::shared_ptr<Curve>>(curves_.begin() + idx_l, curves_.begin() + idx_r));
 }
 
 uint PolyCurve::size() const { return static_cast<uint>(curves_.size()); }
@@ -99,9 +99,9 @@ uint PolyCurve::curveIdx(double t) const
   return idx - (idx == size());
 }
 
-CurvePtr PolyCurve::curvePtr(uint idx) const { return curves_.at(idx); }
+std::shared_ptr<Curve> PolyCurve::curvePtr(uint idx) const { return curves_.at(idx); }
 
-std::vector<CurvePtr> PolyCurve::curveList() const { return std::vector<CurvePtr>(curves_.begin(), curves_.end()); }
+std::vector<std::shared_ptr<Curve>> PolyCurve::curveList() const { return std::vector<std::shared_ptr<Curve>>(curves_.begin(), curves_.end()); }
 
 PointVector PolyCurve::polyline(double smoothness, double precision) const
 {
@@ -131,7 +131,7 @@ double PolyCurve::length(double t1, double t2) const
   else
     return std::accumulate(begin(curves_) + idx1 + 1, begin(curves_) + idx2,
                            curves_.at(idx1)->length(t1 - idx1, 1.0) + curves_.at(idx2)->length(0.0, t2 - idx2),
-                           [](double sum, Bezier::ConstCurvePtr curve) { return sum + curve->length(); });
+                           [](double sum, std::shared_ptr<Curve> curve) { return sum + curve->length(); });
 }
 
 double PolyCurve::iterateByLength(double t, double s, double epsilon, std::size_t max_iter) const
@@ -210,13 +210,13 @@ double PolyCurve::curvatureDerivativeAt(double t) const
   return curvePtr(idx)->curvatureDerivativeAt(t - idx);
 }
 
-Vec2 PolyCurve::tangentAt(double t, bool normalize) const
+Vector PolyCurve::tangentAt(double t, bool normalize) const
 {
   uint idx = curveIdx(t);
   return curvePtr(idx)->tangentAt(t - idx, normalize);
 }
 
-Vec2 PolyCurve::normalAt(double t, bool normalize) const
+Vector PolyCurve::normalAt(double t, bool normalize) const
 {
   uint idx = curveIdx(t);
   return curvePtr(idx)->normalAt(t - idx, normalize);
@@ -234,9 +234,9 @@ Point PolyCurve::derivativeAt(uint n, double t) const
   return curvePtr(idx)->derivativeAt(n, t - idx);
 }
 
-BBox PolyCurve::boundingBox(bool use_roots) const
+BoundingBox PolyCurve::boundingBox(bool use_roots) const
 {
-  BBox bbox;
+  BoundingBox bbox;
   for (uint k = 0; k < size(); k++)
     bbox.extend(curves_.at(k)->boundingBox(use_roots));
   return bbox;

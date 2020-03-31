@@ -17,6 +17,8 @@
 #ifndef BEZIER_H
 #define BEZIER_H
 
+#include <map>
+
 #include "declarations.h"
 
 namespace Bezier
@@ -31,53 +33,6 @@ namespace Bezier
  */
 class Curve
 {
-private:
-  /*!
-   * \brief Coefficients for matrix operations
-   */
-  typedef Eigen::MatrixXd Coeffs;
-  /*!
-   * \brief Map of different coefficient matrices, depending on the order of the curve
-   */
-  typedef std::map<uint, Coeffs> CoeffsMap;
-
-  /// Number of control points (order + 1)
-  uint N_;
-  /// N x 2 matrix where each row corresponds to control Point
-  Eigen::MatrixX2d control_points_;
-
-  // private caching
-  ConstCurvePtr cached_derivative_;           /*! If generated, stores derivative for later use */
-  std::unique_ptr<PointVector> cached_roots_; /*! If generated, stores roots for later use */
-  std::tuple<double, double, std::size_t> cached_roots_params_{0, 0, 0}; /*! epsilon and max_iter of cached roots */
-  std::unique_ptr<BBox>
-      cached_bounding_box_tight_; /*! If generated, stores bounding box (use_roots = true) for later use */
-  std::unique_ptr<BBox>
-      cached_bounding_box_relaxed_; /*! If generated, stores bounding box (use_roots = false) for later use */
-  std::unique_ptr<PointVector> cached_polyline_;            /*! If generated, stores polyline for later use */
-  std::tuple<double, double> cached_polyline_params_{0, 0}; /*! Smootheness and precision of cached polyline */
-
-  /// Reset all privately cached data
-  inline void resetCache();
-
-  // static caching
-  static CoeffsMap bernstein_coeffs_;       /*! Map of Bernstein coefficients */
-  static CoeffsMap splitting_coeffs_left_;  /*! Map of coefficients to get subcurve for t = [0, 0.5] */
-  static CoeffsMap splitting_coeffs_right_; /*! Map of coefficients to get subcurve for t = [0.5, 1] */
-  static CoeffsMap elevate_order_coeffs_;   /*! Map of coefficients for elevating the order of curve */
-  static CoeffsMap lower_order_coeffs_;     /*! Map of coefficients for lowering the order of curve */
-
-  /// Private getter function for Bernstein coefficients
-  Coeffs bernsteinCoeffs() const;
-  /// Private getter function for coefficients to get a subcurve t = [0, z];
-  Coeffs splittingCoeffsLeft(double z = 0.5) const;
-  /// Private getter function for coefficients to get a subcurve t = [z, 1];
-  Coeffs splittingCoeffsRight(double z = 0.5) const;
-  /// Private getter function for coefficients to elevate order of curve
-  Coeffs elevateOrderCoeffs(uint n) const;
-  /// Private getter function for coefficients to lower order of curve
-  Coeffs lowerOrderCoeffs(uint n) const;
-
 public:
   /*!
    * \brief Create the Bezier curve
@@ -222,7 +177,7 @@ public:
    * \param normalize If the resulting tangent should be normalized
    * \return Tangent of a curve for a given t
    */
-  Vec2 tangentAt(double t, bool normalize = true) const;
+  Vector tangentAt(double t, bool normalize = true) const;
 
   /*!
    * \brief Get the normal of curve for a given t
@@ -230,13 +185,13 @@ public:
    * \param normalize If the resulting normal should be normalized
    * \return Normal of a curve for given t
    */
-  Vec2 normalAt(double t, bool normalize = true) const;
+  Vector normalAt(double t, bool normalize = true) const;
 
   /*!
    * \brief Get the derivative of a curve
    * \return Derivative curve
    */
-  ConstCurvePtr derivative() const;
+  std::shared_ptr<const Curve> derivative() const;
 
   /*!
    * \brief Get the nth derivative of a curve
@@ -244,7 +199,7 @@ public:
    * \return Derivative curve
    * \warning Parameter n cannot be zero
    */
-  ConstCurvePtr derivative(uint n) const;
+  std::shared_ptr<const Curve> derivative(uint n) const;
 
   /*!
    * \brief Get value of a derivative for a given t
@@ -275,7 +230,7 @@ public:
    * \param use_roots If algorithm should use roots
    * \return Bounding box (if use_roots is false, returns the bounding box of control points)
    */
-  BBox boundingBox(bool use_roots = true) const;
+  BoundingBox boundingBox(bool use_roots = true) const;
 
   /*!
    * \brief Split the curve into two subcurves
@@ -310,6 +265,53 @@ public:
    * \param beta_coeffs Beta-constraints used to calculate continuity. Size defines continuity order.
    */
   void applyContinuity(const Curve& source_curve, std::vector<double>& beta_coeffs);
+
+private:
+  /*!
+   * \brief Coefficients for matrix operations
+   */
+  typedef Eigen::MatrixXd Coeffs;
+  /*!
+   * \brief Map of different coefficient matrices, depending on the order of the curve
+   */
+  typedef std::map<uint, Coeffs> CoeffsMap;
+
+  /// Number of control points (order + 1)
+  uint N_;
+  /// N x 2 matrix where each row corresponds to control Point
+  Eigen::MatrixX2d control_points_;
+
+  // private caching
+  std::shared_ptr<const Curve> cached_derivative_; /*! If generated, stores derivative for later use */
+  std::unique_ptr<PointVector> cached_roots_;      /*! If generated, stores roots for later use */
+  std::tuple<double, double, std::size_t> cached_roots_params_{0, 0, 0}; /*! epsilon and max_iter of cached roots */
+  std::unique_ptr<BoundingBox>
+      cached_bounding_box_tight_; /*! If generated, stores bounding box (use_roots = true) for later use */
+  std::unique_ptr<BoundingBox>
+      cached_bounding_box_relaxed_; /*! If generated, stores bounding box (use_roots = false) for later use */
+  std::unique_ptr<PointVector> cached_polyline_;            /*! If generated, stores polyline for later use */
+  std::tuple<double, double> cached_polyline_params_{0, 0}; /*! Smootheness and precision of cached polyline */
+
+  /// Reset all privately cached data
+  inline void resetCache();
+
+  // static caching
+  static CoeffsMap bernstein_coeffs_;       /*! Map of Bernstein coefficients */
+  static CoeffsMap splitting_coeffs_left_;  /*! Map of coefficients to get subcurve for t = [0, 0.5] */
+  static CoeffsMap splitting_coeffs_right_; /*! Map of coefficients to get subcurve for t = [0.5, 1] */
+  static CoeffsMap elevate_order_coeffs_;   /*! Map of coefficients for elevating the order of curve */
+  static CoeffsMap lower_order_coeffs_;     /*! Map of coefficients for lowering the order of curve */
+
+  /// Private getter function for Bernstein coefficients
+  Coeffs bernsteinCoeffs() const;
+  /// Private getter function for coefficients to get a subcurve t = [0, z];
+  Coeffs splittingCoeffsLeft(double z = 0.5) const;
+  /// Private getter function for coefficients to get a subcurve t = [z, 1];
+  Coeffs splittingCoeffsRight(double z = 0.5) const;
+  /// Private getter function for coefficients to elevate order of curve
+  Coeffs elevateOrderCoeffs(uint n) const;
+  /// Private getter function for coefficients to lower order of curve
+  Coeffs lowerOrderCoeffs(uint n) const;
 };
 
 } // namespace Bezier

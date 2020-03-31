@@ -3,8 +3,8 @@
 
 #include <QGraphicsItem>
 
-#include "BezierCpp/declarations.h"
-#include "BezierCpp/bezier.h"
+#include "Bezier/declarations.h"
+#include "Bezier/bezier.h"
 
 class qCurve : public QGraphicsItem, public Bezier::Curve
 {
@@ -27,7 +27,7 @@ public:
   void setDraw_curvature_radious(bool value);
   bool getDraw_control_points() const;
   bool getDraw_curvature_radious() const;
-  Bezier::CurvePtr getSharedPtr();
+  std::shared_ptr<Bezier::Curve> getSharedPtr();
   bool getLocked() const;
   void setLocked(bool value);
 };

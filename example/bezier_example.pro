@@ -44,10 +44,10 @@ HEADERS += \
         customscene.h \
         qcurve.h \
         qpolycurve.h \
-        ../include/BezierCpp/bezier.h \
-        ../include/BezierCpp/polycurve.h \
-        ../include/BezierCpp/declarations.h \
-        ../include/BezierCpp/legendre_gauss.h \
+        ../include/Bezier/bezier.h \
+        ../include/Bezier/polycurve.h \
+        ../include/Bezier/declarations.h \
+        ../include/Bezier/legendre_gauss.h \
 
 FORMS += \
         mainwindow.ui
