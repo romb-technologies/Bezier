@@ -1,4 +1,4 @@
-dist: xenial
+dist: bionic
 
 sudo: false
 
@@ -14,13 +14,14 @@ addons:
     update: true
     packages:
       - doxygen
-      - qt5-default
       - libeigen3-dev
 
 script: >-
-  qmake example/bezier_example.pro &&
-  make &&
-  doxygen Doxyfile
+  doxygen Doxyfile &&
+  mkdir build &&
+  cd build &&
+  cmake .. &&
+  make
 
 deploy:
   provider: pages

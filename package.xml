@@ -1,9 +1,9 @@
 <?xml version="1.0"?>
 <package format="2">
-    <name>bezier_cpp</name>
+    <name>bezier</name>
     <version>0.2.0</version>
     <description>C++ library for Bezier curves</description>
-    <maintainer email="mirkokot@gmail.com">Mirko Kokot</maintainer>
+    <maintainer email="mirko.kokot@romb-technologies.hr">Mirko Kokot</maintainer>
     <author>Mirko Kokot</author>
     <license>Apache License 2.0</license>
 

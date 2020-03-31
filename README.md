@@ -1,7 +1,7 @@
-# Bezier-Cpp
-[![Build Status](https://travis-ci.com/stribor14/Bezier-cpp.svg?branch=master)](https://travis-ci.com/stribor14/Bezier-cpp)
+# Bezier
+[![Build Status](https://api.travis-ci.com/romb-technologies/Bezier.svg?branch=master)](https://api.travis-ci.com/romb-technologies/Bezier)
 ![v0.2](https://img.shields.io/badge/version-0.2-blue.svg)
-[![Codacy Badge](https://api.codacy.com/project/badge/Grade/aceb46ce7de1407abd56cfc127dba5f1)](https://www.codacy.com/app/stribor14/Bezier-cpp?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=stribor14/Bezier-cpp&amp;utm_campaign=Badge_Grade)
+[![Codacy Badge](https://api.codacy.com/project/badge/Grade/aceb46ce7de1407abd56cfc127dba5f1)](https://www.codacy.com/manual/stribor14/Bezier?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=stribor14/Bezier-cpp&amp;utm_campaign=Badge_Grade)
 
 Fast and lightweight class for using the Bezier curves of any order in C++
 
@@ -44,9 +44,9 @@ target_link_libraries(target bezier)
 ## Instalation
 ### System-wide installation
 ```
-git clone https://github.com/stribor14/Bezier-cpp
-mkdir Bezier-cpp/build
-cd Bezier-cpp/build
+git clone https://github.com/romb-technologies/Bezier
+mkdir Bezier/build
+cd Bezier/build
 cmake ..
 make
 make install
