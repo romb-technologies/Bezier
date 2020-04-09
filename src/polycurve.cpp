@@ -2,14 +2,13 @@
 #include "Bezier/bezier.h"
 
 #include <numeric>
+#include <utility>
 
 inline double binomial(uint n, uint k) { return tgamma(n + 1) / (tgamma(k + 1) * tgamma(n - k + 1)); }
 
 using namespace Bezier;
 
-PolyCurve::PolyCurve(const std::deque<std::shared_ptr<Curve>>& part_list) : curves_(part_list) {}
-
-PolyCurve::PolyCurve() {}
+PolyCurve::PolyCurve(std::deque<std::shared_ptr<Curve>>  curve_list) : curves_(std::move(curve_list)) {}
 
 PolyCurve::PolyCurve(std::shared_ptr<Curve> &curve) { curves_.push_back(curve); }
 

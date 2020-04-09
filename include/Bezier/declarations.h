@@ -57,18 +57,18 @@ class PolyCurve;
 /*!
  * \brief Point in xy plane
  */
-typedef Eigen::Vector2d Point;
+using Point = Eigen::Vector2d;
 /*!
  * \brief A Vector in xy plane
  */
-typedef Eigen::Vector2d Vector;
+using Vector = Eigen::Vector2d;
 /*!
  * \brief A vector of Points
  */
-typedef std::vector<Point> PointVector;
+using PointVector = std::vector<Point>;
 /*!
  * \brief Bounding box class
  */
-typedef Eigen::AlignedBox2d BoundingBox;
+using BoundingBox = Eigen::AlignedBox2d;
 }
 #endif // DECLARATIONS_H

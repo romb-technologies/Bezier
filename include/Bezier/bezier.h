@@ -270,11 +270,11 @@ private:
   /*!
    * \brief Coefficients for matrix operations
    */
-  typedef Eigen::MatrixXd Coeffs;
+  using Coeffs = Eigen::MatrixXd;
   /*!
    * \brief Map of different coefficient matrices, depending on the order of the curve
    */
-  typedef std::map<uint, Coeffs> CoeffsMap;
+  using CoeffsMap = std::map<uint, Coeffs>;
 
   /// Number of control points (order + 1)
   uint N_;

@@ -39,7 +39,7 @@ public:
   /*!
    * \brief Create the empty Bezier polycurve
    */
-  PolyCurve();
+  PolyCurve() = default;
 
   /*!
    * \brief Create the Bezier polycurve with only one subcurve
@@ -277,7 +277,7 @@ private:
    * \brief Constructor for easier creation of sub-polycurve
    * \param curve_list A list of continuus sub-curves
    */
-  PolyCurve(const std::deque<std::shared_ptr<Curve>>& curve_list);
+  PolyCurve(std::deque<std::shared_ptr<Curve>>  curve_list);
 };
 
 } // namespace Bezier

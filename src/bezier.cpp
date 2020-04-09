@@ -141,7 +141,7 @@ PointVector Curve::polyline(double smoothness, double precision) const
 {
   if (!cached_polyline_ || cached_polyline_params_ != std::make_tuple(smoothness, precision))
   {
-    PointVector* polyline = new PointVector;
+    auto* polyline = new PointVector;
     std::vector<Eigen::MatrixX2d> subcurves;
     subcurves.push_back(control_points_);
     polyline->push_back(control_points_.row(0));
@@ -161,8 +161,8 @@ PointVector Curve::polyline(double smoothness, double precision) const
       }
       else
       {
-        subcurves.push_back(splittingCoeffsRight(0.5) * cp);
-        subcurves.push_back(splittingCoeffsLeft(0.5) * cp);
+        subcurves.emplace_back(splittingCoeffsRight(0.5) * cp);
+        subcurves.emplace_back(splittingCoeffsLeft(0.5) * cp);
       }
     }
 
@@ -235,7 +235,7 @@ void Curve::manipulateCurvature(double t, const Point& point)
       std::fabs((std::pow(t, N_ - 1) + std::pow(1 - t, N_ - 1) - 1) / (std::pow(t, N_ - 1) + std::pow(1 - t, N_ - 1)));
   double u = std::pow(1 - t, N_ - 1) / (std::pow(t, N_ - 1) + std::pow(1 - t, N_ - 1));
   Point C = u * control_points_.row(0) + (1 - u) * control_points_.row(N_ - 1);
-  Point B = point;
+  const Point& B = point;
   Point A = B - (C - B) / r;
 
   switch (N_)
@@ -279,7 +279,7 @@ void Curve::lowerOrder()
 Point Curve::valueAt(double t) const
 {
   if (N_ == 0)
-    return Bezier::Point(0, 0);
+    return {0, 0};
   Eigen::VectorXd power_basis = Eigen::pow(t, Eigen::ArrayXd::LinSpaced(N_, 0, N_ - 1));
   return (power_basis.transpose() * bernsteinCoeffs() * control_points_).transpose();
 }
@@ -313,7 +313,7 @@ Vector Curve::tangentAt(double t, bool normalize) const
 Vector Curve::normalAt(double t, bool normalize) const
 {
   Point tangent = tangentAt(t, normalize);
-  return Vector(-tangent.y(), tangent.x());
+  return {-tangent.y(), tangent.x()};
 }
 
 std::shared_ptr<const Curve> Curve::derivative() const
@@ -441,7 +441,7 @@ PointVector Curve::pointsOfIntersection(const Curve& curve, bool stop_at_first, 
 
   if (this != &curve)
   {
-    subcurve_pairs.push_back(std::make_pair(control_points_, curve.control_points_));
+    subcurve_pairs.emplace_back(control_points_, curve.control_points_);
   }
   else
   {
@@ -458,8 +458,8 @@ PointVector Curve::pointsOfIntersection(const Curve& curve, bool stop_at_first, 
     {
       if (subcurves.empty())
       {
-        subcurves.push_back(splittingCoeffsLeft(root_pair.first - epsilon / 2) * control_points_);
-        subcurves.push_back(splittingCoeffsRight(root_pair.first + epsilon / 2) * control_points_);
+        subcurves.emplace_back(splittingCoeffsLeft(root_pair.first - epsilon / 2) * control_points_);
+        subcurves.emplace_back(splittingCoeffsRight(root_pair.first + epsilon / 2) * control_points_);
       }
       else
       {
@@ -467,15 +467,15 @@ PointVector Curve::pointsOfIntersection(const Curve& curve, bool stop_at_first, 
         double new_t = temp_curve.projectPoint(root_pair.second);
         auto new_cp = subcurves.back();
         subcurves.pop_back();
-        subcurves.push_back(splittingCoeffsLeft(new_t - epsilon / 2) * new_cp);
-        subcurves.push_back(splittingCoeffsRight(new_t + epsilon / 2) * new_cp);
+        subcurves.emplace_back(splittingCoeffsLeft(new_t - epsilon / 2) * new_cp);
+        subcurves.emplace_back(splittingCoeffsRight(new_t + epsilon / 2) * new_cp);
       }
     }
 
     // create all pairs of subcurves
     for (uint k = 0; k < subcurves.size(); k++)
       for (uint i = k + 1; i < subcurves.size(); i++)
-        subcurve_pairs.push_back(std::make_pair(subcurves.at(k), subcurves.at(i)));
+        subcurve_pairs.emplace_back(subcurves.at(k), subcurves.at(i));
   }
 
   auto bbox = [](Eigen::MatrixX2d cp) {
@@ -529,8 +529,8 @@ PointVector Curve::pointsOfIntersection(const Curve& curve, bool stop_at_first, 
     {
       // divide into two subcurves
       // first insert 2nd subcurve t = [0.5 to 1]
-      subcurves_a.push_back(splittingCoeffsRight() * part_a);
-      subcurves_a.push_back(splittingCoeffsLeft() * part_a);
+      subcurves_a.emplace_back(splittingCoeffsRight() * part_a);
+      subcurves_a.emplace_back(splittingCoeffsLeft() * part_a);
     }
 
     if (bbox2.diagonal().norm() < epsilon)
@@ -542,15 +542,15 @@ PointVector Curve::pointsOfIntersection(const Curve& curve, bool stop_at_first, 
     else
     {
       // divide into two subcurves
-      subcurves_b.push_back(curve.splittingCoeffsRight() * part_b);
-      subcurves_b.push_back(curve.splittingCoeffsLeft() * part_b);
+      subcurves_b.emplace_back(curve.splittingCoeffsRight() * part_b);
+      subcurves_b.emplace_back(curve.splittingCoeffsLeft() * part_b);
     }
 
     // insert all combinations for next iteration
     // last pair is one where both subcurves have smalles t ranges
     for (auto&& subcurve_b : subcurves_b)
       for (auto&& subcurve_a : subcurves_a)
-        subcurve_pairs.push_back(std::make_pair(subcurve_a, subcurve_b));
+        subcurve_pairs.emplace_back(subcurve_a, subcurve_b);
   }
 
   return points_of_intersection;
