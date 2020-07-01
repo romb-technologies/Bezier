@@ -253,8 +253,6 @@ public:
    * \param stop_at_first If first point of intersection is enough
    * \param epsilon Precision of resulting intersection
    * \return A vector af points of intersection between curves
-   *
-   * \warning subcurve self-intersection not yet implemented
    */
   template <typename Curve_PolyCurve>
   std::vector<Point> pointsOfIntersection(const Curve_PolyCurve& curve, bool stop_at_first = false,

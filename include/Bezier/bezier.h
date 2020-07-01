@@ -245,8 +245,6 @@ public:
    * \param stop_at_first If first point of intersection is enough
    * \param epsilon Precision of resulting intersection
    * \return A vector af points of intersection between curves
-   *
-   * \warning self-intersection not yet implemented
    */
   PointVector pointsOfIntersection(const Curve& curve, bool stop_at_first = false, double epsilon = 0.001) const;
 
