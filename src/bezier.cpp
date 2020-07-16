@@ -117,7 +117,7 @@ Curve::Curve(const PointVector& points)
   N_ = static_cast<uint>(points.size());
   control_points_.resize(N_, 2);
   for (uint k = 0; k < N_; k++)
-    control_points_.row(k) = points.at(k);
+    control_points_.row(k) = points[k];
 }
 
 Curve::Curve(const Curve& curve) : Curve(curve.controlPoints()) {}
@@ -128,7 +128,7 @@ PointVector Curve::controlPoints() const
 {
   PointVector points(N_);
   for (uint k = 0; k < N_; k++)
-    points.at(k) = control_points_.row(k);
+    points[k] = control_points_.row(k);
   return points;
 }
 
@@ -181,8 +181,7 @@ double Curve::length(double t1, double t2) const
   double sum = 0;
 
   for (uint k = 0; k < LegendreGauss::N; k++)
-    sum += LegendreGauss::weights.at(k) *
-           derivativeAt(LegendreGauss::abcissae.at(k) * (t2 - t1) / 2 + (t1 + t2) / 2).norm();
+    sum += LegendreGauss::weights[k] * derivativeAt(LegendreGauss::abcissae[k] * (t2 - t1) / 2 + (t1 + t2) / 2).norm();
 
   return sum * (t2 - t1) / 2;
 }
@@ -422,7 +421,7 @@ BoundingBox Curve::boundingBox(bool use_roots) const
     (use_roots ? (const_cast<Curve*>(this))->cached_bounding_box_tight_
                : (const_cast<Curve*>(this))->cached_bounding_box_relaxed_)
         .reset(new BoundingBox(Point(x_extremes.first->x(), y_extremes.first->y()),
-                        Point(x_extremes.second->x(), y_extremes.second->y())));
+                               Point(x_extremes.second->x(), y_extremes.second->y())));
   }
   return *(use_roots ? cached_bounding_box_tight_ : cached_bounding_box_relaxed_);
 }
@@ -475,11 +474,12 @@ PointVector Curve::pointsOfIntersection(const Curve& curve, bool stop_at_first, 
     // create all pairs of subcurves
     for (uint k = 0; k < subcurves.size(); k++)
       for (uint i = k + 1; i < subcurves.size(); i++)
-        subcurve_pairs.emplace_back(subcurves.at(k), subcurves.at(i));
+        subcurve_pairs.emplace_back(subcurves[k], subcurves[i]);
   }
 
   auto bbox = [](Eigen::MatrixX2d cp) {
-    return BoundingBox(Point(cp.col(0).minCoeff(), cp.col(1).minCoeff()), Point(cp.col(0).maxCoeff(), cp.col(1).maxCoeff()));
+    return BoundingBox(Point(cp.col(0).minCoeff(), cp.col(1).minCoeff()),
+                       Point(cp.col(0).maxCoeff(), cp.col(1).maxCoeff()));
   };
 
   while (!subcurve_pairs.empty())
@@ -548,8 +548,8 @@ PointVector Curve::pointsOfIntersection(const Curve& curve, bool stop_at_first, 
 
     // insert all combinations for next iteration
     // last pair is one where both subcurves have smalles t ranges
-    for (auto&& subcurve_b : subcurves_b)
-      for (auto&& subcurve_a : subcurves_a)
+    for (auto& subcurve_b : subcurves_b)
+      for (auto& subcurve_a : subcurves_a)
         subcurve_pairs.emplace_back(subcurve_a, subcurve_b);
   }
 
