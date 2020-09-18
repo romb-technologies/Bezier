@@ -198,10 +198,12 @@ double Curve::iterateByLength(double t, double s, double epsilon, std::size_t ma
   std::size_t current_iter = 0;
   while (current_iter < max_iter)
   {
-    // Newton-Raphson
+    // Halley
     double f = (length(t) - s_t - s);
     double f_d = derivativeAt(t).norm();
-    t -= f / f_d;
+    double f_d2 = derivativeAt(2, t).norm();
+
+    t -= (2 * f * f_d) / (2 * f_d * f_d - f * f_d2);
 
     // if there is no change to t
     if (std::fabs(f) < epsilon)
@@ -355,34 +357,36 @@ PointVector Curve::roots(double step, double epsilon, std::size_t max_iter) cons
       double t = 0;
       while (t <= 1.0)
       {
-        double t_newton = t;
+        double t_halley = t;
         std::size_t current_iter = 0;
 
         // it has to converge in max_iter steps
         while (current_iter < max_iter)
         {
-          // Newton-Raphson
-          double f = derivativeAt(t_newton)[k];
-          double f_d = derivativeAt(2, t_newton)[k];
-          t_newton -= f / f_d;
+          // Halley
+          double f = derivativeAt(t_halley)[k];
+          double f_d = derivativeAt(2, t_halley)[k];
+          double f_d2 = derivativeAt(2, t).norm();
+
+          t_halley -= (2 * f * f_d) / (2 * f_d * f_d - f * f_d2);
           // if there is no change to t_current
           if (std::fabs(f) < epsilon)
           {
             // check if between [0, 1]
-            if (t_newton >= 0.0 && t_newton <= 1.0)
+            if (t_halley >= 0.0 && t_halley <= 1.0)
             {
               // check if same value wasn't found before
-              if (added_t.end() == std::find_if(added_t.begin(), added_t.end(), [t_newton, epsilon](const double& val) {
-                    return std::fabs(val - t_newton) < epsilon;
+              if (added_t.end() == std::find_if(added_t.begin(), added_t.end(), [t_halley, epsilon](const double& val) {
+                    return std::fabs(val - t_halley) < epsilon;
                   }))
               {
                 // add new value and point
-                added_t.push_back(t_newton);
-                (const_cast<Curve*>(this))->cached_roots_->push_back(valueAt(t_newton));
+                added_t.push_back(t_halley);
+                (const_cast<Curve*>(this))->cached_roots_->push_back(valueAt(t_halley));
               }
             }
 
-            // this t_newton converged
+            // this t_halley converged
             break;
           }
 
@@ -558,6 +562,9 @@ PointVector Curve::pointsOfIntersection(const Curve& curve, bool stop_at_first, 
 
 double Curve::projectPoint(const Point& point, double step, double epsilon, std::size_t max_iter) const
 {
+  step = std::max(step, 0.01);
+  epsilon = std::max(epsilon, 0.001);
+
   double t = 0;
   double t_dist = (valueAt(t) - point).norm();
 
@@ -572,7 +579,7 @@ double Curve::projectPoint(const Point& point, double step, double epsilon, std:
     }
   }
 
-  // Fine search - Newton-Raphson
+  // Fine search - Halley
   // function to minimize is a dot product between projection vector and tangent
   // - projection vector is a vector between point we are projecting and our current guess
   double t_old = t;
@@ -582,18 +589,25 @@ double Curve::projectPoint(const Point& point, double step, double epsilon, std:
     Point P = valueAt(t);
     Point d1 = derivativeAt(t);
     Point d2 = derivativeAt(2, t);
-    double f = (point - P).dot(d1);
-    double f_d = (point - P).dot(d2) - d1.dot(d1);
-    t -= f / f_d;
+    Point d3 = derivativeAt(3, t);
+    double f = (P - point).dot(d1);
+    double f_d = (P - point).dot(d2) + d1.dot(d1);
+    double f_d2 = (P - point).dot(d3) + 3 * d1.dot(d2);
+    t -= (2 * f * f_d) / (2 * f_d * f_d - f * f_d2);
     if (t < 0 || t > 1)
-      return t_old;
+    {
+      t = t_old;
+      break;
+    }
     if (std::fabs(f) < epsilon)
+    {
       if (t_dist < (valueAt(t) - point).norm())
-        return t_old;
-      else
-        return t;
+        t = t_old;
+      break;
+    }
     current_iter++;
   }
+  return t;
 }
 
 void Curve::applyContinuity(const Curve& source_curve, std::vector<double>& beta_coeffs)
