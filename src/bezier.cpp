@@ -1,12 +1,58 @@
 #include "Bezier/bezier.h"
 #include "Bezier/legendre_gauss.h"
 
+#include <iostream>
 #include <numeric>
 
 #include <unsupported/Eigen/MatrixFunctions>
 
 inline double factorial(uint k) { return std::tgamma(k + 1); }
 inline double binomial(uint n, uint k) { return factorial(n) / (factorial(k) * factorial(n - k)); }
+inline Eigen::MatrixXd SturmFunctions(const Eigen::VectorXd& poly)
+{
+  Eigen::MatrixXd sturm = Eigen::MatrixXd::Zero(poly.size(), poly.size() + 2);
+
+  sturm.row(0).leftCols(poly.size()) = poly;
+  for (uint j = 1; j < poly.size(); j++)
+    sturm(1, j) = (poly.size() - j) * sturm(0, j - 1);
+
+  for (uint i = 2; i < poly.size(); i++)
+  {
+    const Eigen::VectorXd& d2 = sturm.row(i - 2).rightCols(poly.size() + 2 - i + 2);
+    const Eigen::VectorXd& d1 = sturm.row(i - 1).rightCols(poly.size() + 2 - i + 1);
+
+    if (d1(0) != 0)
+    {
+      double T, M;
+      T = d2(0) / d1(0);
+      M = (d2(1) - T * d1(1)) / d1(0);
+      for (uint j = 0; j < poly.size() - i; j++)
+        sturm(i, i + j) = -(d2(j + 2) - M * d1(j + 1) - T * d1(j + 2));
+    }
+    else {
+      throw "u pm";
+    }
+  }
+  return sturm.leftCols(poly.size());
+};
+
+inline int SturmRoots (const Eigen::MatrixXd &sturm, double t1, double t2){
+  Eigen::VectorXd power_basis_1 = Eigen::pow(t1, Eigen::ArrayXd::LinSpaced(sturm.cols(), sturm.cols() - 1, 0));
+  Eigen::VectorXd power_basis_2 = Eigen::pow(t2, Eigen::ArrayXd::LinSpaced(sturm.cols(), sturm.cols() - 1, 0));
+
+  Eigen::VectorXd signcount1 = sturm * power_basis_1;
+  Eigen::VectorXd signcount2 = sturm * power_basis_2;
+
+  int count1{0}, count2(0);
+  for (uint k = 1; k < signcount1.size(); k++)
+  {
+    if (signcount1(k-1) * signcount1(k) <= 0 && signcount1(k) != 0)
+      count1++;
+    if (signcount2(k-1) * signcount2(k) <= 0 && signcount2(k) != 0)
+      count2++;
+  }
+  return count1 - count2;
+};
 
 using namespace Bezier;
 
@@ -354,6 +400,7 @@ PointVector Curve::roots(double step, double epsilon, std::size_t max_iter) cons
     // check both axes
     for (uint k = 0; k < 2; k++)
     {
+      int count = 0;
       double t = 0;
       while (t <= 1.0)
       {
@@ -383,6 +430,7 @@ PointVector Curve::roots(double step, double epsilon, std::size_t max_iter) cons
                 // add new value and point
                 added_t.push_back(t_halley);
                 (const_cast<Curve*>(this))->cached_roots_->push_back(valueAt(t_halley));
+                count++;
               }
             }
 
@@ -395,9 +443,20 @@ PointVector Curve::roots(double step, double epsilon, std::size_t max_iter) cons
 
         t += step;
       }
+      std::cout << "old: " << count <<std::endl;
     }
   }
   return *cached_roots_;
+}
+
+PointVector Curve::roots2(double step, double epsilon, std::size_t max_iter) const
+{
+  Eigen::MatrixXd bezier_polynomial = derivative()->bernsteinCoeffs() * derivative()->control_points_;
+
+  std::cout << "X: " << SturmRoots(SturmFunctions(bezier_polynomial.col(0).reverse()), 0, 1) << std::endl;
+  std::cout << "Y: " << SturmRoots(SturmFunctions(bezier_polynomial.col(1).reverse()), 0, 1) << std::endl;
+
+ return PointVector();
 }
 
 BoundingBox Curve::boundingBox(bool use_roots) const
@@ -608,6 +667,31 @@ double Curve::projectPoint(const Point& point, double step, double epsilon, std:
     current_iter++;
   }
   return t;
+}
+
+double Curve::projectPoint2(const Point& point) const
+{
+ Eigen::MatrixXd q =  (bernsteinCoeffs() * control_points_);
+ Eigen::MatrixXd qd =  (derivative()->bernsteinCoeffs() * derivative()->control_points_);
+
+ Eigen::VectorXd qqd(q.rows() + qd.rows() - 1);
+ for (uint k = 0; k < q.rows() ;k++)
+   for (uint i = 0; i < qd.rows() ;i++)
+    qqd(k + i) = q.row(k).dot(qd.row(i));
+
+ Eigen::VectorXd pqd(qd.rows());
+ for (uint i = 0; i < qd.rows() ;i++)
+  pqd(i) = point.dot(qd.row(i));
+
+ Eigen::VectorXd pqd_qqd = -qqd;
+ for (uint i = 0; i < qd.rows() ;i++)
+  pqd_qqd(i) += point.dot(qd.row(i));
+
+ std::cout << SturmRoots(SturmFunctions(pqd_qqd.reverse()), 0 , 0.33) << std::endl;
+ std::cout << SturmRoots(SturmFunctions(pqd_qqd.reverse()), 0.33 , 0.66) << std::endl;
+ std::cout << SturmRoots(SturmFunctions(pqd_qqd.reverse()), 0.66 , 1) << std::endl;
+ std::cout << SturmRoots(SturmFunctions(pqd_qqd.reverse()), -1000 , 1000) << std::endl;
+ return 0;
 }
 
 void Curve::applyContinuity(const Curve& source_curve, std::vector<double>& beta_coeffs)

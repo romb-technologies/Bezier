@@ -224,6 +224,7 @@ public:
    * \return A vector of extreme points
    */
   PointVector roots(double step = 0.1, double epsilon = 0.001, std::size_t max_iter = 15) const;
+  PointVector roots2(double step = 0.1, double epsilon = 0.001, std::size_t max_iter = 15) const;
 
   /*!
    * \brief Get the bounding box of curve
@@ -256,6 +257,7 @@ public:
    * \return Parameter t
    */
   double projectPoint(const Point& point, double step = 0.01, double epsilon = 0.001, std::size_t max_iter = 15) const;
+  double projectPoint2(const Point& point) const;
 
   /*!
    * \brief applyContinuity Apply geometric continuity based on the another curve.
