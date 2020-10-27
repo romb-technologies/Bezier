@@ -224,7 +224,7 @@ public:
    * \return A vector of extreme points
    */
   PointVector roots(double step = 0.1, double epsilon = 0.001, std::size_t max_iter = 15) const;
-  PointVector roots2(double step = 0.1, double epsilon = 0.001, std::size_t max_iter = 15) const;
+  PointVector roots2(double epsilon = 0.001) const;
 
   /*!
    * \brief Get the bounding box of curve
