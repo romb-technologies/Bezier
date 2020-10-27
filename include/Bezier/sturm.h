@@ -4,7 +4,17 @@
 #include <Eigen/Dense>
 #include <vector>
 
-inline Eigen::MatrixXd SturmChain(const Eigen::VectorXd& poly, double epsilon = 0.001)
+namespace Sturm
+{
+
+enum RootType
+{
+  All,
+  Min,
+  Max
+};
+
+inline Eigen::MatrixXd chain(const Eigen::VectorXd& poly, double epsilon = 0.001)
 {
   Eigen::MatrixXd sturm = Eigen::MatrixXd::Zero(poly.size(), poly.size() + 2);
 
@@ -17,7 +27,7 @@ inline Eigen::MatrixXd SturmChain(const Eigen::VectorXd& poly, double epsilon = 
     const Eigen::VectorXd& d2 = sturm.row(i - 2).tail(poly.size() + 2 - i + 2);
     const Eigen::VectorXd& d1 = sturm.row(i - 1).tail(poly.size() + 2 - i + 1);
 
-    if(std::fabs(d1.norm() - std::fabs(d1(d1.size()-3))) < epsilon)
+    if (std::fabs(d1.norm() - std::fabs(d1(d1.size() - 3))) < epsilon)
       return sturm.block(0, 0, i, poly.size());
 
     if (std::fabs(d1(0)) > epsilon)
@@ -61,7 +71,7 @@ inline Eigen::MatrixXd SturmChain(const Eigen::VectorXd& poly, double epsilon = 
   return sturm.leftCols(poly.size());
 };
 
-inline int SturmInterval(const Eigen::MatrixXd& sturm_chain, double t1, double t2)
+inline int interval(const Eigen::MatrixXd& sturm_chain, double t1, double t2)
 {
   Eigen::VectorXd power_basis_1 =
       Eigen::pow(t1, Eigen::ArrayXd::LinSpaced(sturm_chain.cols(), sturm_chain.cols() - 1, 0));
@@ -82,90 +92,71 @@ inline int SturmInterval(const Eigen::MatrixXd& sturm_chain, double t1, double t
   return count1 - count2;
 };
 
-inline std::vector<double> SturmRoots(const Eigen::VectorXd& poly, double epsilon = 0.001)
+inline std::vector<double> roots(const Eigen::VectorXd& poly, RootType root_type = All, double epsilon = 0.001)
 {
-  auto sturm_chain = SturmChain(poly);
-  std::vector<std::tuple<double, double, uint>> intervals;
-  std::vector<std::tuple<double, double, double>> root_candidates;
+  auto sturm_chain = chain(poly);
+  std::vector<std::tuple<double, double, bool>> intervals;
   std::vector<double> roots;
-  uint temp_res = static_cast<uint>(SturmInterval(sturm_chain, 0.0, 1.0));
 
-  switch (temp_res)
-  {
-  case 0:
-    return std::vector<double>();
-  case 1:
-    root_candidates.emplace_back(0.0, 1.0, 0.5);
-    break;
-  default:
-    intervals.reserve(temp_res);
-    root_candidates.reserve(temp_res);
-    roots.reserve(temp_res);
-    intervals.emplace_back(0.0, 1.0, temp_res);
-  }
+  auto iterate = [&](std::tuple<double, double, bool> item) {
+    double a = std::get<0>(item);
+    double b = std::get<1>(item);
+    bool flag = std::get<2>(item);
+    double a_b = (a + b) / 2;
+    uint root_num = static_cast<uint>(interval(sturm_chain, std::get<0>(item), std::get<1>(item)));
+    switch (root_num)
+    {
+    case 0:
+      return;
+    case 1:
+      if (a_b - a < epsilon)
+      {
+        roots.emplace_back((a + a_b) / 2);
+        return;
+      }
+      else if (root_type != All && !flag)
+      {
+        Eigen::VectorXd power_basis_a =
+            Eigen::pow(a, Eigen::ArrayXd::LinSpaced(sturm_chain.cols(), sturm_chain.cols() - 1, 0)).eval();
+        Eigen::VectorXd power_basis_b =
+            Eigen::pow(a, Eigen::ArrayXd::LinSpaced(sturm_chain.cols(), sturm_chain.cols() - 1, 0)).eval();
+        double g_a = sturm_chain.row(0) * power_basis_a;
+        double g_b = sturm_chain.row(0) * power_basis_b;
+        switch (root_type)
+        {
+        case Min:
+          if (g_a <= 0 || g_b > 0)
+            flag = true;
+          break;
+        case Max:
+          if (g_a > 0 || g_b <= 0)
+            flag = true;
+          break;
+        case All:;
+        }
+      }
+      [[clang::fallthrough]];
+    default:
+      intervals.emplace_back(a, a_b, flag);
+      intervals.emplace_back(a_b, b, flag);
+    }
+  };
+
+  iterate({0.0, 1.0, false});
 
   while (!intervals.empty())
   {
-    double a = std::get<0>(intervals.back());
-    double b = std::get<1>(intervals.back());
-    double a_b = (a + b) / 2;
-    uint count = std::get<2>(intervals.back());
+    double a, b, a_b;
+    bool flag;
+    std::tie(a, b, flag) = intervals.back();
     intervals.pop_back();
+    a_b = (a + b) / 2;
 
-    uint left = static_cast<uint>(SturmInterval(sturm_chain, a, a_b));
-    uint right = count - left;
-
-    switch (left)
-    {
-    case 0:
-      break;
-    case 1:
-      root_candidates.emplace_back(a, a_b, (a + a_b) / 2);
-      break;
-    default:
-      intervals.emplace_back(a, a_b, left);
-    }
-
-    switch (right)
-    {
-    case 0:
-      break;
-    case 1:
-      root_candidates.emplace_back(a_b, b, (a_b + b) / 2);
-      break;
-    default:
-      intervals.emplace_back(a_b, b, right);
-    }
-  }
-
-  // fine search
-  Eigen::Matrix<double, 3, Eigen::Dynamic> derivates;
-  derivates.resize(3, poly.size());
-  derivates.setZero();
-  derivates.topRows(2) = sturm_chain.topRows(2);
-  for (uint j = 2; j < poly.size(); j++)
-    derivates(2, j) = (poly.size() - j) * derivates(1, j - 1);
-  for (auto candidate : root_candidates)
-  {
-    double a, b, t;
-    std::tie(a, b, t) = candidate;
-    Eigen::VectorXd power_basis = Eigen::pow(t, Eigen::ArrayXd::LinSpaced(poly.size(), poly.size() - 1, 0));
-    Eigen::Vector3d f_fd_fdd = derivates * power_basis;
-    while (std::fabs(f_fd_fdd(0)) > epsilon)
-    {
-      double t_old = t;
-      t -= 2 * f_fd_fdd(0) * f_fd_fdd(1) / (2 * f_fd_fdd(1) * f_fd_fdd(1) - f_fd_fdd(0) * f_fd_fdd(2));
-      if (t < a && t_old < a)
-        t = b;
-      if (t > b && t_old > b)
-        t = a;
-      power_basis = Eigen::pow(t, Eigen::ArrayXd::LinSpaced(poly.size(), poly.size() - 1, 0));
-      f_fd_fdd = derivates * power_basis;
-    }
-    roots.emplace_back(t);
+    iterate({a, a_b, flag});
+    iterate({a_b, b, flag});
   }
 
   return roots;
 }
-
+} // namespace Sturm
 #endif // STURM_H

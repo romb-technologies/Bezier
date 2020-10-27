@@ -218,13 +218,10 @@ public:
 
   /*!
    * \brief Get the roots of curve on both axis
-   * \param step Size of step in coarse search
    * \param epsilon Precision of resulting t
-   * \param max_iter Maximum number of iterations for Newton-Rhapson
    * \return A vector of extreme points
    */
-  PointVector roots(double step = 0.1, double epsilon = 0.001, std::size_t max_iter = 15) const;
-  PointVector roots2(double epsilon = 0.001) const;
+  PointVector roots(double epsilon = 0.001) const;
 
   /*!
    * \brief Get the bounding box of curve
@@ -284,7 +281,7 @@ private:
   // private caching
   std::shared_ptr<const Curve> cached_derivative_; /*! If generated, stores derivative for later use */
   std::unique_ptr<PointVector> cached_roots_;      /*! If generated, stores roots for later use */
-  std::tuple<double, double, std::size_t> cached_roots_params_{0, 0, 0}; /*! epsilon and max_iter of cached roots */
+  double cached_roots_epsilon_{0}; /*! epsilon and max_iter of cached roots */
   std::unique_ptr<BoundingBox>
       cached_bounding_box_tight_; /*! If generated, stores bounding box (use_roots = true) for later use */
   std::unique_ptr<BoundingBox>

@@ -345,81 +345,22 @@ Point Curve::derivativeAt(double t) const { return derivative()->valueAt(t); }
 
 Point Curve::derivativeAt(uint n, double t) const { return derivative(n)->valueAt(t); }
 
-PointVector Curve::roots(double step, double epsilon, std::size_t max_iter) const
+PointVector Curve::roots(double epsilon) const
 {
-  if (!cached_roots_ || cached_roots_params_ != std::make_tuple(step, epsilon, max_iter))
+  if (!cached_roots_ || cached_roots_epsilon_ > epsilon)
   {
-    (const_cast<Curve*>(this))->cached_roots_params_ = std::make_tuple(step, epsilon, max_iter);
-    (const_cast<Curve*>(this))->cached_roots_.reset(new PointVector());
-    std::vector<double> added_t;
+    const_cast<double&>(cached_roots_epsilon_) = epsilon;
+    const_cast<Curve*>(this)->cached_roots_.reset(new PointVector());
+    Eigen::MatrixXd bezier_polynomial = derivative()->bernsteinCoeffs() * derivative()->control_points_;
+    auto roots_X = Sturm::roots(bezier_polynomial.col(0).reverse(), Sturm::RootType::All, epsilon);
+    auto roots_Y = Sturm::roots(bezier_polynomial.col(1).reverse(), Sturm::RootType::All, epsilon);
 
-    // check both axes
-    for (uint k = 0; k < 2; k++)
-    {
-      int count = 0;
-      double t = 0;
-      while (t <= 1.0)
-      {
-        double t_halley = t;
-        std::size_t current_iter = 0;
-
-        // it has to converge in max_iter steps
-        while (current_iter < max_iter)
-        {
-          // Halley
-          double f = derivativeAt(t_halley)[k];
-          double f_d = derivativeAt(2, t_halley)[k];
-          double f_d2 = derivativeAt(2, t).norm();
-
-          t_halley -= (2 * f * f_d) / (2 * f_d * f_d - f * f_d2);
-          // if there is no change to t_current
-          if (std::fabs(f) < epsilon)
-          {
-            // check if between [0, 1]
-            if (t_halley >= 0.0 && t_halley <= 1.0)
-            {
-              // check if same value wasn't found before
-              if (added_t.end() == std::find_if(added_t.begin(), added_t.end(), [t_halley, epsilon](const double& val) {
-                    return std::fabs(val - t_halley) < epsilon;
-                  }))
-              {
-                // add new value and point
-                added_t.push_back(t_halley);
-                (const_cast<Curve*>(this))->cached_roots_->push_back(valueAt(t_halley));
-                count++;
-              }
-            }
-
-            // this t_halley converged
-            break;
-          }
-
-          current_iter++;
-        }
-
-        t += step;
-      }
-      std::cout << "old: " << count <<std::endl;
-    }
+    for (double t : roots_X)
+      const_cast<Curve*>(this)->cached_roots_->emplace_back(valueAt(t));
+    for (double t : roots_Y)
+      const_cast<Curve*>(this)->cached_roots_->emplace_back(valueAt(t));
   }
   return *cached_roots_;
-}
-
-PointVector Curve::roots2(double epsilon) const
-{
-  PointVector roots;
-  Eigen::MatrixXd bezier_polynomial = derivative()->bernsteinCoeffs() * derivative()->control_points_;
-
-  for (double t : SturmRoots(bezier_polynomial.col(0).reverse(), epsilon))
-    roots.emplace_back(valueAt(t));
-  for (double t : SturmRoots(bezier_polynomial.col(1).reverse(), epsilon))
-    roots.emplace_back(valueAt(t));
-
-  Eigen::VectorXd p;
-  p.resize(6);
-  p << 1, 0, 0, 0, -3, -1;
-  SturmChain(p);
- return roots;
 }
 
 BoundingBox Curve::boundingBox(bool use_roots) const
@@ -634,27 +575,27 @@ double Curve::projectPoint(const Point& point, double step, double epsilon, std:
 
 double Curve::projectPoint2(const Point& point) const
 {
- Eigen::MatrixXd q =  (bernsteinCoeffs() * control_points_);
- Eigen::MatrixXd qd =  (derivative()->bernsteinCoeffs() * derivative()->control_points_);
+  Eigen::MatrixXd q = (bernsteinCoeffs() * control_points_);
+  Eigen::MatrixXd qd = (derivative()->bernsteinCoeffs() * derivative()->control_points_);
 
- Eigen::VectorXd qqd(q.rows() + qd.rows() - 1);
- for (uint k = 0; k < q.rows() ;k++)
-   for (uint i = 0; i < qd.rows() ;i++)
-    qqd(k + i) = q.row(k).dot(qd.row(i));
+  Eigen::VectorXd qqd(q.rows() + qd.rows() - 1);
+  for (uint k = 0; k < q.rows(); k++)
+    for (uint i = 0; i < qd.rows(); i++)
+      qqd(k + i) = q.row(k).dot(qd.row(i));
 
- Eigen::VectorXd pqd(qd.rows());
- for (uint i = 0; i < qd.rows() ;i++)
-  pqd(i) = point.dot(qd.row(i));
+  Eigen::VectorXd pqd(qd.rows());
+  for (uint i = 0; i < qd.rows(); i++)
+    pqd(i) = point.dot(qd.row(i));
 
- Eigen::VectorXd pqd_qqd = -qqd;
- for (uint i = 0; i < qd.rows() ;i++)
-  pqd_qqd(i) += point.dot(qd.row(i));
+  Eigen::VectorXd pqd_qqd = -qqd;
+  for (uint i = 0; i < qd.rows(); i++)
+    pqd_qqd(i) += point.dot(qd.row(i));
 
-// std::cout << SturmInterval(SturmChain(pqd_qqd.reverse()), 0 , 0.33) << std::endl;
-// std::cout << SturmInterval(SturmChain(pqd_qqd.reverse()), 0.33 , 0.66) << std::endl;
-// std::cout << SturmInterval(SturmChain(pqd_qqd.reverse()), 0.66 , 1) << std::endl;
-// std::cout << SturmInterval(SturmChain(pqd_qqd.reverse()), -1000 , 1000) << std::endl;
- return 0;
+  // std::cout << SturmInterval(SturmChain(pqd_qqd.reverse()), 0 , 0.33) << std::endl;
+  // std::cout << SturmInterval(SturmChain(pqd_qqd.reverse()), 0.33 , 0.66) << std::endl;
+  // std::cout << SturmInterval(SturmChain(pqd_qqd.reverse()), 0.66 , 1) << std::endl;
+  // std::cout << SturmInterval(SturmChain(pqd_qqd.reverse()), -1000 , 1000) << std::endl;
+  return 0;
 }
 
 void Curve::applyContinuity(const Curve& source_curve, std::vector<double>& beta_coeffs)
