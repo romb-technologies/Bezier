@@ -47,6 +47,7 @@ HEADERS += \
         ../include/Bezier/polycurve.h \
         ../include/Bezier/declarations.h \
         ../include/Bezier/legendre_gauss.h \
+        ../include/Bezier/sturm.h
 
 FORMS += \
         mainwindow.ui

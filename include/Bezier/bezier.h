@@ -225,10 +225,9 @@ public:
 
   /*!
    * \brief Get the bounding box of curve
-   * \param use_roots If algorithm should use roots
    * \return Bounding box (if use_roots is false, returns the bounding box of control points)
    */
-  BoundingBox boundingBox(bool use_roots = true) const;
+  BoundingBox boundingBox() const;
 
   /*!
    * \brief Split the curve into two subcurves
@@ -249,12 +248,10 @@ public:
   /*!
    * \brief Get the parameter t where curve is closest to given point
    * \param point Point to project on curve
-   * \param step Size of step in coarse search
    * \param epsilon Precision of resulting projection
    * \return Parameter t
    */
-  double projectPoint(const Point& point, double step = 0.01, double epsilon = 0.001, std::size_t max_iter = 15) const;
-  double projectPoint2(const Point& point) const;
+  double projectPoint(const Point& point, double epsilon = 0.001) const;
 
   /*!
    * \brief applyContinuity Apply geometric continuity based on the another curve.
@@ -279,15 +276,15 @@ private:
   Eigen::MatrixX2d control_points_;
 
   // private caching
-  std::shared_ptr<const Curve> cached_derivative_; /*! If generated, stores derivative for later use */
-  std::unique_ptr<PointVector> cached_roots_;      /*! If generated, stores roots for later use */
-  double cached_roots_epsilon_{0}; /*! epsilon and max_iter of cached roots */
-  std::unique_ptr<BoundingBox>
-      cached_bounding_box_tight_; /*! If generated, stores bounding box (use_roots = true) for later use */
-  std::unique_ptr<BoundingBox>
-      cached_bounding_box_relaxed_; /*! If generated, stores bounding box (use_roots = false) for later use */
+  std::shared_ptr<const Curve> cached_derivative_;          /*! If generated, stores derivative for later use */
+  std::unique_ptr<PointVector> cached_roots_;               /*! If generated, stores roots for later use */
+  double cached_roots_epsilon_{0};                          /*! epsilon of cached roots */
+  std::unique_ptr<BoundingBox> cached_bounding_box_;        /*! If generated, stores bounding box for later use */
   std::unique_ptr<PointVector> cached_polyline_;            /*! If generated, stores polyline for later use */
   std::tuple<double, double> cached_polyline_params_{0, 0}; /*! Smootheness and precision of cached polyline */
+  std::unique_ptr<Eigen::VectorXd>
+      cached_projection_polynomial_part_;                   /*! Constant part of point projection polynomial */
+  Eigen::MatrixXd cached_projection_polynomial_derivative_; /*! Polynomial representation of curve derivative */
 
   /// Reset all privately cached data
   inline void resetCache();

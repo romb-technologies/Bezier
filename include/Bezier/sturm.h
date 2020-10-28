@@ -7,36 +7,45 @@
 namespace Sturm
 {
 
+/*!
+ * \brief Local shape of function at root
+ */
 enum RootType
 {
-  All,
-  Min,
-  Max
+  All, /*! Find all roots */
+  Convex, /*! Find all convex roots */
+  Concave /*! Find all concave roots */
 };
 
-inline Eigen::MatrixXd chain(const Eigen::VectorXd& poly, double epsilon = 0.001)
+/*!
+ * \brief chain
+ * \param polynomial Coefficients of polynomial equation (highest degree first)
+ * \param epsilon Precision
+ * \return
+ */
+inline Eigen::MatrixXd chain(const Eigen::VectorXd& polynomial, double epsilon = 0.001)
 {
-  Eigen::MatrixXd sturm = Eigen::MatrixXd::Zero(poly.size(), poly.size() + 2);
+  Eigen::MatrixXd sturm_chain = Eigen::MatrixXd::Zero(polynomial.size(), polynomial.size() + 2);
 
-  sturm.row(0).head(poly.size()) = poly;
-  for (uint j = 1; j < poly.size(); j++)
-    sturm(1, j) = (poly.size() - j) * sturm(0, j - 1);
+  sturm_chain.row(0).head(polynomial.size()) = polynomial;
+  for (uint j = 1; j < polynomial.size(); j++)
+    sturm_chain(1, j) = (polynomial.size() - j) * sturm_chain(0, j - 1);
 
-  for (uint i = 2; i < poly.size(); i++)
+  for (uint i = 2; i < polynomial.size(); i++)
   {
-    const Eigen::VectorXd& d2 = sturm.row(i - 2).tail(poly.size() + 2 - i + 2);
-    const Eigen::VectorXd& d1 = sturm.row(i - 1).tail(poly.size() + 2 - i + 1);
+    const Eigen::VectorXd& d2 = sturm_chain.row(i - 2).tail(polynomial.size() + 2 - i + 2);
+    const Eigen::VectorXd& d1 = sturm_chain.row(i - 1).tail(polynomial.size() + 2 - i + 1);
 
     if (std::fabs(d1.norm() - std::fabs(d1(d1.size() - 3))) < epsilon)
-      return sturm.block(0, 0, i, poly.size());
+      return sturm_chain.block(0, 0, i, polynomial.size());
 
     if (std::fabs(d1(0)) > epsilon)
     {
       double T, M;
       T = d2(0) / d1(0);
       M = (d2(1) - T * d1(1)) / d1(0);
-      for (uint j = 0; j < poly.size() - i; j++)
-        sturm(i, i + j) = -(d2(j + 2) - M * d1(j + 1) - T * d1(j + 2));
+      for (uint j = 0; j < polynomial.size() - i; j++)
+        sturm_chain(i, i + j) = -(d2(j + 2) - M * d1(j + 1) - T * d1(j + 2));
     }
     else
     {
@@ -46,9 +55,9 @@ inline Eigen::MatrixXd chain(const Eigen::VectorXd& poly, double epsilon = 0.001
           k++;
         return p.tail(p.size() - k);
       };
-      auto Inflate = [poly](const Eigen::VectorXd p) {
-        Eigen::VectorXd v = Eigen::VectorXd::Zero(poly.size() + 2);
-        v.segment(poly.size() - p.size(), p.size()) = p;
+      auto Inflate = [polynomial](const Eigen::VectorXd p) {
+        Eigen::VectorXd v = Eigen::VectorXd::Zero(polynomial.size() + 2);
+        v.segment(polynomial.size() - p.size(), p.size()) = p;
         return v;
       };
 
@@ -65,12 +74,19 @@ inline Eigen::MatrixXd chain(const Eigen::VectorXd& poly, double epsilon = 0.001
           r(r.size() - (X + b.size()) + k) -= L * b(k);
         r = Trim(r);
       }
-      sturm.row(i) = Inflate(r);
+      sturm_chain.row(i) = Inflate(r);
     }
   }
-  return sturm.leftCols(poly.size());
+  return sturm_chain.leftCols(polynomial.size());
 };
 
+/*!
+ * \brief Counts the number of roots in a given interval
+ * \param sturm_chain Series of Sturm functions
+ * \param t1 start of interval
+ * \param t2 end of interval
+ * \return Number of roots
+ */
 inline int interval(const Eigen::MatrixXd& sturm_chain, double t1, double t2)
 {
   Eigen::VectorXd power_basis_1 =
@@ -81,7 +97,7 @@ inline int interval(const Eigen::MatrixXd& sturm_chain, double t1, double t2)
   Eigen::VectorXd signcount1 = sturm_chain * power_basis_1;
   Eigen::VectorXd signcount2 = sturm_chain * power_basis_2;
 
-  int count1{0}, count2(0);
+  int count1{0}, count2{0};
   for (uint k = 1; k < signcount1.size(); k++)
   {
     if (signcount1(k - 1) * signcount1(k) <= 0 && signcount1(k) != 0)
@@ -92,9 +108,16 @@ inline int interval(const Eigen::MatrixXd& sturm_chain, double t1, double t2)
   return count1 - count2;
 };
 
-inline std::vector<double> roots(const Eigen::VectorXd& poly, RootType root_type = All, double epsilon = 0.001)
+/*!
+ * \brief Find all roots in the [0, 1] interval
+ * \param polynomial Coefficients of polynomial equation (highest degree first)
+ * \param root_type Type of roots to find
+ * \param epsilon Precision of resulting roots
+ * \return A vector of roots
+ */
+inline std::vector<double> roots(const Eigen::VectorXd& polynomial, RootType root_type = All, double epsilon = 0.001)
 {
-  auto sturm_chain = chain(poly);
+  auto sturm_chain = chain(polynomial);
   std::vector<std::tuple<double, double, bool>> intervals;
   std::vector<double> roots;
 
@@ -119,18 +142,23 @@ inline std::vector<double> roots(const Eigen::VectorXd& poly, RootType root_type
         Eigen::VectorXd power_basis_a =
             Eigen::pow(a, Eigen::ArrayXd::LinSpaced(sturm_chain.cols(), sturm_chain.cols() - 1, 0)).eval();
         Eigen::VectorXd power_basis_b =
-            Eigen::pow(a, Eigen::ArrayXd::LinSpaced(sturm_chain.cols(), sturm_chain.cols() - 1, 0)).eval();
+            Eigen::pow(b, Eigen::ArrayXd::LinSpaced(sturm_chain.cols(), sturm_chain.cols() - 1, 0)).eval();
         double g_a = sturm_chain.row(0) * power_basis_a;
         double g_b = sturm_chain.row(0) * power_basis_b;
         switch (root_type)
         {
-        case Min:
-          if (g_a <= 0 || g_b > 0)
+        case Convex:
+          if (g_a <= 0 && g_b > 0)
             flag = true;
+          else
+            return;
+
           break;
-        case Max:
-          if (g_a > 0 || g_b <= 0)
+        case Concave:
+          if (g_a > 0 && g_b <= 0)
             flag = true;
+          else
+            return;
           break;
         case All:;
         }

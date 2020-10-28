@@ -236,11 +236,11 @@ Point PolyCurve::derivativeAt(uint n, double t) const
   return curvePtr(idx)->derivativeAt(n, t - idx);
 }
 
-BoundingBox PolyCurve::boundingBox(bool use_roots) const
+BoundingBox PolyCurve::boundingBox() const
 {
   BoundingBox bbox;
   for (auto& curve_ptr : curves_)
-    bbox.extend(curve_ptr->boundingBox(use_roots));
+    bbox.extend(curve_ptr->boundingBox());
   return bbox;
 }
 
@@ -275,14 +275,14 @@ PointVector PolyCurve::pointsOfIntersection<PolyCurve>(const PolyCurve& poly_cur
   return points;
 }
 
-double PolyCurve::projectPoint(const Point& point, double step, double epsilon) const
+double PolyCurve::projectPoint(const Point& point, double epsilon) const
 {
-  double min_t = curves_.front()->projectPoint(point, step, epsilon);
+  double min_t = curves_.front()->projectPoint(point, epsilon);
   double min_dist = (point - curves_.front()->valueAt(min_t)).norm();
 
   for (uint k = 1; k < size(); k++)
   {
-    double t = curves_[k]->projectPoint(point, step, epsilon);
+    double t = curves_[k]->projectPoint(point, epsilon);
     double dist = (point - curves_[k]->valueAt(t)).norm();
     if (dist < min_dist)
     {

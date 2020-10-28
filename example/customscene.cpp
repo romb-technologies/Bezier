@@ -23,9 +23,9 @@ void CustomScene::drawForeground(QPainter* painter, const QRectF& rect)
     {
       Bezier::BoundingBox bbox;
       if (is_curve)
-        bbox = c_curve->boundingBox(true);
+        bbox = c_curve->boundingBox();
       if (is_poly)
-        bbox = c_poly->boundingBox(true);
+        bbox = c_poly->boundingBox();
       painter->drawRect(bbox.min().x(), bbox.min().y(), bbox.max().x() - bbox.min().x(),
                         bbox.max().y() - bbox.min().y());
     }

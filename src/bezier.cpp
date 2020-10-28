@@ -2,7 +2,6 @@
 #include "Bezier/legendre_gauss.h"
 #include "Bezier/sturm.h"
 
-#include <iostream>
 #include <numeric>
 
 #include <unsupported/Eigen/MatrixFunctions>
@@ -22,9 +21,9 @@ void Curve::resetCache()
 {
   cached_derivative_.reset();
   cached_roots_.reset();
-  cached_bounding_box_tight_.reset();
-  cached_bounding_box_relaxed_.reset();
+  cached_bounding_box_.reset();
   cached_polyline_.reset();
+  cached_projection_polynomial_part_.reset();
 }
 
 Curve::Coeffs Curve::bernsteinCoeffs() const
@@ -355,6 +354,7 @@ PointVector Curve::roots(double epsilon) const
     auto roots_X = Sturm::roots(bezier_polynomial.col(0).reverse(), Sturm::RootType::All, epsilon);
     auto roots_Y = Sturm::roots(bezier_polynomial.col(1).reverse(), Sturm::RootType::All, epsilon);
 
+    const_cast<Curve*>(this)->cached_roots_->reserve(roots_X.size() + roots_Y.size());
     for (double t : roots_X)
       const_cast<Curve*>(this)->cached_roots_->emplace_back(valueAt(t));
     for (double t : roots_Y)
@@ -363,34 +363,24 @@ PointVector Curve::roots(double epsilon) const
   return *cached_roots_;
 }
 
-BoundingBox Curve::boundingBox(bool use_roots) const
+BoundingBox Curve::boundingBox() const
 {
-  if (!(use_roots ? cached_bounding_box_tight_ : cached_bounding_box_relaxed_))
+  if (!cached_bounding_box_)
   {
-    PointVector extremes;
-    if (use_roots)
-    {
-      extremes = roots();
-      extremes.push_back(control_points_.row(0));
-      extremes.push_back(control_points_.row(N_ - 1));
-    }
-    else
-    {
-      for (uint k = 0; k < control_points_.rows(); k++)
-        extremes.push_back(control_points_.row(k));
-    }
+    PointVector extremes = roots();
+
+    extremes.push_back(control_points_.row(0));
+    extremes.push_back(control_points_.row(N_ - 1));
 
     // find mininum and maximum along each axis
     auto x_extremes = std::minmax_element(extremes.begin(), extremes.end(),
                                           [](const Point& lhs, const Point& rhs) { return lhs.x() < rhs.x(); });
     auto y_extremes = std::minmax_element(extremes.begin(), extremes.end(),
                                           [](const Point& lhs, const Point& rhs) { return lhs.y() < rhs.y(); });
-    (use_roots ? (const_cast<Curve*>(this))->cached_bounding_box_tight_
-               : (const_cast<Curve*>(this))->cached_bounding_box_relaxed_)
-        .reset(new BoundingBox(Point(x_extremes.first->x(), y_extremes.first->y()),
-                               Point(x_extremes.second->x(), y_extremes.second->y())));
+    const_cast<Curve*>(this)->cached_bounding_box_.reset(new BoundingBox(
+        Point(x_extremes.first->x(), y_extremes.first->y()), Point(x_extremes.second->x(), y_extremes.second->y())));
   }
-  return *(use_roots ? cached_bounding_box_tight_ : cached_bounding_box_relaxed_);
+  return *cached_bounding_box_;
 }
 
 std::pair<Curve, Curve> Curve::splitCurve(double z) const
@@ -523,79 +513,45 @@ PointVector Curve::pointsOfIntersection(const Curve& curve, bool stop_at_first, 
   return points_of_intersection;
 }
 
-double Curve::projectPoint(const Point& point, double step, double epsilon, std::size_t max_iter) const
+double Curve::projectPoint(const Point& point, double epsilon) const
 {
-  step = std::max(step, 0.01);
-  epsilon = std::max(epsilon, 0.001);
+  /* Chen, X. D., Zhou, Y., Shu, Z., Su, H., & Paul, J. C. (2007, August). Improved Algebraic Algorithm on Point
+   * projection for Bezier curves. In Second International Multi-Symposiums on Computer and Computational Sciences
+   * (IMSCCS 2007) (pp. 158-163). IEEE.
+   */
 
-  double t = 0;
-  double t_dist = (valueAt(t) - point).norm();
-
-  // Coarse search
-  for (double k = step; k < 1 + step; k += step)
+  if (!cached_projection_polynomial_part_)
   {
-    double new_dist = (valueAt(k) - point).norm();
-    if (new_dist < t_dist)
+    Eigen::MatrixXd curve_polynomial = (bernsteinCoeffs() * control_points_);
+    Eigen::MatrixXd derivate_polynomial = (derivative()->bernsteinCoeffs() * derivative()->control_points_);
+
+    Eigen::VectorXd polynomial_part = Eigen::VectorXd::Zero(curve_polynomial.rows() + derivate_polynomial.rows() - 1);
+    for (uint k = 0; k < curve_polynomial.rows(); k++)
+      for (uint i = 0; i < derivate_polynomial.rows(); i++)
+        polynomial_part(k + i) += curve_polynomial.row(k).dot(derivate_polynomial.row(i));
+
+    const_cast<Curve*>(this)->cached_projection_polynomial_part_.reset(new Eigen::VectorXd(std::move(polynomial_part)));
+    const_cast<Curve*>(this)->cached_projection_polynomial_derivative_ = std::move(derivate_polynomial);
+  }
+
+  Eigen::VectorXd polynomial = *cached_projection_polynomial_part_;
+  for (uint i = 0; i < cached_projection_polynomial_derivative_.rows(); i++)
+    polynomial(i) -= point.dot(cached_projection_polynomial_derivative_.row(i));
+
+  double projection = (point - valueAt(0.0)).norm() < (point - valueAt(1.0)).norm() ? 0.0 : 1.0;
+  double min = (point - valueAt(projection)).norm();
+
+  for (auto candidate : Sturm::roots(polynomial.reverse(), Sturm::RootType::Convex, epsilon))
+  {
+    double dist = (point - valueAt(candidate)).norm();
+    if (dist < min)
     {
-      t_dist = new_dist;
-      t = k;
+      projection = candidate;
+      min = dist;
     }
   }
 
-  // Fine search - Halley
-  // function to minimize is a dot product between projection vector and tangent
-  // - projection vector is a vector between point we are projecting and our current guess
-  double t_old = t;
-  std::size_t current_iter = 0;
-  while (current_iter < max_iter)
-  {
-    Point P = valueAt(t);
-    Point d1 = derivativeAt(t);
-    Point d2 = derivativeAt(2, t);
-    Point d3 = derivativeAt(3, t);
-    double f = (P - point).dot(d1);
-    double f_d = (P - point).dot(d2) + d1.dot(d1);
-    double f_d2 = (P - point).dot(d3) + 3 * d1.dot(d2);
-    t -= (2 * f * f_d) / (2 * f_d * f_d - f * f_d2);
-    if (t < 0 || t > 1)
-    {
-      t = t_old;
-      break;
-    }
-    if (std::fabs(f) < epsilon)
-    {
-      if (t_dist < (valueAt(t) - point).norm())
-        t = t_old;
-      break;
-    }
-    current_iter++;
-  }
-  return t;
-}
-
-double Curve::projectPoint2(const Point& point) const
-{
-  Eigen::MatrixXd q = (bernsteinCoeffs() * control_points_);
-  Eigen::MatrixXd qd = (derivative()->bernsteinCoeffs() * derivative()->control_points_);
-
-  Eigen::VectorXd qqd(q.rows() + qd.rows() - 1);
-  for (uint k = 0; k < q.rows(); k++)
-    for (uint i = 0; i < qd.rows(); i++)
-      qqd(k + i) = q.row(k).dot(qd.row(i));
-
-  Eigen::VectorXd pqd(qd.rows());
-  for (uint i = 0; i < qd.rows(); i++)
-    pqd(i) = point.dot(qd.row(i));
-
-  Eigen::VectorXd pqd_qqd = -qqd;
-  for (uint i = 0; i < qd.rows(); i++)
-    pqd_qqd(i) += point.dot(qd.row(i));
-
-  // std::cout << SturmInterval(SturmChain(pqd_qqd.reverse()), 0 , 0.33) << std::endl;
-  // std::cout << SturmInterval(SturmChain(pqd_qqd.reverse()), 0.33 , 0.66) << std::endl;
-  // std::cout << SturmInterval(SturmChain(pqd_qqd.reverse()), 0.66 , 1) << std::endl;
-  // std::cout << SturmInterval(SturmChain(pqd_qqd.reverse()), -1000 , 1000) << std::endl;
-  return 0;
+  return projection;
 }
 
 void Curve::applyContinuity(const Curve& source_curve, std::vector<double>& beta_coeffs)

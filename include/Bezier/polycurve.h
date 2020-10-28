@@ -242,10 +242,9 @@ public:
 
   /*!
    * \brief Get the bounding box of polycurve
-   * \param use_roots If algorithm should use roots
    * \return Bounding box (if use_roots is false, returns the bounding box of control points)
    */
-  BoundingBox boundingBox(bool use_roots = true) const;
+  BoundingBox boundingBox() const;
 
   /*!
    * \brief Get the points of intersection with another curve or polycurve
@@ -256,16 +255,15 @@ public:
    */
   template <typename Curve_PolyCurve>
   std::vector<Point> pointsOfIntersection(const Curve_PolyCurve& curve, bool stop_at_first = false,
-                                             double epsilon = 0.001) const;
+                                          double epsilon = 0.001) const;
 
   /*!
    * \brief Get the parameter t where polycurve is closest to given point
    * \param point Point to project on polycurve
-   * \param step Size of step in coarse search
    * \param epsilon Precision of resulting projection
    * \return Parameter t
    */
-  double projectPoint(const Point& point, double step = 0.01, double epsilon = 0.001) const;
+  double projectPoint(const Point& point, double epsilon = 0.001) const;
 
 private:
   /// Structure for holding underlying Bezier curves
@@ -275,7 +273,7 @@ private:
    * \brief Constructor for easier creation of sub-polycurve
    * \param curve_list A list of continuus sub-curves
    */
-  PolyCurve(std::deque<std::shared_ptr<Curve>>  curve_list);
+  PolyCurve(std::deque<std::shared_ptr<Curve>> curve_list);
 };
 
 } // namespace Bezier
