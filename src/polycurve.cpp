@@ -200,6 +200,15 @@ Point PolyCurve::valueAt(double t) const
   return curvePtr(idx)->valueAt(t - idx);
 }
 
+PointVector PolyCurve::valueAt(std::vector<double> t_vector) const
+{
+  PointVector points;
+  points.reserve(t_vector.size());
+  for (auto t : t_vector)
+    points.emplace_back(valueAt(t));
+  return points;
+}
+
 double PolyCurve::curvatureAt(double t) const
 {
   uint idx = curveIdx(t);

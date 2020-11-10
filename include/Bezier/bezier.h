@@ -158,6 +158,13 @@ public:
   Point valueAt(double t) const;
 
   /*!
+   * \brief Get the point vector on curve for given parameters
+   * \param t_vector Curve parameters
+   * \return Vector of points on a curve for given parameters
+   */
+  PointVector valueAt(std::vector<double> t_vector) const;
+
+  /*!
    * \brief Get curvature of curve for a given t
    * \param t Curve parameter
    * \return Curvature of a curve for a given t
@@ -221,7 +228,7 @@ public:
    * \param epsilon Precision of resulting t
    * \return A vector of extreme points
    */
-  PointVector roots(double epsilon = 0.001) const;
+  std::vector<double> roots(double epsilon = 0.001) const;
 
   /*!
    * \brief Get the bounding box of curve
@@ -277,7 +284,7 @@ private:
 
   // private caching
   std::shared_ptr<const Curve> cached_derivative_;          /*! If generated, stores derivative for later use */
-  std::unique_ptr<PointVector> cached_roots_;               /*! If generated, stores roots for later use */
+  std::unique_ptr<std::vector<double>> cached_roots_;       /*! If generated, stores roots for later use */
   double cached_roots_epsilon_{0};                          /*! epsilon of cached roots */
   std::unique_ptr<BoundingBox> cached_bounding_box_;        /*! If generated, stores bounding box for later use */
   std::unique_ptr<PointVector> cached_polyline_;            /*! If generated, stores polyline for later use */

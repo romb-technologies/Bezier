@@ -196,6 +196,13 @@ public:
   Point valueAt(double t) const;
 
   /*!
+   * \brief Get the point vector on polycurve for given parameters
+   * \param t_vector Curve parameters
+   * \return Vector of points on a polycurve for given parameters
+   */
+  PointVector valueAt(std::vector<double> t_vector) const;
+
+  /*!
    * \brief Get curvature of polycurve for a given t
    * \param t A Polyurve parameter
    * \return Curvature of a polycurve for a given t

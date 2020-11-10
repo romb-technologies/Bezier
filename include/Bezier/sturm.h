@@ -15,7 +15,7 @@ enum RootTypeFlag
   Convex = 1,     /*! Find all convex roots */
   Concave = 2,    /*! Find all concave roots */
   Inflection = 4, /*! Find all roots at inflections */
-  All = 8         /*! Finda all roots (overpowers other flags) */
+  All = 8         /*! Find all roots (overpowers other flags) */
 };
 
 /*!
@@ -116,7 +116,7 @@ inline int interval(const Eigen::MatrixXd& sturm_chain, double t1, double t2)
  * \param epsilon Precision of resulting roots
  * \return A vector of roots
  */
-inline std::vector<double> roots(const Eigen::VectorXd& polynomial, RootTypeFlag root_type = All,
+inline std::vector<double> roots(const Eigen::VectorXd& polynomial, int root_type = RootTypeFlag::All,
                                  double epsilon = 0.001)
 {
   auto sturm_chain = chain(polynomial);
@@ -151,11 +151,11 @@ inline std::vector<double> roots(const Eigen::VectorXd& polynomial, RootTypeFlag
         if (!(root_type & All))
         {
           if (root_type & Convex && g_a <= 0 && g_b > 0)
-              flag = true;
+            flag = true;
           if (root_type & Concave && g_a > 0 && g_b <= 0)
-              flag = true;
+            flag = true;
           if (root_type & Inflection && ((g_a >= 0 && g_b >= 0) || (g_a <= 0 && g_b <= 0)))
-              flag = true;
+            flag = true;
           if (!flag)
             return;
         }

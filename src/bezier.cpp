@@ -286,6 +286,15 @@ Point Curve::valueAt(double t) const
   return (power_basis.transpose() * bernsteinCoeffs() * control_points_).transpose();
 }
 
+PointVector Curve::valueAt(std::vector<double> t_vector) const
+{
+  PointVector points;
+  points.reserve(t_vector.size());
+  for (auto t : t_vector)
+    points.emplace_back(valueAt(t));
+  return points;
+}
+
 double Curve::curvatureAt(double t) const
 {
   Point d1 = derivativeAt(t);
@@ -344,21 +353,23 @@ Point Curve::derivativeAt(double t) const { return derivative()->valueAt(t); }
 
 Point Curve::derivativeAt(uint n, double t) const { return derivative(n)->valueAt(t); }
 
-PointVector Curve::roots(double epsilon) const
+std::vector<double> Curve::roots(double epsilon) const
 {
   if (!cached_roots_ || cached_roots_epsilon_ > epsilon)
   {
-    const_cast<double&>(cached_roots_epsilon_) = epsilon;
-    const_cast<Curve*>(this)->cached_roots_.reset(new PointVector());
     Eigen::MatrixXd bezier_polynomial = derivative()->bernsteinCoeffs() * derivative()->control_points_;
-    auto roots_X = Sturm::roots(bezier_polynomial.col(0).reverse(), Sturm::RootTypeFlag::All, epsilon);
-    auto roots_Y = Sturm::roots(bezier_polynomial.col(1).reverse(), Sturm::RootTypeFlag::All, epsilon);
+    auto roots_X = Sturm::roots(bezier_polynomial.col(0).reverse(),
+                                Sturm::RootTypeFlag::Convex | Sturm::RootTypeFlag::Concave, epsilon);
+    auto roots_Y = Sturm::roots(bezier_polynomial.col(1).reverse(),
+                                Sturm::RootTypeFlag::Convex | Sturm::RootTypeFlag::Concave, epsilon);
 
-    const_cast<Curve*>(this)->cached_roots_->reserve(roots_X.size() + roots_Y.size());
-    for (double t : roots_X)
-      const_cast<Curve*>(this)->cached_roots_->emplace_back(valueAt(t));
-    for (double t : roots_Y)
-      const_cast<Curve*>(this)->cached_roots_->emplace_back(valueAt(t));
+    std::vector<double>* roots = new std::vector<double>();
+    roots->reserve(roots_X.size() + roots_Y.size());
+    roots->insert(roots->end(), std::make_move_iterator(roots_X.begin()), std::make_move_iterator(roots_X.end()));
+    roots->insert(roots->end(), std::make_move_iterator(roots_Y.begin()), std::make_move_iterator(roots_Y.end()));
+
+    const_cast<double&>(cached_roots_epsilon_) = epsilon;
+    const_cast<Curve*>(this)->cached_roots_.reset(roots);
   }
   return *cached_roots_;
 }
@@ -367,7 +378,7 @@ BoundingBox Curve::boundingBox() const
 {
   if (!cached_bounding_box_)
   {
-    PointVector extremes = roots();
+    PointVector extremes = valueAt(roots());
 
     extremes.push_back(control_points_.row(0));
     extremes.push_back(control_points_.row(N_ - 1));
@@ -405,7 +416,7 @@ PointVector Curve::pointsOfIntersection(const Curve& curve, bool stop_at_first, 
 
     // get all inflection points (roots)
     std::map<double, Point> t_point_pair;
-    for (const auto& root : roots())
+    for (const auto& root : valueAt(roots()))
       t_point_pair.insert(std::make_pair(projectPoint(root), root));
 
     // divide curve into subcurves at inflection points
