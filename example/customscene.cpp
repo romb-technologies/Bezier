@@ -40,16 +40,16 @@ void CustomScene::drawForeground(QPainter* painter, const QRectF& rect)
       {
         Bezier::PointVector inter;
         if (items()[k]->type() == QGraphicsItem::UserType + 1 && items()[i]->type() == QGraphicsItem::UserType + 1)
-          inter = static_cast<qCurve*>(items()[i])->pointsOfIntersection(*static_cast<qCurve*>(items()[k]));
+          inter = static_cast<qCurve*>(items()[i])->intersection(*static_cast<qCurve*>(items()[k]));
         if (items()[k]->type() == QGraphicsItem::UserType + 1 && items()[i]->type() == QGraphicsItem::UserType + 2)
           inter = static_cast<qPolyCurve*>(items()[i])
-                      ->pointsOfIntersection(*static_cast<Bezier::Curve*>(static_cast<qCurve*>(items()[k])));
+                      ->intersection(*static_cast<Bezier::Curve*>(static_cast<qCurve*>(items()[k])));
         if (items()[k]->type() == QGraphicsItem::UserType + 2 && items()[i]->type() == QGraphicsItem::UserType + 1)
           inter = static_cast<qPolyCurve*>(items()[k])
-                      ->pointsOfIntersection(*static_cast<Bezier::Curve*>(static_cast<qCurve*>(items()[i])));
+                      ->intersection(*static_cast<Bezier::Curve*>(static_cast<qCurve*>(items()[i])));
         if (items()[k]->type() == QGraphicsItem::UserType + 2 && items()[i]->type() == QGraphicsItem::UserType + 2)
           inter = static_cast<qPolyCurve*>(items()[i])
-                      ->pointsOfIntersection(*static_cast<Bezier::PolyCurve*>(static_cast<qPolyCurve*>(items()[k])));
+                      ->intersection(*static_cast<Bezier::PolyCurve*>(static_cast<qPolyCurve*>(items()[k])));
 
         for (auto& dot : inter)
           painter->drawEllipse(QPointF(dot.x(), dot.y()), 3, 3);

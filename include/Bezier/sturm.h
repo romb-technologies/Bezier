@@ -19,10 +19,10 @@ enum RootTypeFlag
 };
 
 /*!
- * \brief chain
+ * \brief Generate Sturm chain
  * \param polynomial Coefficients of polynomial equation (highest degree first)
  * \param epsilon Precision
- * \return
+ * \return A sturm chain generated from polynomial
  */
 inline Eigen::MatrixXd chain(const Eigen::VectorXd& polynomial, double epsilon = 0.001)
 {
@@ -50,20 +50,20 @@ inline Eigen::MatrixXd chain(const Eigen::VectorXd& polynomial, double epsilon =
     }
     else
     {
-      auto Trim = [epsilon](const Eigen::VectorXd p) {
+      auto trim = [epsilon](const Eigen::VectorXd p) {
         uint k = 0;
         while (std::fabs(p(k)) < epsilon)
           k++;
         return p.tail(p.size() - k);
       };
-      auto Inflate = [polynomial](const Eigen::VectorXd p) {
+      auto inflate = [polynomial](const Eigen::VectorXd p) {
         Eigen::VectorXd v = Eigen::VectorXd::Zero(polynomial.size() + 2);
         v.segment(polynomial.size() - p.size(), p.size()) = p;
         return v;
       };
 
-      Eigen::VectorXd a = Trim(d2.head(d2.size() - 2));
-      Eigen::VectorXd b = Trim(d1.head(d1.size() - 2));
+      Eigen::VectorXd a = trim(d2.head(d2.size() - 2));
+      Eigen::VectorXd b = trim(d1.head(d1.size() - 2));
 
       Eigen::VectorXd r = a;
       while (r.size() && r.size() >= b.size())
@@ -73,9 +73,9 @@ inline Eigen::MatrixXd chain(const Eigen::VectorXd& polynomial, double epsilon =
 
         for (uint k = 0; k < b.size(); k++)
           r(r.size() - (X + b.size()) + k) -= L * b(k);
-        r = Trim(r);
+        r = trim(r);
       }
-      sturm_chain.row(i) = Inflate(r);
+      sturm_chain.row(i) = inflate(r);
     }
   }
   return sturm_chain.leftCols(polynomial.size());

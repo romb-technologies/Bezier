@@ -245,21 +245,20 @@ Point PolyCurve::derivativeAt(uint n, double t) const
   return curvePtr(idx)->derivativeAt(n, t - idx);
 }
 
-BoundingBox PolyCurve::boundingBox() const
+BoundingBox PolyCurve::boundingBox(double epsilon) const
 {
   BoundingBox bbox;
   for (auto& curve_ptr : curves_)
-    bbox.extend(curve_ptr->boundingBox());
+    bbox.extend(curve_ptr->boundingBox(epsilon));
   return bbox;
 }
 
-template <>
-PointVector PolyCurve::pointsOfIntersection<Curve>(const Curve& curve, bool stop_at_first, double epsilon) const
+template <> PointVector PolyCurve::intersection<Curve>(const Curve& curve, bool stop_at_first, double epsilon) const
 {
   PointVector points;
   for (auto& curve_ptr : curves_)
   {
-    auto new_points = curve_ptr->pointsOfIntersection(curve, stop_at_first, epsilon);
+    auto new_points = curve_ptr->intersection(curve, stop_at_first, epsilon);
     points.reserve(points.size() + new_points.size());
     points.insert(points.end(), new_points.begin(), new_points.end());
     if (!points.empty() && stop_at_first)
@@ -269,13 +268,12 @@ PointVector PolyCurve::pointsOfIntersection<Curve>(const Curve& curve, bool stop
 }
 
 template <>
-PointVector PolyCurve::pointsOfIntersection<PolyCurve>(const PolyCurve& poly_curve, bool stop_at_first,
-                                                       double epsilon) const
+PointVector PolyCurve::intersection<PolyCurve>(const PolyCurve& poly_curve, bool stop_at_first, double epsilon) const
 {
   PointVector points;
   for (auto& curve_ptr : curves_)
   {
-    auto new_points = poly_curve.pointsOfIntersection(*curve_ptr, stop_at_first, epsilon);
+    auto new_points = poly_curve.intersection(*curve_ptr, stop_at_first, epsilon);
     points.reserve(points.size() + new_points.size());
     points.insert(points.end(), new_points.begin(), new_points.end());
     if (!points.empty() && stop_at_first)

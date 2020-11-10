@@ -30,13 +30,13 @@ Curve::Coeffs Curve::bernsteinCoeffs() const
 {
   if (bernstein_coeffs_.find(N_) == bernstein_coeffs_.end())
   {
-    bernstein_coeffs_.insert(std::make_pair(N_, Coeffs::Zero(N_, N_)));
-    bernstein_coeffs_.at(N_).diagonal(-1) = -Eigen::ArrayXd::LinSpaced(N_ - 1, 1, N_ - 1);
-    bernstein_coeffs_.at(N_) = bernstein_coeffs_.at(N_).exp();
+    bernstein_coeffs_.insert({N_, Coeffs::Zero(N_, N_)});
+    bernstein_coeffs_[N_].diagonal(-1) = -Eigen::ArrayXd::LinSpaced(N_ - 1, 1, N_ - 1);
+    bernstein_coeffs_[N_] = bernstein_coeffs_[N_].exp();
     for (uint k = 0; k < N_; k++)
-      bernstein_coeffs_.at(N_).row(k) *= binomial(N_ - 1, k);
+      bernstein_coeffs_[N_].row(k) *= binomial(N_ - 1, k);
   }
-  return bernstein_coeffs_.at(N_);
+  return bernstein_coeffs_[N_];
 }
 
 Curve::Coeffs Curve::splittingCoeffsLeft(double z) const
@@ -45,11 +45,11 @@ Curve::Coeffs Curve::splittingCoeffsLeft(double z) const
   {
     if (splitting_coeffs_left_.find(N_) == splitting_coeffs_left_.end())
     {
-      splitting_coeffs_left_.insert(std::make_pair(N_, Coeffs::Zero(N_, N_)));
-      splitting_coeffs_left_.at(N_).diagonal() = Eigen::pow(0.5, Eigen::ArrayXd::LinSpaced(N_, 0, N_ - 1));
-      splitting_coeffs_left_.at(N_) = bernsteinCoeffs().inverse() * splitting_coeffs_left_.at(N_) * bernsteinCoeffs();
+      splitting_coeffs_left_.insert({N_, Coeffs::Zero(N_, N_)});
+      splitting_coeffs_left_[N_].diagonal() = Eigen::pow(0.5, Eigen::ArrayXd::LinSpaced(N_, 0, N_ - 1));
+      splitting_coeffs_left_[N_] = bernsteinCoeffs().inverse() * splitting_coeffs_left_[N_] * bernsteinCoeffs();
     }
-    return splitting_coeffs_left_.at(N_);
+    return splitting_coeffs_left_[N_];
   }
   else
   {
@@ -66,13 +66,12 @@ Curve::Coeffs Curve::splittingCoeffsRight(double z) const
   {
     if (splitting_coeffs_right_.find(N_) == splitting_coeffs_right_.end())
     {
-      splitting_coeffs_right_.insert(std::make_pair(N_, Coeffs::Zero(N_, N_)));
+      splitting_coeffs_right_.insert({N_, Coeffs::Zero(N_, N_)});
       Curve::Coeffs temp_splitting_coeffs_left = splittingCoeffsLeft();
       for (uint k = 0; k < N_; k++)
-        splitting_coeffs_right_.at(N_).block(k, k, 1, N_ - k) =
-            temp_splitting_coeffs_left.block(N_ - 1 - k, 0, 1, N_ - k);
+        splitting_coeffs_right_[N_].block(k, k, 1, N_ - k) = temp_splitting_coeffs_left.block(N_ - 1 - k, 0, 1, N_ - k);
     }
-    return splitting_coeffs_right_.at(N_);
+    return splitting_coeffs_right_[N_];
   }
   else
   {
@@ -88,23 +87,22 @@ Curve::Coeffs Curve::elevateOrderCoeffs(uint n) const
 {
   if (elevate_order_coeffs_.find(n) == elevate_order_coeffs_.end())
   {
-    elevate_order_coeffs_.insert(std::make_pair(n, Coeffs::Zero(n + 1, n)));
-    elevate_order_coeffs_.at(n).diagonal() = 1 - Eigen::ArrayXd::LinSpaced(n, 0, n - 1) / n;
-    elevate_order_coeffs_.at(n).diagonal(-1) = Eigen::ArrayXd::LinSpaced(n, 1, n) / n;
+    elevate_order_coeffs_.insert({n, Coeffs::Zero(n + 1, n)});
+    elevate_order_coeffs_[n].diagonal() = 1 - Eigen::ArrayXd::LinSpaced(n, 0, n - 1) / n;
+    elevate_order_coeffs_[n].diagonal(-1) = Eigen::ArrayXd::LinSpaced(n, 1, n) / n;
   }
-  return elevate_order_coeffs_.at(n);
+  return elevate_order_coeffs_[n];
 }
 
 Curve::Coeffs Curve::lowerOrderCoeffs(uint n) const
 {
   if (lower_order_coeffs_.find(n) == lower_order_coeffs_.end())
   {
-    lower_order_coeffs_.insert(std::make_pair(n, Coeffs::Zero(n - 1, n)));
-    lower_order_coeffs_.at(n).noalias() =
-        (elevateOrderCoeffs(n - 1).transpose() * elevateOrderCoeffs(n - 1)).inverse() *
-        elevateOrderCoeffs(n - 1).transpose();
+    lower_order_coeffs_.insert({n, Coeffs::Zero(n - 1, n)});
+    lower_order_coeffs_[n].noalias() = (elevateOrderCoeffs(n - 1).transpose() * elevateOrderCoeffs(n - 1)).inverse() *
+                                       elevateOrderCoeffs(n - 1).transpose();
   }
-  return lower_order_coeffs_.at(n);
+  return lower_order_coeffs_[n];
 }
 
 Curve::Curve(const Eigen::MatrixX2d& points)
@@ -133,19 +131,16 @@ PointVector Curve::controlPoints() const
   return points;
 }
 
-std::pair<Point, Point> Curve::endPoints() const
-{
-  return std::make_pair(control_points_.row(0), control_points_.row(N_ - 1));
-}
+std::pair<Point, Point> Curve::endPoints() const { return {control_points_.row(0), control_points_.row(N_ - 1)}; }
 
 PointVector Curve::polyline(double smoothness, double precision) const
 {
-  if (!cached_polyline_ || cached_polyline_params_ != std::make_tuple(smoothness, precision))
+  if (!cached_polyline_ || cached_polyline_params_ != std::make_pair(smoothness, precision))
   {
     auto* polyline = new PointVector;
     std::vector<Eigen::MatrixX2d> subcurves;
-    subcurves.push_back(control_points_);
-    polyline->push_back(control_points_.row(0));
+    subcurves.emplace_back(control_points_);
+    polyline->emplace_back(control_points_.row(0));
     while (!subcurves.empty())
     {
       auto cp = subcurves.back();
@@ -158,7 +153,7 @@ PointVector Curve::polyline(double smoothness, double precision) const
 
       if (hull_length <= smoothness * string_length || string_length <= precision)
       {
-        polyline->push_back(cp.row(N_ - 1));
+        polyline->emplace_back(cp.row(N_ - 1));
       }
       else
       {
@@ -167,7 +162,7 @@ PointVector Curve::polyline(double smoothness, double precision) const
       }
     }
 
-    (const_cast<Curve*>(this))->cached_polyline_params_ = std::make_tuple(smoothness, precision);
+    (const_cast<Curve*>(this))->cached_polyline_params_ = {smoothness, precision};
     (const_cast<Curve*>(this))->cached_polyline_.reset(polyline);
   }
   return *cached_polyline_;
@@ -357,11 +352,9 @@ std::vector<double> Curve::roots(double epsilon) const
 {
   if (!cached_roots_ || cached_roots_epsilon_ > epsilon)
   {
-    Eigen::MatrixXd bezier_polynomial = derivative()->bernsteinCoeffs() * derivative()->control_points_;
-    auto roots_X = Sturm::roots(bezier_polynomial.col(0).reverse(),
-                                Sturm::RootTypeFlag::Convex | Sturm::RootTypeFlag::Concave, epsilon);
-    auto roots_Y = Sturm::roots(bezier_polynomial.col(1).reverse(),
-                                Sturm::RootTypeFlag::Convex | Sturm::RootTypeFlag::Concave, epsilon);
+    Eigen::MatrixXd bezier_polynomial = bernsteinCoeffs() * control_points_;
+    auto roots_X = Sturm::roots(bezier_polynomial.col(0).reverse(), Sturm::RootTypeFlag::All, epsilon);
+    auto roots_Y = Sturm::roots(bezier_polynomial.col(1).reverse(), Sturm::RootTypeFlag::All, epsilon);
 
     std::vector<double>* roots = new std::vector<double>();
     roots->reserve(roots_X.size() + roots_Y.size());
@@ -374,14 +367,16 @@ std::vector<double> Curve::roots(double epsilon) const
   return *cached_roots_;
 }
 
-BoundingBox Curve::boundingBox() const
+std::vector<double> Curve::extrema(double epsilon) const { return derivative()->roots(epsilon); }
+
+BoundingBox Curve::boundingBox(double epsilon) const
 {
   if (!cached_bounding_box_)
   {
-    PointVector extremes = valueAt(roots());
+    PointVector extremes = valueAt(extrema(epsilon));
 
-    extremes.push_back(control_points_.row(0));
-    extremes.push_back(control_points_.row(N_ - 1));
+    extremes.emplace_back(control_points_.row(0));
+    extremes.emplace_back(control_points_.row(N_ - 1));
 
     // find mininum and maximum along each axis
     auto x_extremes = std::minmax_element(extremes.begin(), extremes.end(),
@@ -396,11 +391,10 @@ BoundingBox Curve::boundingBox() const
 
 std::pair<Curve, Curve> Curve::splitCurve(double z) const
 {
-  return std::make_pair(Curve(splittingCoeffsLeft(z) * control_points_),
-                        Curve(splittingCoeffsRight(z) * control_points_));
+  return {Curve(splittingCoeffsLeft(z) * control_points_), Curve(splittingCoeffsRight(z) * control_points_)};
 }
 
-PointVector Curve::pointsOfIntersection(const Curve& curve, bool stop_at_first, double epsilon) const
+PointVector Curve::intersection(const Curve& curve, bool stop_at_first, double epsilon) const
 {
   PointVector points_of_intersection;
 
@@ -414,12 +408,12 @@ PointVector Curve::pointsOfIntersection(const Curve& curve, bool stop_at_first, 
   {
     // self intersections
 
-    // get all inflection points (roots)
+    // get all extrema of the curve
     std::map<double, Point> t_point_pair;
-    for (const auto& root : valueAt(roots()))
-      t_point_pair.insert(std::make_pair(projectPoint(root), root));
+    for (const auto& root : valueAt(extrema()))
+      t_point_pair.insert({projectPoint(root), root});
 
-    // divide curve into subcurves at inflection points
+    // divide curve into subcurves at roots
     std::vector<Eigen::MatrixX2d> subcurves;
     for (const auto& root_pair : t_point_pair)
     {
@@ -472,7 +466,7 @@ PointVector Curve::pointsOfIntersection(const Curve& curve, bool stop_at_first, 
           std::find_if(points_of_intersection.begin(), points_of_intersection.end(),
                        [new_point, epsilon](const Point& point) { return (point - new_point).norm() < epsilon; }))
       {
-        points_of_intersection.push_back(new_point);
+        points_of_intersection.emplace_back(new_point);
 
         // if only first point is needed, stop
         if (stop_at_first)
@@ -491,7 +485,7 @@ PointVector Curve::pointsOfIntersection(const Curve& curve, bool stop_at_first, 
     if (bbox1.diagonal().norm() < epsilon)
     {
       // if small enough, do not divide it further
-      subcurves_a.push_back(part_a);
+      subcurves_a.emplace_back(part_a);
     }
     else
     {
@@ -505,7 +499,7 @@ PointVector Curve::pointsOfIntersection(const Curve& curve, bool stop_at_first, 
     {
       // if small enough, do not divide it further
       // first insert 2nd subcurve t = [0.5 to 1]
-      subcurves_b.push_back(part_b);
+      subcurves_b.emplace_back(part_b);
     }
     else
     {
