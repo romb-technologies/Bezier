@@ -10,11 +10,12 @@ namespace Sturm
 /*!
  * \brief Local shape of function at root
  */
-enum RootType
+enum RootTypeFlag
 {
-  All, /*! Find all roots */
-  Convex, /*! Find all convex roots */
-  Concave /*! Find all concave roots */
+  Convex = 1,     /*! Find all convex roots */
+  Concave = 2,    /*! Find all concave roots */
+  Inflection = 4, /*! Find all roots at inflections */
+  All = 8         /*! Finda all roots (overpowers other flags) */
 };
 
 /*!
@@ -115,7 +116,8 @@ inline int interval(const Eigen::MatrixXd& sturm_chain, double t1, double t2)
  * \param epsilon Precision of resulting roots
  * \return A vector of roots
  */
-inline std::vector<double> roots(const Eigen::VectorXd& polynomial, RootType root_type = All, double epsilon = 0.001)
+inline std::vector<double> roots(const Eigen::VectorXd& polynomial, RootTypeFlag root_type = All,
+                                 double epsilon = 0.001)
 {
   auto sturm_chain = chain(polynomial);
   std::vector<std::tuple<double, double, bool>> intervals;
@@ -145,22 +147,17 @@ inline std::vector<double> roots(const Eigen::VectorXd& polynomial, RootType roo
             Eigen::pow(b, Eigen::ArrayXd::LinSpaced(sturm_chain.cols(), sturm_chain.cols() - 1, 0)).eval();
         double g_a = sturm_chain.row(0) * power_basis_a;
         double g_b = sturm_chain.row(0) * power_basis_b;
-        switch (root_type)
-        {
-        case Convex:
-          if (g_a <= 0 && g_b > 0)
-            flag = true;
-          else
-            return;
 
-          break;
-        case Concave:
-          if (g_a > 0 && g_b <= 0)
-            flag = true;
-          else
+        if (!(root_type & All))
+        {
+          if (root_type & Convex && g_a <= 0 && g_b > 0)
+              flag = true;
+          if (root_type & Concave && g_a > 0 && g_b <= 0)
+              flag = true;
+          if (root_type & Inflection && ((g_a >= 0 && g_b >= 0) || (g_a <= 0 && g_b <= 0)))
+              flag = true;
+          if (!flag)
             return;
-          break;
-        case All:;
         }
       }
       [[clang::fallthrough]];

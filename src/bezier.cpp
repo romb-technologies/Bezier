@@ -351,8 +351,8 @@ PointVector Curve::roots(double epsilon) const
     const_cast<double&>(cached_roots_epsilon_) = epsilon;
     const_cast<Curve*>(this)->cached_roots_.reset(new PointVector());
     Eigen::MatrixXd bezier_polynomial = derivative()->bernsteinCoeffs() * derivative()->control_points_;
-    auto roots_X = Sturm::roots(bezier_polynomial.col(0).reverse(), Sturm::RootType::All, epsilon);
-    auto roots_Y = Sturm::roots(bezier_polynomial.col(1).reverse(), Sturm::RootType::All, epsilon);
+    auto roots_X = Sturm::roots(bezier_polynomial.col(0).reverse(), Sturm::RootTypeFlag::All, epsilon);
+    auto roots_Y = Sturm::roots(bezier_polynomial.col(1).reverse(), Sturm::RootTypeFlag::All, epsilon);
 
     const_cast<Curve*>(this)->cached_roots_->reserve(roots_X.size() + roots_Y.size());
     for (double t : roots_X)
@@ -541,7 +541,7 @@ double Curve::projectPoint(const Point& point, double epsilon) const
   double projection = (point - valueAt(0.0)).norm() < (point - valueAt(1.0)).norm() ? 0.0 : 1.0;
   double min = (point - valueAt(projection)).norm();
 
-  for (auto candidate : Sturm::roots(polynomial.reverse(), Sturm::RootType::Convex, epsilon))
+  for (auto candidate : Sturm::roots(polynomial.reverse(), Sturm::RootTypeFlag::Convex, epsilon))
   {
     double dist = (point - valueAt(candidate)).norm();
     if (dist < min)
