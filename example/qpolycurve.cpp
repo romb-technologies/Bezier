@@ -53,7 +53,7 @@ void qPolyCurve::paint(QPainter* painter, const QStyleOptionGraphicsItem* option
   if (draw_curvature_radious)
   {
     painter->setPen(Qt::green);
-    for (double t = 0; t <= size(); t += 1.0 / 500)
+    for (Bezier::Parameter t = 0; t <= size(); t += 1.0 / 500)
     {
       painter->setPen(QColor(static_cast<int>(std::fabs(255 * (0.5 - t / size()))),
                              static_cast<int>(255 * t / size()), static_cast<int>(255 * (1 - t / size()))));

@@ -39,7 +39,7 @@ Curve::Coeffs Curve::bernsteinCoeffs() const
   return bernstein_coeffs_[N_];
 }
 
-Curve::Coeffs Curve::splittingCoeffsLeft(double z) const
+Curve::Coeffs Curve::splittingCoeffsLeft(Parameter z) const
 {
   if (z == 0.5)
   {
@@ -60,7 +60,7 @@ Curve::Coeffs Curve::splittingCoeffsLeft(double z) const
   }
 }
 
-Curve::Coeffs Curve::splittingCoeffsRight(double z) const
+Curve::Coeffs Curve::splittingCoeffsRight(Parameter z) const
 {
   if (z == 0.5)
   {
@@ -170,9 +170,9 @@ PointVector Curve::polyline(double smoothness, double precision) const
 
 double Curve::length() const { return length(0.0, 1.0); }
 
-double Curve::length(double t) const { return length(0.0, t); }
+double Curve::length(Parameter t) const { return length(0.0, t); }
 
-double Curve::length(double t1, double t2) const
+double Curve::length(Parameter t1, Parameter t2) const
 {
   double sum = 0;
 
@@ -182,7 +182,7 @@ double Curve::length(double t1, double t2) const
   return sum * (t2 - t1) / 2;
 }
 
-double Curve::iterateByLength(double t, double s, double epsilon, std::size_t max_iter) const
+double Curve::iterateByLength(Parameter t, double s, double epsilon, std::size_t max_iter) const
 {
   const double s_t = length(t);
 
@@ -223,7 +223,7 @@ void Curve::manipulateControlPoint(uint idx, const Point& point)
   resetCache();
 }
 
-void Curve::manipulateCurvature(double t, const Point& point)
+void Curve::manipulateCurvature(Parameter t, const Point& point)
 {
   if (N_ < 3 || N_ > 4)
     throw std::logic_error{"Only quadratic and cubic curves can be manipulated"};
@@ -273,7 +273,7 @@ void Curve::lowerOrder()
   resetCache();
 }
 
-Point Curve::valueAt(double t) const
+Point Curve::valueAt(Parameter t) const
 {
   if (N_ == 0)
     return {0, 0};
@@ -281,7 +281,7 @@ Point Curve::valueAt(double t) const
   return (power_basis.transpose() * bernsteinCoeffs() * control_points_).transpose();
 }
 
-PointVector Curve::valueAt(std::vector<double> t_vector) const
+PointVector Curve::valueAt(ParameterVector t_vector) const
 {
   PointVector points;
   points.reserve(t_vector.size());
@@ -290,7 +290,7 @@ PointVector Curve::valueAt(std::vector<double> t_vector) const
   return points;
 }
 
-double Curve::curvatureAt(double t) const
+double Curve::curvatureAt(Parameter t) const
 {
   Point d1 = derivativeAt(t);
   Point d2 = derivativeAt(2, t);
@@ -298,7 +298,7 @@ double Curve::curvatureAt(double t) const
   return (d1.x() * d2.y() - d1.y() * d2.x()) / std::pow(d1.norm(), 3);
 }
 
-double Curve::curvatureDerivativeAt(double t) const
+double Curve::curvatureDerivativeAt(Parameter t) const
 {
   auto d1 = derivativeAt(t);
   auto d2 = derivativeAt(2, t);
@@ -308,7 +308,7 @@ double Curve::curvatureDerivativeAt(double t) const
          3 * d1.dot(d2) * (d1.x() * d2.y() - d1.y() * d2.x()) / std::pow(d1.norm(), 5);
 }
 
-Vector Curve::tangentAt(double t, bool normalize) const
+Vector Curve::tangentAt(Parameter t, bool normalize) const
 {
   Point p(derivativeAt(t));
   if (normalize && p.norm() > 0)
@@ -316,7 +316,7 @@ Vector Curve::tangentAt(double t, bool normalize) const
   return p;
 }
 
-Vector Curve::normalAt(double t, bool normalize) const
+Vector Curve::normalAt(Parameter t, bool normalize) const
 {
   Point tangent = tangentAt(t, normalize);
   return {-tangent.y(), tangent.x()};
@@ -344,11 +344,11 @@ std::shared_ptr<const Curve> Curve::derivative(uint n) const
   return nth_derivative;
 }
 
-Point Curve::derivativeAt(double t) const { return derivative()->valueAt(t); }
+Point Curve::derivativeAt(Parameter t) const { return derivative()->valueAt(t); }
 
-Point Curve::derivativeAt(uint n, double t) const { return derivative(n)->valueAt(t); }
+Point Curve::derivativeAt(uint n, Parameter t) const { return derivative(n)->valueAt(t); }
 
-std::vector<double> Curve::roots(double epsilon) const
+ParameterVector Curve::roots(double epsilon) const
 {
   if (!cached_roots_ || cached_roots_epsilon_ > epsilon)
   {
@@ -356,7 +356,7 @@ std::vector<double> Curve::roots(double epsilon) const
     auto roots_X = Sturm::roots(bezier_polynomial.col(0).reverse(), Sturm::RootTypeFlag::All, epsilon);
     auto roots_Y = Sturm::roots(bezier_polynomial.col(1).reverse(), Sturm::RootTypeFlag::All, epsilon);
 
-    std::vector<double>* roots = new std::vector<double>();
+    ParameterVector* roots = new ParameterVector();
     roots->reserve(roots_X.size() + roots_Y.size());
     roots->insert(roots->end(), std::make_move_iterator(roots_X.begin()), std::make_move_iterator(roots_X.end()));
     roots->insert(roots->end(), std::make_move_iterator(roots_Y.begin()), std::make_move_iterator(roots_Y.end()));
@@ -367,7 +367,7 @@ std::vector<double> Curve::roots(double epsilon) const
   return *cached_roots_;
 }
 
-std::vector<double> Curve::extrema(double epsilon) const { return derivative()->roots(epsilon); }
+ParameterVector Curve::extrema(double epsilon) const { return derivative()->roots(epsilon); }
 
 BoundingBox Curve::boundingBox(double epsilon) const
 {
@@ -557,6 +557,15 @@ double Curve::projectPoint(const Point& point, double epsilon) const
   }
 
   return projection;
+}
+
+ParameterVector Curve::projectPoint(PointVector point_vector, double epsilon) const
+{
+  ParameterVector t_vector;
+  t_vector.reserve(point_vector.size());
+  for (auto t : point_vector)
+    t_vector.emplace_back(projectPoint(t, epsilon));
+  return t_vector;
 }
 
 void Curve::applyContinuity(const Curve& source_curve, std::vector<double>& beta_coeffs)

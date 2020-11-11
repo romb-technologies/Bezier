@@ -91,7 +91,7 @@ public:
    * \return Arc length from start to parameter t
    * \warning Precision depends on value of LEGENDRE_GAUSS_N at compile time
    */
-  double length(double t) const;
+  double length(Parameter t) const;
 
   /*!
    * \brief Compute exact arc length with Legendre-Gauss quadrature
@@ -100,7 +100,7 @@ public:
    * \return Arc length between paramaters t1 and t2
    * \warning Precision depends on value of LEGENDRE_GAUSS_N at compile time
    */
-  double length(double t1, double t2) const;
+  double length(Parameter t1, Parameter t2) const;
 
   /*!
    * \brief Compute parameter t which is S distance from given t
@@ -110,7 +110,7 @@ public:
    * \param max_iter Maximum number of iterations for Newton-Rhapson
    * \return New parameter t
    */
-  double iterateByLength(double t, double s, double epsilon = 0.001, std::size_t max_iter = 15) const;
+  double iterateByLength(Parameter t, double s, double epsilon = 0.001, std::size_t max_iter = 15) const;
 
   /*!
    * \brief Reverse order of control points
@@ -132,7 +132,7 @@ public:
    * \warning Only works for quadratic and cubic curves
    * \warning Resets cached data
    */
-  void manipulateCurvature(double t, const Point& point);
+  void manipulateCurvature(Parameter t, const Point& point);
 
   /*!
    * \brief Raise the curve order by 1
@@ -155,28 +155,28 @@ public:
    * \param t Curve parameter
    * \return Point on a curve for a given t
    */
-  Point valueAt(double t) const;
+  Point valueAt(Parameter t) const;
 
   /*!
    * \brief Get the point vector on curve for given parameters
    * \param t_vector Curve parameters
    * \return Vector of points on a curve for given parameters
    */
-  PointVector valueAt(std::vector<double> t_vector) const;
+  PointVector valueAt(ParameterVector t_vector) const;
 
   /*!
    * \brief Get curvature of the curve for a given t
    * \param t Curve parameter
    * \return Curvature of a curve for a given t
    */
-  double curvatureAt(double t) const;
+  double curvatureAt(Parameter t) const;
 
   /*!
    * \brief Get curvature derivative of the curve for a given t
    * \param t Curve parameter
    * \return Curvature derivative of a curve for a given t
    */
-  double curvatureDerivativeAt(double t) const;
+  double curvatureDerivativeAt(Parameter t) const;
 
   /*!
    * \brief Get the tangent of the curve for a given t
@@ -184,7 +184,7 @@ public:
    * \param normalize If the resulting tangent should be normalized
    * \return Tangent of a curve for a given t
    */
-  Vector tangentAt(double t, bool normalize = true) const;
+  Vector tangentAt(Parameter t, bool normalize = true) const;
 
   /*!
    * \brief Get the normal of the curve for a given t
@@ -192,7 +192,7 @@ public:
    * \param normalize If the resulting normal should be normalized
    * \return Normal of a curve for given t
    */
-  Vector normalAt(double t, bool normalize = true) const;
+  Vector normalAt(Parameter t, bool normalize = true) const;
 
   /*!
    * \brief Get the derivative of a curve
@@ -213,7 +213,7 @@ public:
    * \param t Curve parameter
    * \return Derivative curve
    */
-  Point derivativeAt(double t) const;
+  Point derivativeAt(Parameter t) const;
 
   /*!
    * \brief Get value of an nth derivative for a given t
@@ -221,21 +221,21 @@ public:
    * \param t Curve parameter
    * \return Derivative curve
    */
-  Point derivativeAt(uint n, double t) const;
+  Point derivativeAt(uint n, Parameter t) const;
 
   /*!
    * \brief Get roots of the curve on both axes
    * \param epsilon Precision of resulting t
    * \return A vector of parameters where curve passes through axes
    */
-  std::vector<double> roots(double epsilon = 0.001) const;
+  ParameterVector roots(double epsilon = 0.001) const;
 
   /*!
    * \brief Get all extrema of the curve
    * \param epsilon Precision of resulting t
    * \return A vector of parameters where maxima are
    */
-  std::vector<double> extrema(double epsilon = 0.001) const;
+  ParameterVector extrema(double epsilon = 0.001) const;
 
   /*!
    * \brief Get the bounding box of curve
@@ -265,14 +265,22 @@ public:
    * \param epsilon Precision of resulting projection
    * \return Parameter t
    */
-  double projectPoint(const Point& point, double epsilon = 0.001) const;
+  Parameter projectPoint(const Point& point, double epsilon = 0.001) const;
+
+  /*!
+   * \brief Get the parameter t vector where curve is closest to given points
+   * \param point_vector Points to project on curve
+   * \param epsilon Precision of resulting projection
+   * \return Vector of parameters t
+   */
+  ParameterVector projectPoint(PointVector point_vector, double epsilon = 0.001) const;
 
   /*!
    * \brief applyContinuity Apply geometric continuity based on the another curve.
    * \param locked_curve Curve on which calculation are based.
    * \param beta_coeffs Beta-constraints used to calculate continuity. Size defines continuity order.
    */
-  void applyContinuity(const Curve& source_curve, std::vector<double>& beta_coeffs);
+  void applyContinuity(const Curve& source_curve, ParameterVector& beta_coeffs);
 
 private:
   /*!
@@ -291,7 +299,7 @@ private:
 
   // private caching
   std::shared_ptr<const Curve> cached_derivative_;         /*! If generated, stores derivative for later use */
-  std::unique_ptr<std::vector<double>> cached_roots_;      /*! If generated, stores roots for later use */
+  std::unique_ptr<ParameterVector> cached_roots_;          /*! If generated, stores roots for later use */
   double cached_roots_epsilon_{0};                         /*! epsilon of cached roots */
   std::unique_ptr<BoundingBox> cached_bounding_box_;       /*! If generated, stores bounding box for later use */
   std::unique_ptr<PointVector> cached_polyline_;           /*! If generated, stores polyline for later use */
@@ -313,9 +321,9 @@ private:
   /// Private getter function for Bernstein coefficients
   Coeffs bernsteinCoeffs() const;
   /// Private getter function for coefficients to get a subcurve t = [0, z];
-  Coeffs splittingCoeffsLeft(double z = 0.5) const;
+  Coeffs splittingCoeffsLeft(Parameter z = 0.5) const;
   /// Private getter function for coefficients to get a subcurve t = [z, 1];
-  Coeffs splittingCoeffsRight(double z = 0.5) const;
+  Coeffs splittingCoeffsRight(Parameter z = 0.5) const;
   /// Private getter function for coefficients to elevate order of curve
   Coeffs elevateOrderCoeffs(uint n) const;
   /// Private getter function for coefficients to lower order of curve

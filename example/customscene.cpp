@@ -106,14 +106,14 @@ void CustomScene::mousePressEvent(QGraphicsSceneMouseEvent* mouseEvent)
       {
         if (is_curve)
         {
-          double t = c_curve->projectPoint(p);
+          Bezier::Parameter t = c_curve->projectPoint(p);
           auto pt = c_curve->valueAt(t);
           if ((pt - p).norm() < 10)
             curve->setSelected(true);
         }
         if (is_poly)
         {
-          double t = c_poly->projectPoint(p);
+          Bezier::Parameter t = c_poly->projectPoint(p);
           auto pt = c_poly->valueAt(t);
           if ((pt - p).norm() < 10)
             curve->setSelected(true);
@@ -147,7 +147,7 @@ void CustomScene::mousePressEvent(QGraphicsSceneMouseEvent* mouseEvent)
           break;
         if (is_curve)
         {
-          double t = c_curve->projectPoint(p);
+          Bezier::Parameter t = c_curve->projectPoint(p);
           auto pt = c_curve->valueAt(t);
           auto ep = c_curve->endPoints();
           if ((pt - p).norm() < 10 && (pt - ep.first).norm() > 20 && (pt - ep.second).norm() > 20)
