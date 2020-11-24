@@ -50,9 +50,9 @@ inline Eigen::MatrixXd chain(const Eigen::VectorXd& polynomial, double epsilon =
     }
     else
     {
-      auto trim = [epsilon](const Eigen::VectorXd p) {
+      auto trim = [](const Eigen::VectorXd p) {
         uint k = 0;
-        while (std::fabs(p(k)) < epsilon)
+        while (p(k) == 0.0)
           k++;
         return p.tail(p.size() - k);
       };
@@ -101,9 +101,9 @@ inline int interval(const Eigen::MatrixXd& sturm_chain, double t1, double t2)
   int count1{0}, count2{0};
   for (uint k = 1; k < signcount1.size(); k++)
   {
-    if (signcount1(k - 1) * signcount1(k) <= 0 && signcount1(k) != 0)
+    if (std::signbit(signcount1(k - 1)) != std::signbit(signcount1(k)))
       count1++;
-    if (signcount2(k - 1) * signcount2(k) <= 0 && signcount2(k) != 0)
+    if (std::signbit(signcount2(k - 1)) != std::signbit(signcount2(k)))
       count2++;
   }
   return count1 - count2;
@@ -129,6 +129,9 @@ inline std::vector<double> roots(const Eigen::VectorXd& polynomial, int root_typ
     bool flag = std::get<2>(item);
     double a_b = (a + b) / 2;
     uint root_num = static_cast<uint>(interval(sturm_chain, std::get<0>(item), std::get<1>(item)));
+    if (root_num && a_b - a < epsilon)
+      root_num = 1;
+
     switch (root_num)
     {
     case 0:

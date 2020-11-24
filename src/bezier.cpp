@@ -283,6 +283,7 @@ Point Curve::valueAt(Parameter t) const
 
 PointVector Curve::valueAt(ParameterVector t_vector) const
 {
+  // TODO: matrix multiplication
   PointVector points;
   points.reserve(t_vector.size());
   for (auto t : t_vector)
@@ -344,9 +345,9 @@ std::shared_ptr<const Curve> Curve::derivative(uint n) const
   return nth_derivative;
 }
 
-Point Curve::derivativeAt(Parameter t) const { return derivative()->valueAt(t); }
+Vector Curve::derivativeAt(Parameter t) const { return derivative()->valueAt(t); }
 
-Point Curve::derivativeAt(uint n, Parameter t) const { return derivative(n)->valueAt(t); }
+Vector Curve::derivativeAt(uint n, Parameter t) const { return derivative(n)->valueAt(t); }
 
 ParameterVector Curve::roots(double epsilon) const
 {
@@ -518,7 +519,7 @@ PointVector Curve::intersection(const Curve& curve, bool stop_at_first, double e
   return points_of_intersection;
 }
 
-double Curve::projectPoint(const Point& point, double epsilon) const
+Parameter Curve::projectPoint(const Point& point, double epsilon) const
 {
   /* Chen, X. D., Zhou, Y., Shu, Z., Su, H., & Paul, J. C. (2007, August). Improved Algebraic Algorithm on Point
    * projection for Bezier curves. In Second International Multi-Symposiums on Computer and Computational Sciences
@@ -566,6 +567,20 @@ ParameterVector Curve::projectPoint(PointVector point_vector, double epsilon) co
   for (auto t : point_vector)
     t_vector.emplace_back(projectPoint(t, epsilon));
   return t_vector;
+}
+
+double Curve::distance(const Point &point, double epsilon) const
+{
+  return (point - valueAt(projectPoint(point, epsilon))).norm();
+}
+
+std::vector<double> Curve::distance(PointVector point_vector, double epsilon) const
+{
+  std::vector<double> dist_vector;
+  dist_vector.reserve(point_vector.size());
+  for (auto t : point_vector)
+    dist_vector.emplace_back(distance(t, epsilon));
+  return dist_vector;
 }
 
 void Curve::applyContinuity(const Curve& source_curve, std::vector<double>& beta_coeffs)

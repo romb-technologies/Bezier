@@ -235,17 +235,17 @@ public:
   /*!
    * \brief Get value of a derivative for a given t
    * \param t Curve parameter
-   * \return Derivative curve
+   * \return Curve derivative at t
    */
-  Point derivativeAt(Parameter t) const;
+  Vector derivativeAt(Parameter t) const;
 
   /*!
    * \brief Get value of an nth derivative for a given t
    * \param n Desired number of derivative
    * \param t Curve parameter
-   * \return Derivative curve
+   * \return nth curve derivative at t
    */
-  Point derivativeAt(uint n, Parameter t) const;
+  Vector derivativeAt(uint n, Parameter t) const;
 
   /*!
    * \brief Get the bounding box of the polycurve
@@ -269,7 +269,7 @@ public:
    * \param epsilon Precision of resulting projection
    * \return Parameter t
    */
-  double projectPoint(const Point& point, double epsilon = 0.001) const;
+  Parameter projectPoint(const Point& point, double epsilon = 0.001) const;
 
   /*!
    * \brief Get the parameter t vector where polycurve is closest to given points

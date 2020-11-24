@@ -211,17 +211,17 @@ public:
   /*!
    * \brief Get value of a derivative for a given t
    * \param t Curve parameter
-   * \return Derivative curve
+   * \return Curve derivative at t
    */
-  Point derivativeAt(Parameter t) const;
+  Vector derivativeAt(Parameter t) const;
 
   /*!
    * \brief Get value of an nth derivative for a given t
    * \param n Desired number of derivative
    * \param t Curve parameter
-   * \return Derivative curve
+   * \return nth curve derivative at t
    */
-  Point derivativeAt(uint n, Parameter t) const;
+  Vector derivativeAt(uint n, Parameter t) const;
 
   /*!
    * \brief Get roots of the curve on both axes
@@ -274,6 +274,22 @@ public:
    * \return Vector of parameters t
    */
   ParameterVector projectPoint(PointVector point_vector, double epsilon = 0.001) const;
+
+  /*!
+   * \brief Get distance of the point to the curve
+   * \param point Point to project on curve
+   * \param epsilon Precision of resulting projection
+   * \return Distance to the curve
+   */
+  double distance(const Point& point, double epsilon = 0.001) const;
+
+  /*!
+   * \brief Get the distance vector of points to the curve
+   * \param point_vector Points to project on curve
+   * \param epsilon Precision of resulting projection
+   * \return Vector of distances
+   */
+  std::vector<double> distance(PointVector point_vector, double epsilon = 0.001) const;
 
   /*!
    * \brief applyContinuity Apply geometric continuity based on the another curve.

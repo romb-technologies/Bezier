@@ -282,7 +282,7 @@ PointVector PolyCurve::intersection<PolyCurve>(const PolyCurve& poly_curve, bool
   return points;
 }
 
-double PolyCurve::projectPoint(const Point& point, double epsilon) const
+Parameter PolyCurve::projectPoint(const Point& point, double epsilon) const
 {
   double min_t = curves_.front()->projectPoint(point, epsilon);
   double min_dist = (point - curves_.front()->valueAt(min_t)).norm();
