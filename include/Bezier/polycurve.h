@@ -164,10 +164,9 @@ public:
    * \param t Curve parameter
    * \param s Distance to iterate
    * \param epsilon Precision of resulting t
-   * \param max_iter Maximum number of iterations for Newton-Rhapson
    * \return New parameter t
    */
-  double iterateByLength(Parameter t, double s, double epsilon = 0.001, std::size_t max_iter = 15) const;
+  Parameter iterateByLength(Parameter t, double s, double epsilon = 0.001) const;
 
   /*!
    * \brief Get first and last control points
@@ -251,7 +250,7 @@ public:
    * \brief Get the bounding box of the polycurve
    * \return Bounding box
    */
-  BoundingBox boundingBox(double epsilon = 0.001) const;
+  BoundingBox boundingBox() const;
 
   /*!
    * \brief Get the points of intersection with another curve or polycurve
@@ -266,18 +265,16 @@ public:
   /*!
    * \brief Get the parameter t where polycurve is closest to given point
    * \param point Point to project on polycurve
-   * \param epsilon Precision of resulting projection
    * \return Parameter t
    */
-  Parameter projectPoint(const Point& point, double epsilon = 0.001) const;
+  Parameter projectPoint(const Point& point) const;
 
   /*!
    * \brief Get the parameter t vector where polycurve is closest to given points
    * \param point_vector Points to project on polycurve
-   * \param epsilon Precision of resulting projection
    * \return Vector of parameters t
    */
-  ParameterVector projectPoint(PointVector point_vector, double epsilon = 0.001) const;
+  ParameterVector projectPoint(PointVector point_vector) const;
 
 private:
   /// Structure for holding underlying Bezier curves

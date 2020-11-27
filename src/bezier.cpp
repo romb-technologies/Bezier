@@ -1,13 +1,20 @@
 #include "Bezier/bezier.h"
 #include "Bezier/legendre_gauss.h"
-#include "Bezier/sturm.h"
 
 #include <numeric>
 
 #include <unsupported/Eigen/MatrixFunctions>
+#include <unsupported/Eigen/Polynomials>
 
 inline double factorial(uint k) { return std::tgamma(k + 1); }
 inline double binomial(uint n, uint k) { return factorial(n) / (factorial(k) * factorial(n - k)); }
+inline Eigen::VectorXd trimZeroes(const Eigen::VectorXd& vec)
+{
+  auto idx = vec.size();
+  while (vec(idx - 1) == 0.0)
+    --idx;
+  return vec.head(idx);
+}
 
 using namespace Bezier;
 
@@ -182,7 +189,7 @@ double Curve::length(Parameter t1, Parameter t2) const
   return sum * (t2 - t1) / 2;
 }
 
-double Curve::iterateByLength(Parameter t, double s, double epsilon, std::size_t max_iter) const
+double Curve::iterateByLength(Parameter t, double s, double epsilon) const
 {
   const double s_t = length(t);
 
@@ -191,21 +198,15 @@ double Curve::iterateByLength(Parameter t, double s, double epsilon, std::size_t
   if (s_t + s > length())
     return 1;
 
-  std::size_t current_iter = 0;
-  while (current_iter < max_iter)
+  double f = (length(t) - s_t - s);
+  while (std::fabs(f) > epsilon)
   {
     // Halley
-    double f = (length(t) - s_t - s);
+    f = (length(t) - s_t - s);
     double f_d = derivativeAt(t).norm();
     double f_d2 = derivativeAt(2, t).norm();
 
     t -= (2 * f * f_d) / (2 * f_d * f_d - f * f_d2);
-
-    // if there is no change to t
-    if (std::fabs(f) < epsilon)
-      break;
-
-    current_iter++;
   }
 
   return t;
@@ -257,9 +258,7 @@ void Curve::manipulateCurvature(Parameter t, const Point& point)
 
 void Curve::elevateOrder()
 {
-  Eigen::MatrixXd new_points = elevateOrderCoeffs(N_) * control_points_;
-  control_points_.resize(++N_, 2);
-  control_points_ = new_points;
+  control_points_ = elevateOrderCoeffs(N_++) * control_points_;
   resetCache();
 }
 
@@ -267,9 +266,7 @@ void Curve::lowerOrder()
 {
   if (N_ == 2)
     throw std::logic_error{"Cannot further reduce the order of curve."};
-  Eigen::MatrixXd new_points = lowerOrderCoeffs(N_) * control_points_;
-  control_points_.resize(--N_, 2);
-  control_points_ = new_points;
+  control_points_ = lowerOrderCoeffs(N_--) * control_points_;
   resetCache();
 }
 
@@ -349,32 +346,38 @@ Vector Curve::derivativeAt(Parameter t) const { return derivative()->valueAt(t);
 
 Vector Curve::derivativeAt(uint n, Parameter t) const { return derivative(n)->valueAt(t); }
 
-ParameterVector Curve::roots(double epsilon) const
+ParameterVector Curve::roots() const
 {
-  if (!cached_roots_ || cached_roots_epsilon_ > epsilon)
+  if (!cached_roots_)
   {
-    Eigen::MatrixXd bezier_polynomial = bernsteinCoeffs() * control_points_;
-    auto roots_X = Sturm::roots(bezier_polynomial.col(0).reverse(), Sturm::RootTypeFlag::All, epsilon);
-    auto roots_Y = Sturm::roots(bezier_polynomial.col(1).reverse(), Sturm::RootTypeFlag::All, epsilon);
-
     ParameterVector* roots = new ParameterVector();
-    roots->reserve(roots_X.size() + roots_Y.size());
-    roots->insert(roots->end(), std::make_move_iterator(roots_X.begin()), std::make_move_iterator(roots_X.end()));
-    roots->insert(roots->end(), std::make_move_iterator(roots_Y.begin()), std::make_move_iterator(roots_Y.end()));
-
-    const_cast<double&>(cached_roots_epsilon_) = epsilon;
+    if (N_ > 1)
+    {
+      std::vector<double> roots_X, roots_Y;
+      Eigen::MatrixXd bezier_polynomial = bernsteinCoeffs() * control_points_;
+      Eigen::PolynomialSolver<double, Eigen::Dynamic> poly_solver;
+      poly_solver.compute(trimZeroes(bezier_polynomial.col(0)));
+      poly_solver.realRoots(roots_X);
+      poly_solver.compute(trimZeroes(bezier_polynomial.col(1)));
+      poly_solver.realRoots(roots_Y);
+      roots->reserve(roots_X.size() + roots_Y.size());
+      std::copy_if(std::make_move_iterator(roots_X.begin()), std::make_move_iterator(roots_X.end()),
+                   std::back_inserter(*roots), [](double t) { return t >= 0 && t <= 1; });
+      std::copy_if(std::make_move_iterator(roots_Y.begin()), std::make_move_iterator(roots_Y.end()),
+                   std::back_inserter(*roots), [](double t) { return t >= 0 && t <= 1; });
+    }
     const_cast<Curve*>(this)->cached_roots_.reset(roots);
   }
   return *cached_roots_;
 }
 
-ParameterVector Curve::extrema(double epsilon) const { return derivative()->roots(epsilon); }
+ParameterVector Curve::extrema() const { return derivative()->roots(); }
 
-BoundingBox Curve::boundingBox(double epsilon) const
+BoundingBox Curve::boundingBox() const
 {
   if (!cached_bounding_box_)
   {
-    PointVector extremes = valueAt(extrema(epsilon));
+    PointVector extremes = valueAt(extrema());
 
     extremes.emplace_back(control_points_.row(0));
     extremes.emplace_back(control_points_.row(N_ - 1));
@@ -519,13 +522,8 @@ PointVector Curve::intersection(const Curve& curve, bool stop_at_first, double e
   return points_of_intersection;
 }
 
-Parameter Curve::projectPoint(const Point& point, double epsilon) const
+Parameter Curve::projectPoint(const Point& point) const
 {
-  /* Chen, X. D., Zhou, Y., Shu, Z., Su, H., & Paul, J. C. (2007, August). Improved Algebraic Algorithm on Point
-   * projection for Bezier curves. In Second International Multi-Symposiums on Computer and Computational Sciences
-   * (IMSCCS 2007) (pp. 158-163). IEEE.
-   */
-
   if (!cached_projection_polynomial_part_)
   {
     Eigen::MatrixXd curve_polynomial = (bernsteinCoeffs() * control_points_);
@@ -533,22 +531,29 @@ Parameter Curve::projectPoint(const Point& point, double epsilon) const
 
     Eigen::VectorXd polynomial_part = Eigen::VectorXd::Zero(curve_polynomial.rows() + derivate_polynomial.rows() - 1);
     for (uint k = 0; k < curve_polynomial.rows(); k++)
-      for (uint i = 0; i < derivate_polynomial.rows(); i++)
-        polynomial_part(k + i) += curve_polynomial.row(k).dot(derivate_polynomial.row(i));
+      polynomial_part.middleRows(k, derivate_polynomial.rows()) +=
+          derivate_polynomial * curve_polynomial.row(k).transpose();
 
     const_cast<Curve*>(this)->cached_projection_polynomial_part_.reset(new Eigen::VectorXd(std::move(polynomial_part)));
     const_cast<Curve*>(this)->cached_projection_polynomial_derivative_ = std::move(derivate_polynomial);
   }
 
   Eigen::VectorXd polynomial = *cached_projection_polynomial_part_;
-  for (uint i = 0; i < cached_projection_polynomial_derivative_.rows(); i++)
-    polynomial(i) -= point.dot(cached_projection_polynomial_derivative_.row(i));
+  polynomial.topRows(cached_projection_polynomial_derivative_.rows()) -=
+      cached_projection_polynomial_derivative_ * point;
+
+  std::vector<double> candidates;
+  Eigen::PolynomialSolver<double, Eigen::Dynamic> poly_solver(trimZeroes(polynomial));
+  poly_solver.realRoots(candidates);
 
   double projection = (point - valueAt(0.0)).norm() < (point - valueAt(1.0)).norm() ? 0.0 : 1.0;
   double min = (point - valueAt(projection)).norm();
 
-  for (auto candidate : Sturm::roots(polynomial.reverse(), Sturm::RootTypeFlag::Convex, epsilon))
+  for (auto candidate : candidates)
   {
+    if (candidate < 0 || candidate > 1)
+      continue;
+
     double dist = (point - valueAt(candidate)).norm();
     if (dist < min)
     {
@@ -556,34 +561,30 @@ Parameter Curve::projectPoint(const Point& point, double epsilon) const
       min = dist;
     }
   }
-
   return projection;
 }
 
-ParameterVector Curve::projectPoint(PointVector point_vector, double epsilon) const
+ParameterVector Curve::projectPoint(PointVector point_vector) const
 {
   ParameterVector t_vector;
   t_vector.reserve(point_vector.size());
-  for (auto t : point_vector)
-    t_vector.emplace_back(projectPoint(t, epsilon));
+  for (auto point : point_vector)
+    t_vector.emplace_back(projectPoint(point));
   return t_vector;
 }
 
-double Curve::distance(const Point &point, double epsilon) const
-{
-  return (point - valueAt(projectPoint(point, epsilon))).norm();
-}
+double Curve::distance(const Point& point) const { return (point - valueAt(projectPoint(point))).norm(); }
 
-std::vector<double> Curve::distance(PointVector point_vector, double epsilon) const
+std::vector<double> Curve::distance(PointVector point_vector) const
 {
   std::vector<double> dist_vector;
   dist_vector.reserve(point_vector.size());
   for (auto t : point_vector)
-    dist_vector.emplace_back(distance(t, epsilon));
+    dist_vector.emplace_back(distance(t));
   return dist_vector;
 }
 
-void Curve::applyContinuity(const Curve& source_curve, std::vector<double>& beta_coeffs)
+void Curve::applyContinuity(const Curve& source_curve, const std::vector<double>& beta_coeffs)
 {
   uint c_order = static_cast<uint>(beta_coeffs.size());
 
@@ -599,7 +600,7 @@ void Curve::applyContinuity(const Curve& source_curve, std::vector<double>& beta
         pascal_alterating_matrix.block(i, 0, 1, i + 1)
             .cwiseAbs()
             .transpose()
-            .cwiseProduct(Eigen::Map<Eigen::MatrixXd>(beta_coeffs.data(), i + 1, 1));
+            .cwiseProduct(Eigen::Map<const Eigen::MatrixXd>(beta_coeffs.data(), i + 1, 1));
 
   Eigen::MatrixXd factorial_matrix(Eigen::MatrixXd::Zero(c_order + 1, c_order + 1));
   for (uint i = 0; i < c_order + 1; i++)

@@ -107,10 +107,9 @@ public:
    * \param t Curve parameter
    * \param s Distance to iterate
    * \param epsilon Precision of resulting t
-   * \param max_iter Maximum number of iterations for Newton-Rhapson
    * \return New parameter t
    */
-  double iterateByLength(Parameter t, double s, double epsilon = 0.001, std::size_t max_iter = 15) const;
+  Parameter iterateByLength(Parameter t, double s, double epsilon = 0.001) const;
 
   /*!
    * \brief Reverse order of control points
@@ -225,23 +224,21 @@ public:
 
   /*!
    * \brief Get roots of the curve on both axes
-   * \param epsilon Precision of resulting t
    * \return A vector of parameters where curve passes through axes
    */
-  ParameterVector roots(double epsilon = 0.001) const;
+  ParameterVector roots() const;
 
   /*!
    * \brief Get all extrema of the curve
-   * \param epsilon Precision of resulting t
    * \return A vector of parameters where maxima are
    */
-  ParameterVector extrema(double epsilon = 0.001) const;
+  ParameterVector extrema() const;
 
   /*!
    * \brief Get the bounding box of curve
    * \return Bounding box (if use_roots is false, returns the bounding box of control points)
    */
-  BoundingBox boundingBox(double epsilon = 0.001) const;
+  BoundingBox boundingBox() const;
 
   /*!
    * \brief Split the curve into two subcurves
@@ -262,41 +259,37 @@ public:
   /*!
    * \brief Get the parameter t where curve is closest to given point
    * \param point Point to project on curve
-   * \param epsilon Precision of resulting projection
    * \return Parameter t
    */
-  Parameter projectPoint(const Point& point, double epsilon = 0.001) const;
+  Parameter projectPoint(const Point& point) const;
 
   /*!
    * \brief Get the parameter t vector where curve is closest to given points
    * \param point_vector Points to project on curve
-   * \param epsilon Precision of resulting projection
    * \return Vector of parameters t
    */
-  ParameterVector projectPoint(PointVector point_vector, double epsilon = 0.001) const;
+  ParameterVector projectPoint(PointVector point_vector) const;
 
   /*!
    * \brief Get distance of the point to the curve
    * \param point Point to project on curve
-   * \param epsilon Precision of resulting projection
    * \return Distance to the curve
    */
-  double distance(const Point& point, double epsilon = 0.001) const;
+  double distance(const Point& point) const;
 
   /*!
    * \brief Get the distance vector of points to the curve
    * \param point_vector Points to project on curve
-   * \param epsilon Precision of resulting projection
    * \return Vector of distances
    */
-  std::vector<double> distance(PointVector point_vector, double epsilon = 0.001) const;
+  std::vector<double> distance(PointVector point_vector) const;
 
   /*!
    * \brief applyContinuity Apply geometric continuity based on the another curve.
    * \param locked_curve Curve on which calculation are based.
    * \param beta_coeffs Beta-constraints used to calculate continuity. Size defines continuity order.
    */
-  void applyContinuity(const Curve& source_curve, ParameterVector& beta_coeffs);
+  void applyContinuity(const Curve& source_curve, const std::vector<double> &beta_coeffs);
 
 private:
   /*!
@@ -316,7 +309,6 @@ private:
   // private caching
   std::shared_ptr<const Curve> cached_derivative_;         /*! If generated, stores derivative for later use */
   std::unique_ptr<ParameterVector> cached_roots_;          /*! If generated, stores roots for later use */
-  double cached_roots_epsilon_{0};                         /*! epsilon of cached roots */
   std::unique_ptr<BoundingBox> cached_bounding_box_;       /*! If generated, stores bounding box for later use */
   std::unique_ptr<PointVector> cached_polyline_;           /*! If generated, stores polyline for later use */
   std::pair<double, double> cached_polyline_params_{0, 0}; /*! Smootheness and precision of cached polyline */

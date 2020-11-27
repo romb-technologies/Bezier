@@ -136,7 +136,7 @@ double PolyCurve::length(Parameter t1, Parameter t2) const
                            [](double sum, std::shared_ptr<Curve> curve) { return sum + curve->length(); });
 }
 
-double PolyCurve::iterateByLength(Parameter t, double s, double epsilon, std::size_t max_iter) const
+double PolyCurve::iterateByLength(Parameter t, double s, double epsilon) const
 {
   double s_t = length(t);
   //  if (s_t + s < 0 || s_t + s > length())
@@ -162,7 +162,7 @@ double PolyCurve::iterateByLength(Parameter t, double s, double epsilon, std::si
     }
   }
 
-  return idx + curvePtr(idx)->iterateByLength(t, s, epsilon, max_iter);
+  return idx + curvePtr(idx)->iterateByLength(t, s, epsilon);
 }
 
 std::pair<Point, Point> PolyCurve::endPoints() const
@@ -245,11 +245,11 @@ Point PolyCurve::derivativeAt(uint n, Parameter t) const
   return curvePtr(idx)->derivativeAt(n, t - idx);
 }
 
-BoundingBox PolyCurve::boundingBox(double epsilon) const
+BoundingBox PolyCurve::boundingBox() const
 {
   BoundingBox bbox;
   for (auto& curve_ptr : curves_)
-    bbox.extend(curve_ptr->boundingBox(epsilon));
+    bbox.extend(curve_ptr->boundingBox());
   return bbox;
 }
 
@@ -282,14 +282,14 @@ PointVector PolyCurve::intersection<PolyCurve>(const PolyCurve& poly_curve, bool
   return points;
 }
 
-Parameter PolyCurve::projectPoint(const Point& point, double epsilon) const
+Parameter PolyCurve::projectPoint(const Point& point) const
 {
-  double min_t = curves_.front()->projectPoint(point, epsilon);
+  double min_t = curves_.front()->projectPoint(point);
   double min_dist = (point - curves_.front()->valueAt(min_t)).norm();
 
   for (uint k = 1; k < size(); k++)
   {
-    Parameter t = curves_[k]->projectPoint(point, epsilon);
+    Parameter t = curves_[k]->projectPoint(point);
     double dist = (point - curves_[k]->valueAt(t)).norm();
     if (dist < min_dist)
     {
@@ -300,11 +300,11 @@ Parameter PolyCurve::projectPoint(const Point& point, double epsilon) const
   return min_t;
 }
 
-ParameterVector PolyCurve::projectPoint(PointVector point_vector, double epsilon) const
+ParameterVector PolyCurve::projectPoint(PointVector point_vector) const
 {
   ParameterVector t_vector;
   t_vector.reserve(point_vector.size());
-  for (auto t : point_vector)
-    t_vector.emplace_back(projectPoint(t, epsilon));
+  for (auto point : point_vector)
+    t_vector.emplace_back(projectPoint(point));
   return t_vector;
 }
