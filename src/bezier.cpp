@@ -280,11 +280,17 @@ Point Curve::valueAt(Parameter t) const
 
 PointVector Curve::valueAt(ParameterVector t_vector) const
 {
-  // TODO: matrix multiplication
   PointVector points;
   points.reserve(t_vector.size());
-  for (auto t : t_vector)
-    points.emplace_back(valueAt(t));
+
+  auto t_matrix = Eigen::Map<Eigen::VectorXd>(t_vector.data(), static_cast<int>(t_vector.size())).replicate(1, N_);
+  auto p_matrix = Eigen::ArrayXd::LinSpaced(N_, 0, N_ - 1).transpose().replicate(static_cast<int>(t_vector.size()), 1);
+  Eigen::MatrixXd power_basis = Eigen::pow(t_matrix.array(), p_matrix.array());
+  Eigen::MatrixXd points_eigen = (power_basis * bernsteinCoeffs() * control_points_);
+
+  for (uint k = 0; k < points_eigen.rows(); k++)
+    points.emplace_back(points_eigen.row(k));
+
   return points;
 }
 
