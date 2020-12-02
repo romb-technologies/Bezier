@@ -326,16 +326,16 @@ private:
   static CoeffsMap elevate_order_coeffs_;   /*! Map of coefficients for elevating the order of the curve */
   static CoeffsMap lower_order_coeffs_;     /*! Map of coefficients for lowering the order of the curve */
 
-  /// Private getter function for Bernstein coefficients
-  Coeffs bernsteinCoeffs() const;
-  /// Private getter function for coefficients to get a subcurve t = [0, z];
-  Coeffs splittingCoeffsLeft(Parameter z = 0.5) const;
-  /// Private getter function for coefficients to get a subcurve t = [z, 1];
-  Coeffs splittingCoeffsRight(Parameter z = 0.5) const;
-  /// Private getter function for coefficients to elevate order of curve
-  Coeffs elevateOrderCoeffs(uint n) const;
-  /// Private getter function for coefficients to lower order of curve
-  Coeffs lowerOrderCoeffs(uint n) const;
+  /// Static getter function for Bernstein coefficients
+  static Coeffs bernsteinCoeffs(uint n);
+  /// Static getter function for coefficients to get a subcurve t = [0, z];
+  static Coeffs splittingCoeffsLeft(uint n, Parameter z = 0.5);
+  /// Static getter function for coefficients to get a subcurve t = [z, 1];
+  static Coeffs splittingCoeffsRight(uint n, Parameter z = 0.5);
+  /// Static getter function for coefficients to elevate order of curve
+  static Coeffs elevateOrderCoeffs(uint n);
+  /// Static getter function for coefficients to lower order of curve
+  static Coeffs lowerOrderCoeffs(uint n);
 };
 
 } // namespace Bezier
