@@ -55,16 +55,6 @@ class PolyLine;
 class PolyCurve;
 
 /*!
- * \brief Parameter of the curve function
- */
-using Parameter = double;
-
-/*!
- * \brief A vector of Parameters
- */
-using ParameterVector = std::vector<Parameter>;
-
-/*!
  * \brief Point in xy plane
  */
 using Point = Eigen::Vector2d;

@@ -50,7 +50,7 @@ PointVector Curve::polyline(double smoothness, double precision) const
 {
   if (!cached_polyline_ || cached_polyline_params_ != std::make_pair(smoothness, precision))
   {
-    auto* polyline = new PointVector;
+    auto polyline = new PointVector;
     std::vector<Eigen::MatrixX2d> subcurves;
     subcurves.emplace_back(control_points_);
     polyline->emplace_back(control_points_.row(0));
@@ -83,9 +83,9 @@ PointVector Curve::polyline(double smoothness, double precision) const
 
 double Curve::length() const { return length(0.0, 1.0); }
 
-double Curve::length(Parameter t) const { return length(0.0, t); }
+double Curve::length(double t) const { return length(0.0, t); }
 
-double Curve::length(Parameter t1, Parameter t2) const
+double Curve::length(double t1, double t2) const
 {
   double sum = 0;
 
@@ -95,7 +95,7 @@ double Curve::length(Parameter t1, Parameter t2) const
   return sum * (t2 - t1) / 2;
 }
 
-double Curve::iterateByLength(Parameter t, double s, double epsilon) const
+double Curve::iterateByLength(double t, double s, double epsilon) const
 {
   const double s_t = length(t);
 
@@ -104,7 +104,7 @@ double Curve::iterateByLength(Parameter t, double s, double epsilon) const
   if (s_t + s > length())
     return 1;
 
-  double f = (length(t) - s_t - s);
+  double f{-s};
   while (std::fabs(f) > epsilon)
   {
     // Halley
@@ -130,7 +130,7 @@ void Curve::manipulateControlPoint(uint idx, const Point& point)
   resetCache();
 }
 
-void Curve::manipulateCurvature(Parameter t, const Point& point)
+void Curve::manipulateCurvature(double t, const Point& point)
 {
   if (N_ < 3 || N_ > 4)
     throw std::logic_error{"Only quadratic and cubic curves can be manipulated"};
@@ -176,7 +176,7 @@ void Curve::lowerOrder()
   resetCache();
 }
 
-Point Curve::valueAt(Parameter t) const
+Point Curve::valueAt(double t) const
 {
   if (N_ == 0)
     return {0, 0};
@@ -184,12 +184,13 @@ Point Curve::valueAt(Parameter t) const
   return (power_basis.transpose() * bernsteinCoeffs(N_) * control_points_).transpose();
 }
 
-PointVector Curve::valueAt(ParameterVector t_vector) const
+PointVector Curve::valueAt(const std::vector<double>& t_vector) const
 {
   PointVector points;
   points.reserve(t_vector.size());
 
-  auto t_matrix = Eigen::Map<Eigen::VectorXd>(t_vector.data(), static_cast<int>(t_vector.size())).replicate(1, N_);
+  auto t_matrix =
+      Eigen::Map<const Eigen::VectorXd>(t_vector.data(), static_cast<int>(t_vector.size())).replicate(1, N_);
   auto p_matrix = Eigen::ArrayXd::LinSpaced(N_, 0, N_ - 1).transpose().replicate(static_cast<int>(t_vector.size()), 1);
   Eigen::MatrixXd power_basis = Eigen::pow(t_matrix.array(), p_matrix.array());
   Eigen::MatrixXd points_eigen = (power_basis * bernsteinCoeffs(N_) * control_points_);
@@ -200,7 +201,7 @@ PointVector Curve::valueAt(ParameterVector t_vector) const
   return points;
 }
 
-double Curve::curvatureAt(Parameter t) const
+double Curve::curvatureAt(double t) const
 {
   Point d1 = derivativeAt(t);
   Point d2 = derivativeAt(2, t);
@@ -208,7 +209,7 @@ double Curve::curvatureAt(Parameter t) const
   return (d1.x() * d2.y() - d1.y() * d2.x()) / std::pow(d1.norm(), 3);
 }
 
-double Curve::curvatureDerivativeAt(Parameter t) const
+double Curve::curvatureDerivativeAt(double t) const
 {
   auto d1 = derivativeAt(t);
   auto d2 = derivativeAt(2, t);
@@ -218,7 +219,7 @@ double Curve::curvatureDerivativeAt(Parameter t) const
          3 * d1.dot(d2) * (d1.x() * d2.y() - d1.y() * d2.x()) / std::pow(d1.norm(), 5);
 }
 
-Vector Curve::tangentAt(Parameter t, bool normalize) const
+Vector Curve::tangentAt(double t, bool normalize) const
 {
   Point p(derivativeAt(t));
   if (normalize && p.norm() > 0)
@@ -226,7 +227,7 @@ Vector Curve::tangentAt(Parameter t, bool normalize) const
   return p;
 }
 
-Vector Curve::normalAt(Parameter t, bool normalize) const
+Vector Curve::normalAt(double t, bool normalize) const
 {
   Point tangent = tangentAt(t, normalize);
   return {-tangent.y(), tangent.x()};
@@ -247,22 +248,22 @@ std::shared_ptr<const Curve> Curve::derivative() const
 std::shared_ptr<const Curve> Curve::derivative(uint n) const
 {
   if (n == 0)
-    throw std::invalid_argument{"Parameter 'n' cannot be zero."};
+    throw std::invalid_argument{"double 'n' cannot be zero."};
   std::shared_ptr<const Curve> nth_derivative = derivative();
   for (uint k = 1; k < n; k++)
     nth_derivative = nth_derivative->derivative();
   return nth_derivative;
 }
 
-Vector Curve::derivativeAt(Parameter t) const { return derivative()->valueAt(t); }
+Vector Curve::derivativeAt(double t) const { return derivative()->valueAt(t); }
 
-Vector Curve::derivativeAt(uint n, Parameter t) const { return derivative(n)->valueAt(t); }
+Vector Curve::derivativeAt(uint n, double t) const { return derivative(n)->valueAt(t); }
 
-ParameterVector Curve::roots() const
+std::vector<double> Curve::roots() const
 {
   if (!cached_roots_)
   {
-    ParameterVector* roots = new ParameterVector();
+    auto roots = new std::vector<double>();
     if (N_ > 1)
     {
       std::vector<double> roots_X, roots_Y;
@@ -283,7 +284,7 @@ ParameterVector Curve::roots() const
   return *cached_roots_;
 }
 
-ParameterVector Curve::extrema() const { return derivative()->roots(); }
+std::vector<double> Curve::extrema() const { return derivative()->roots(); }
 
 BoundingBox Curve::boundingBox() const
 {
@@ -310,7 +311,7 @@ std::pair<Curve, Curve> Curve::splitCurve(double z) const
   return {Curve(splittingCoeffsLeft(N_, z) * control_points_), Curve(splittingCoeffsRight(N_, z) * control_points_)};
 }
 
-PointVector Curve::intersection(const Curve& curve, bool stop_at_first, double epsilon) const
+PointVector Curve::intersections(const Curve& curve, double epsilon) const
 {
   PointVector points_of_intersection;
 
@@ -381,13 +382,8 @@ PointVector Curve::intersection(const Curve& curve, bool stop_at_first, double e
       if (points_of_intersection.end() ==
           std::find_if(points_of_intersection.begin(), points_of_intersection.end(),
                        [new_point, epsilon](const Point& point) { return (point - new_point).norm() < epsilon; }))
-      {
         points_of_intersection.emplace_back(new_point);
 
-        // if only first point is needed, stop
-        if (stop_at_first)
-          return points_of_intersection;
-      }
       continue;
     }
 
@@ -434,7 +430,7 @@ PointVector Curve::intersection(const Curve& curve, bool stop_at_first, double e
   return points_of_intersection;
 }
 
-Parameter Curve::projectPoint(const Point& point) const
+double Curve::projectPoint(const Point& point) const
 {
   if (!cached_projection_polynomial_part_)
   {
@@ -476,23 +472,23 @@ Parameter Curve::projectPoint(const Point& point) const
   return projection;
 }
 
-ParameterVector Curve::projectPoint(PointVector point_vector) const
+std::vector<double> Curve::projectPoint(const PointVector& point_vector) const
 {
-  ParameterVector t_vector;
+  std::vector<double> t_vector;
   t_vector.reserve(point_vector.size());
-  for (auto point : point_vector)
+  for (const auto& point : point_vector)
     t_vector.emplace_back(projectPoint(point));
   return t_vector;
 }
 
 double Curve::distance(const Point& point) const { return (point - valueAt(projectPoint(point))).norm(); }
 
-std::vector<double> Curve::distance(PointVector point_vector) const
+std::vector<double> Curve::distance(const PointVector& point_vector) const
 {
   std::vector<double> dist_vector;
   dist_vector.reserve(point_vector.size());
-  for (auto t : point_vector)
-    dist_vector.emplace_back(distance(t));
+  for (const auto& point : point_vector)
+    dist_vector.emplace_back(distance(point));
   return dist_vector;
 }
 
@@ -520,9 +516,9 @@ void Curve::applyContinuity(const Curve& source_curve, const std::vector<double>
 
   Eigen::MatrixXd derivatives;
   derivatives.resize(2, c_order + 1);
-  derivatives.col(0) = source_curve.control_points_.bottomRows(1);
+  derivatives.col(0) = source_curve.control_points_.bottomRows(1).transpose();
   for (uint i = 1; i < c_order + 1; i++)
-    derivatives.col(i) = source_curve.derivative(i)->control_points_.bottomRows(1);
+    derivatives.col(i) = source_curve.derivative(i)->control_points_.bottomRows(1).transpose();
 
   Eigen::MatrixXd derivatives_wanted = (derivatives * bell_matrix).rowwise().reverse().transpose();
 
@@ -559,7 +555,7 @@ Curve::Coeffs Curve::bernsteinCoeffs(uint n)
   return bernstein_coeffs_[n];
 }
 
-Curve::Coeffs Curve::splittingCoeffsLeft(uint n, Parameter z)
+Curve::Coeffs Curve::splittingCoeffsLeft(uint n, double z)
 {
   if (z == 0.5)
   {
@@ -571,16 +567,14 @@ Curve::Coeffs Curve::splittingCoeffsLeft(uint n, Parameter z)
     }
     return splitting_coeffs_left_[n];
   }
-  else
-  {
-    Curve::Coeffs coeffs(Coeffs::Zero(n, n));
-    coeffs.diagonal() = Eigen::pow(z, Eigen::ArrayXd::LinSpaced(n, 0, n - 1));
-    coeffs = bernsteinCoeffs(n).inverse() * coeffs * bernsteinCoeffs(n);
-    return coeffs;
-  }
+
+  Curve::Coeffs coeffs(Coeffs::Zero(n, n));
+  coeffs.diagonal() = Eigen::pow(z, Eigen::ArrayXd::LinSpaced(n, 0, n - 1));
+  coeffs = bernsteinCoeffs(n).inverse() * coeffs * bernsteinCoeffs(n);
+  return coeffs;
 }
 
-Curve::Coeffs Curve::splittingCoeffsRight(uint n, Parameter z)
+Curve::Coeffs Curve::splittingCoeffsRight(uint n, double z)
 {
   if (z == 0.5)
   {
@@ -593,14 +587,12 @@ Curve::Coeffs Curve::splittingCoeffsRight(uint n, Parameter z)
     }
     return splitting_coeffs_right_[n];
   }
-  else
-  {
-    Curve::Coeffs coeffs(Coeffs::Zero(n, n));
-    Curve::Coeffs temp_splitting_coeffs_left = splittingCoeffsLeft(n, z);
-    for (uint k = 0; k < n; k++)
-      coeffs.block(k, k, 1, n - k) = temp_splitting_coeffs_left.block(n - 1 - k, 0, 1, n - k);
-    return coeffs;
-  }
+
+  Curve::Coeffs coeffs(Coeffs::Zero(n, n));
+  Curve::Coeffs temp_splitting_coeffs_left = splittingCoeffsLeft(n, z);
+  for (uint k = 0; k < n; k++)
+    coeffs.block(k, k, 1, n - k) = temp_splitting_coeffs_left.block(n - 1 - k, 0, 1, n - k);
+  return coeffs;
 }
 
 Curve::Coeffs Curve::elevateOrderCoeffs(uint n)

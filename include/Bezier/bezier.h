@@ -91,7 +91,7 @@ public:
    * \return Arc length from start to parameter t
    * \warning Precision depends on value of LEGENDRE_GAUSS_N at compile time
    */
-  double length(Parameter t) const;
+  double length(double t) const;
 
   /*!
    * \brief Compute exact arc length with Legendre-Gauss quadrature
@@ -100,7 +100,7 @@ public:
    * \return Arc length between paramaters t1 and t2
    * \warning Precision depends on value of LEGENDRE_GAUSS_N at compile time
    */
-  double length(Parameter t1, Parameter t2) const;
+  double length(double t1, double t2) const;
 
   /*!
    * \brief Compute parameter t which is S distance from given t
@@ -109,7 +109,7 @@ public:
    * \param epsilon Precision of resulting t
    * \return New parameter t
    */
-  Parameter iterateByLength(Parameter t, double s, double epsilon = 0.001) const;
+  double iterateByLength(double t, double s, double epsilon = 0.001) const;
 
   /*!
    * \brief Reverse order of control points
@@ -131,7 +131,7 @@ public:
    * \warning Only works for quadratic and cubic curves
    * \warning Resets cached data
    */
-  void manipulateCurvature(Parameter t, const Point& point);
+  void manipulateCurvature(double t, const Point& point);
 
   /*!
    * \brief Raise the curve order by 1
@@ -154,28 +154,28 @@ public:
    * \param t Curve parameter
    * \return Point on a curve for a given t
    */
-  Point valueAt(Parameter t) const;
+  Point valueAt(double t) const;
 
   /*!
    * \brief Get the point vector on curve for given parameters
    * \param t_vector Curve parameters
    * \return Vector of points on a curve for given parameters
    */
-  PointVector valueAt(ParameterVector t_vector) const;
+  PointVector valueAt(const std::vector<double>& t_vector) const;
 
   /*!
    * \brief Get curvature of the curve for a given t
    * \param t Curve parameter
    * \return Curvature of a curve for a given t
    */
-  double curvatureAt(Parameter t) const;
+  double curvatureAt(double t) const;
 
   /*!
    * \brief Get curvature derivative of the curve for a given t
    * \param t Curve parameter
    * \return Curvature derivative of a curve for a given t
    */
-  double curvatureDerivativeAt(Parameter t) const;
+  double curvatureDerivativeAt(double t) const;
 
   /*!
    * \brief Get the tangent of the curve for a given t
@@ -183,7 +183,7 @@ public:
    * \param normalize If the resulting tangent should be normalized
    * \return Tangent of a curve for a given t
    */
-  Vector tangentAt(Parameter t, bool normalize = true) const;
+  Vector tangentAt(double t, bool normalize = true) const;
 
   /*!
    * \brief Get the normal of the curve for a given t
@@ -191,7 +191,7 @@ public:
    * \param normalize If the resulting normal should be normalized
    * \return Normal of a curve for given t
    */
-  Vector normalAt(Parameter t, bool normalize = true) const;
+  Vector normalAt(double t, bool normalize = true) const;
 
   /*!
    * \brief Get the derivative of a curve
@@ -203,7 +203,7 @@ public:
    * \brief Get the nth derivative of a curve
    * \param n Desired number of derivative
    * \return Derivative curve
-   * \warning Parameter n cannot be zero
+   * \warning double n cannot be zero
    */
   std::shared_ptr<const Curve> derivative(uint n) const;
 
@@ -212,7 +212,7 @@ public:
    * \param t Curve parameter
    * \return Curve derivative at t
    */
-  Vector derivativeAt(Parameter t) const;
+  Vector derivativeAt(double t) const;
 
   /*!
    * \brief Get value of an nth derivative for a given t
@@ -220,19 +220,19 @@ public:
    * \param t Curve parameter
    * \return nth curve derivative at t
    */
-  Vector derivativeAt(uint n, Parameter t) const;
+  Vector derivativeAt(uint n, double t) const;
 
   /*!
    * \brief Get roots of the curve on both axes
    * \return A vector of parameters where curve passes through axes
    */
-  ParameterVector roots() const;
+  std::vector<double> roots() const;
 
   /*!
    * \brief Get all extrema of the curve
-   * \return A vector of parameters where maxima are
+   * \return A vector of parameters where extrema are
    */
-  ParameterVector extrema() const;
+  std::vector<double> extrema() const;
 
   /*!
    * \brief Get the bounding box of curve
@@ -242,7 +242,7 @@ public:
 
   /*!
    * \brief Split the curve into two subcurves
-   * \param z Parameter t at which to split the curve
+   * \param z double t at which to split the curve
    * \return Pair of two subcurves
    */
   std::pair<Curve, Curve> splitCurve(double z = 0.5) const;
@@ -250,25 +250,24 @@ public:
   /*!
    * \brief Get the points of intersection with another curve
    * \param curve Curve to intersect with
-   * \param stop_at_first If first point of intersection is enough
    * \param epsilon Precision of resulting intersection
    * \return A vector af points of intersection between curves
    */
-  PointVector intersection(const Curve& curve, bool stop_at_first = false, double epsilon = 0.001) const;
+  PointVector intersections(const Curve& curve, double epsilon = 0.001) const;
 
   /*!
    * \brief Get the parameter t where curve is closest to given point
    * \param point Point to project on curve
-   * \return Parameter t
+   * \return double t
    */
-  Parameter projectPoint(const Point& point) const;
+  double projectPoint(const Point& point) const;
 
   /*!
    * \brief Get the parameter t vector where curve is closest to given points
    * \param point_vector Points to project on curve
    * \return Vector of parameters t
    */
-  ParameterVector projectPoint(PointVector point_vector) const;
+  std::vector<double> projectPoint(const PointVector& point_vector) const;
 
   /*!
    * \brief Get distance of the point to the curve
@@ -282,7 +281,7 @@ public:
    * \param point_vector Points to project on curve
    * \return Vector of distances
    */
-  std::vector<double> distance(PointVector point_vector) const;
+  std::vector<double> distance(const PointVector& point_vector) const;
 
   /*!
    * \brief applyContinuity Apply geometric continuity based on the another curve.
@@ -308,7 +307,7 @@ private:
 
   // private caching
   std::shared_ptr<const Curve> cached_derivative_;         /*! If generated, stores derivative for later use */
-  std::unique_ptr<ParameterVector> cached_roots_;          /*! If generated, stores roots for later use */
+  std::unique_ptr<std::vector<double>> cached_roots_;          /*! If generated, stores roots for later use */
   std::unique_ptr<BoundingBox> cached_bounding_box_;       /*! If generated, stores bounding box for later use */
   std::unique_ptr<PointVector> cached_polyline_;           /*! If generated, stores polyline for later use */
   std::pair<double, double> cached_polyline_params_{0, 0}; /*! Smootheness and precision of cached polyline */
@@ -329,9 +328,9 @@ private:
   /// Static getter function for Bernstein coefficients
   static Coeffs bernsteinCoeffs(uint n);
   /// Static getter function for coefficients to get a subcurve t = [0, z];
-  static Coeffs splittingCoeffsLeft(uint n, Parameter z = 0.5);
+  static Coeffs splittingCoeffsLeft(uint n, double z = 0.5);
   /// Static getter function for coefficients to get a subcurve t = [z, 1];
-  static Coeffs splittingCoeffsRight(uint n, Parameter z = 0.5);
+  static Coeffs splittingCoeffsRight(uint n, double z = 0.5);
   /// Static getter function for coefficients to elevate order of curve
   static Coeffs elevateOrderCoeffs(uint n);
   /// Static getter function for coefficients to lower order of curve

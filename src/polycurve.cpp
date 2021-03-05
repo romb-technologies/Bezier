@@ -92,7 +92,7 @@ PolyCurve PolyCurve::subPolyCurve(uint idx_l, uint idx_r) const
 
 uint PolyCurve::size() const { return static_cast<uint>(curves_.size()); }
 
-uint PolyCurve::curveIdx(Parameter t) const
+uint PolyCurve::curveIdx(double t) const
 {
   uint idx = static_cast<uint>(t);
   return idx - (idx == size());
@@ -119,24 +119,24 @@ PointVector PolyCurve::polyline(double smoothness, double precision) const
 
 double PolyCurve::length() const { return length(0, size()); }
 
-double PolyCurve::length(Parameter t) const { return length(0, t); }
+double PolyCurve::length(double t) const { return length(0, t); }
 
-double PolyCurve::length(Parameter t1, Parameter t2) const
+double PolyCurve::length(double t1, double t2) const
 {
   uint idx1 = curveIdx(t1);
   uint idx2 = curveIdx(t2);
 
   if (idx1 == idx2)
     return curves_[idx1]->length(t1 - idx1, t2 - idx2);
-  else if (idx1 + 1 == idx2)
+  if (idx1 + 1 == idx2)
     return curves_[idx1]->length(t1 - idx1, 1.0) + curves_[idx2]->length(0.0, t2 - idx2);
-  else
-    return std::accumulate(begin(curves_) + idx1 + 1, begin(curves_) + idx2,
-                           curves_[idx1]->length(t1 - idx1, 1.0) + curves_[idx2]->length(0.0, t2 - idx2),
-                           [](double sum, std::shared_ptr<Curve> curve) { return sum + curve->length(); });
+
+  return std::accumulate(begin(curves_) + idx1 + 1, begin(curves_) + idx2,
+                         curves_[idx1]->length(t1 - idx1, 1.0) + curves_[idx2]->length(0.0, t2 - idx2),
+                         [](double sum, std::shared_ptr<Curve> curve) { return sum + curve->length(); });
 }
 
-double PolyCurve::iterateByLength(Parameter t, double s, double epsilon) const
+double PolyCurve::iterateByLength(double t, double s, double epsilon) const
 {
   double s_t = length(t);
   //  if (s_t + s < 0 || s_t + s > length())
@@ -194,13 +194,13 @@ void PolyCurve::manipulateControlPoint(uint idx, const Point& point)
       --idx -= curve_ptr->order();
 }
 
-Point PolyCurve::valueAt(Parameter t) const
+Point PolyCurve::valueAt(double t) const
 {
   uint idx = curveIdx(t);
   return curvePtr(idx)->valueAt(t - idx);
 }
 
-PointVector PolyCurve::valueAt(ParameterVector t_vector) const
+PointVector PolyCurve::valueAt(const std::vector<double> &t_vector) const
 {
   PointVector points;
   points.reserve(t_vector.size());
@@ -209,37 +209,37 @@ PointVector PolyCurve::valueAt(ParameterVector t_vector) const
   return points;
 }
 
-double PolyCurve::curvatureAt(Parameter t) const
+double PolyCurve::curvatureAt(double t) const
 {
   uint idx = curveIdx(t);
   return curvePtr(idx)->curvatureAt(t - idx);
 }
 
-double PolyCurve::curvatureDerivativeAt(Parameter t) const
+double PolyCurve::curvatureDerivativeAt(double t) const
 {
   uint idx = curveIdx(t);
   return curvePtr(idx)->curvatureDerivativeAt(t - idx);
 }
 
-Vector PolyCurve::tangentAt(Parameter t, bool normalize) const
+Vector PolyCurve::tangentAt(double t, bool normalize) const
 {
   uint idx = curveIdx(t);
   return curvePtr(idx)->tangentAt(t - idx, normalize);
 }
 
-Vector PolyCurve::normalAt(Parameter t, bool normalize) const
+Vector PolyCurve::normalAt(double t, bool normalize) const
 {
   uint idx = curveIdx(t);
   return curvePtr(idx)->normalAt(t - idx, normalize);
 }
 
-Point PolyCurve::derivativeAt(Parameter t) const
+Point PolyCurve::derivativeAt(double t) const
 {
   uint idx = curveIdx(t);
   return curvePtr(idx)->derivativeAt(t - idx);
 }
 
-Point PolyCurve::derivativeAt(uint n, Parameter t) const
+Point PolyCurve::derivativeAt(uint n, double t) const
 {
   uint idx = curveIdx(t);
   return curvePtr(idx)->derivativeAt(n, t - idx);
@@ -253,43 +253,39 @@ BoundingBox PolyCurve::boundingBox() const
   return bbox;
 }
 
-template <> PointVector PolyCurve::intersection<Curve>(const Curve& curve, bool stop_at_first, double epsilon) const
+template <> PointVector PolyCurve::intersections<Curve>(const Curve& curve, double epsilon) const
 {
   PointVector points;
   for (auto& curve_ptr : curves_)
   {
-    auto new_points = curve_ptr->intersection(curve, stop_at_first, epsilon);
+    auto new_points = curve_ptr->intersections(curve, epsilon);
     points.reserve(points.size() + new_points.size());
     points.insert(points.end(), new_points.begin(), new_points.end());
-    if (!points.empty() && stop_at_first)
-      break;
   }
   return points;
 }
 
 template <>
-PointVector PolyCurve::intersection<PolyCurve>(const PolyCurve& poly_curve, bool stop_at_first, double epsilon) const
+PointVector PolyCurve::intersections<PolyCurve>(const PolyCurve& poly_curve, double epsilon) const
 {
   PointVector points;
   for (auto& curve_ptr : curves_)
   {
-    auto new_points = poly_curve.intersection(*curve_ptr, stop_at_first, epsilon);
+    auto new_points = poly_curve.intersections(*curve_ptr, epsilon);
     points.reserve(points.size() + new_points.size());
     points.insert(points.end(), new_points.begin(), new_points.end());
-    if (!points.empty() && stop_at_first)
-      break;
   }
   return points;
 }
 
-Parameter PolyCurve::projectPoint(const Point& point) const
+double PolyCurve::projectPoint(const Point& point) const
 {
   double min_t = curves_.front()->projectPoint(point);
   double min_dist = (point - curves_.front()->valueAt(min_t)).norm();
 
   for (uint k = 1; k < size(); k++)
   {
-    Parameter t = curves_[k]->projectPoint(point);
+    double t = curves_[k]->projectPoint(point);
     double dist = (point - curves_[k]->valueAt(t)).norm();
     if (dist < min_dist)
     {
@@ -300,11 +296,11 @@ Parameter PolyCurve::projectPoint(const Point& point) const
   return min_t;
 }
 
-ParameterVector PolyCurve::projectPoint(PointVector point_vector) const
+std::vector<double> PolyCurve::projectPoint(const PointVector &point_vector) const
 {
-  ParameterVector t_vector;
+  std::vector<double> t_vector;
   t_vector.reserve(point_vector.size());
-  for (auto point : point_vector)
+  for (const auto& point : point_vector)
     t_vector.emplace_back(projectPoint(point));
   return t_vector;
 }
