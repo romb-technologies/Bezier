@@ -18,11 +18,8 @@ inline Eigen::VectorXd trimZeroes(const Eigen::VectorXd& vec)
   return vec.head(idx);
 }
 
-Curve::Curve(const Eigen::MatrixX2d& points)
-{
-  N_ = static_cast<uint>(points.rows());
-  control_points_ = points;
-}
+Curve::Curve(const Eigen::MatrixX2d& points) : N_(static_cast<uint>(points.rows())), control_points_(points){};
+Curve::Curve(Eigen::MatrixX2d&& points) : N_(static_cast<uint>(points.rows())), control_points_(std::move(points)){};
 
 Curve::Curve(const PointVector& points)
 {
@@ -32,7 +29,7 @@ Curve::Curve(const PointVector& points)
     control_points_.row(k) = points[k];
 }
 
-Curve::Curve(const Curve& curve) : Curve(curve.controlPoints()) {}
+Curve::Curve(const Curve& curve) : Curve(curve.control_points_){};
 
 uint Curve::order() { return N_ - 1; }
 
@@ -233,31 +230,32 @@ Vector Curve::normalAt(double t, bool normalize) const
   return {-tangent.y(), tangent.x()};
 }
 
-std::shared_ptr<const Curve> Curve::derivative() const
+const Curve& Curve::derivative() const
 {
   if (!cached_derivative_)
   {
-    (const_cast<Curve*>(this))->cached_derivative_ =
-        N_ == 1 ? std::make_shared<const Curve>(PointVector{Point(0, 0)})
-                : std::make_shared<const Curve>(
-                      ((N_ - 1) * (control_points_.bottomRows(N_ - 1) - control_points_.topRows(N_ - 1))).eval());
+    (const_cast<Curve*>(this))
+        ->cached_derivative_.reset(
+            N_ == 1 ? new Curve(PointVector{Point(0, 0)})
+                    : new Curve(
+                          ((N_ - 1) * (control_points_.bottomRows(N_ - 1) - control_points_.topRows(N_ - 1))).eval()));
   }
-  return cached_derivative_;
+  return *cached_derivative_;
 }
 
-std::shared_ptr<const Curve> Curve::derivative(uint n) const
+const Curve& Curve::derivative(uint n) const
 {
   if (n == 0)
     throw std::invalid_argument{"double 'n' cannot be zero."};
-  std::shared_ptr<const Curve> nth_derivative = derivative();
+  auto nth_derivative = &derivative();
   for (uint k = 1; k < n; k++)
-    nth_derivative = nth_derivative->derivative();
-  return nth_derivative;
+    nth_derivative = &nth_derivative->derivative();
+  return *nth_derivative;
 }
 
-Vector Curve::derivativeAt(double t) const { return derivative()->valueAt(t); }
+Vector Curve::derivativeAt(double t) const { return derivative().valueAt(t); }
 
-Vector Curve::derivativeAt(uint n, double t) const { return derivative(n)->valueAt(t); }
+Vector Curve::derivativeAt(uint n, double t) const { return derivative(n).valueAt(t); }
 
 std::vector<double> Curve::roots() const
 {
@@ -284,7 +282,7 @@ std::vector<double> Curve::roots() const
   return *cached_roots_;
 }
 
-std::vector<double> Curve::extrema() const { return derivative()->roots(); }
+std::vector<double> Curve::extrema() const { return derivative().roots(); }
 
 BoundingBox Curve::boundingBox() const
 {
@@ -435,7 +433,7 @@ double Curve::projectPoint(const Point& point) const
   if (!cached_projection_polynomial_part_)
   {
     Eigen::MatrixXd curve_polynomial = (bernsteinCoeffs(N_) * control_points_);
-    Eigen::MatrixXd derivate_polynomial = (bernsteinCoeffs(N_ - 1) * derivative()->control_points_);
+    Eigen::MatrixXd derivate_polynomial = (bernsteinCoeffs(N_ - 1) * derivative().control_points_);
 
     Eigen::VectorXd polynomial_part = Eigen::VectorXd::Zero(curve_polynomial.rows() + derivate_polynomial.rows() - 1);
     for (uint k = 0; k < curve_polynomial.rows(); k++)
@@ -518,7 +516,7 @@ void Curve::applyContinuity(const Curve& source_curve, const std::vector<double>
   derivatives.resize(2, c_order + 1);
   derivatives.col(0) = source_curve.control_points_.bottomRows(1).transpose();
   for (uint i = 1; i < c_order + 1; i++)
-    derivatives.col(i) = source_curve.derivative(i)->control_points_.bottomRows(1).transpose();
+    derivatives.col(i) = source_curve.derivative(i).control_points_.bottomRows(1).transpose();
 
   Eigen::MatrixXd derivatives_wanted = (derivatives * bell_matrix).rowwise().reverse().transpose();
 

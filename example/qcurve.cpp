@@ -61,7 +61,7 @@ void qCurve::paint(QPainter* painter, const QStyleOptionGraphicsItem* option, QW
 
   if (draw_curvature_radious)
   {
-    for (Bezier::Parameter t = 1.0 / 100; t <= 1.0; t += 1.0 / 200)
+    for (double t = 1.0 / 100; t <= 1.0; t += 1.0 / 200)
     {
       painter->setPen(QColor(abs(255 * (0.5 - t)), (int)(255 * t), (int)(255 * (1 - t))));
       auto p = valueAt(t);

@@ -12,8 +12,8 @@ private:
   bool draw_control_points = false;
   bool draw_curvature_radious = false;
 public:
-  qPolyCurve(std::vector<std::shared_ptr<Bezier::Curve>>& curve_list) : QGraphicsItem(), Bezier::PolyCurve(curve_list) {}
-  qPolyCurve(std::shared_ptr<Bezier::Curve>& curve) : QGraphicsItem(), Bezier::PolyCurve(curve) {}
+  qPolyCurve(const std::vector<Bezier::Curve>& curve_list) : QGraphicsItem(), Bezier::PolyCurve(curve_list) {}
+  qPolyCurve(const Bezier::Curve& curve) : QGraphicsItem(), Bezier::PolyCurve(curve) {}
   int type() const Q_DECL_OVERRIDE;
   void paint(QPainter* painter, const QStyleOptionGraphicsItem* option, QWidget* widget) Q_DECL_OVERRIDE;
   QRectF boundingRect() const Q_DECL_OVERRIDE;

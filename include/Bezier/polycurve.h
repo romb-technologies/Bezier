@@ -36,47 +36,59 @@ namespace Bezier
 class PolyCurve
 {
 public:
-  /*!
-   * \brief Create the empty Bezier polycurve
-   */
   PolyCurve() = default;
+  ~PolyCurve() = default;
 
+  ///@{
   /*!
    * \brief Create the Bezier polycurve with only one subcurve
    * \param curve A single curve
    */
-  PolyCurve(std::shared_ptr<Curve>& curve);
+  PolyCurve(const Curve& curve);
+  PolyCurve(Curve&& curve);
+  ///@}
 
+  ///@{
   /*!
    * \brief Create the Bezier polycurve from vector of curves
    * \param curve_list A list of curves
    */
-  PolyCurve(std::vector<std::shared_ptr<Curve>>& curve_list);
+  PolyCurve(const std::vector<Curve>& curve_list);
+  PolyCurve(std::vector<Curve>&& curve_list);
+  ///@}
 
-  /*!
-   * \brief Create a copy of Bezier polycurve
-   * \param polycurve A Bezier polycurve to copy
-   */
-  PolyCurve(const PolyCurve& poly_curve);
+  PolyCurve(const PolyCurve&) = default;
+  PolyCurve(PolyCurve&&) = default;
+  PolyCurve& operator=(const PolyCurve&) = default;
+  PolyCurve& operator=(PolyCurve&&) = default;
 
+  ///@{
   /*!
    * \brief Insert new curve into polycurve
    * \param idx Index where to insert new curve
    * \param curve A curve to insert
    */
-  void insertAt(uint idx, std::shared_ptr<Curve>& curve);
+  void insertAt(uint idx, const Curve& curve);
+  void insertAt(uint idx, Curve&& curve);
+  ///@}
 
+  ///@{
   /*!
    * \brief Insert new curve at the beginning of the polycurve
    * \param curve A curve to insert
    */
-  void insertFront(std::shared_ptr<Curve>& curve);
+  void insertFront(const Curve& curve);
+  void insertFront(Curve&& curve);
+  ///@}
 
+  ///@{
   /*!
    * \brief Insert new curve at the end of the polycurve
    * \param curve A curve to insert
    */
-  void insertBack(std::shared_ptr<Curve>& curve);
+  void insertBack(const Curve& curve);
+  void insertBack(Curve&& curve);
+  ///@}
 
   /*!
    * \brief Remove a subcurve from the polycurve
@@ -95,13 +107,6 @@ public:
   void removeBack();
 
   /*!
-   * \brief Get the sub-polycurve
-   * \param idx_l Index of first subcurve (start)
-   * \param idx_r Index of last subcurve (end)
-   */
-  PolyCurve subPolyCurve(uint idx_l, uint idx_r) const;
-
-  /*!
    * \brief Get number of subcurves
    * \return Number of subcurves
    */
@@ -114,18 +119,24 @@ public:
    */
   uint curveIdx(double t) const;
 
+  ///@{
   /*!
    * \brief Get pointer of a subcurve
    * \param idx Subcurve index
-   * \return A shared pointer
+   * \return A reference to curve
    */
-  std::shared_ptr<Curve> curvePtr(uint idx) const;
+  Curve& curve(uint idx);
+  const Curve& curve(uint idx) const;
+  ///@}
 
+  ///@{
   /*!
    * \brief Get list of all subcurves
-   * \return A vector of pointers
+   * \return A vector of curve references
    */
-  std::vector<std::shared_ptr<Curve>> curveList() const;
+  std::deque<Curve>& curves();
+  const std::deque<Curve>& curves() const;
+  ///@}
 
   /*!
    * \brief Get a polyline representation of the polycurve as a vector of points on curve
@@ -277,13 +288,7 @@ public:
 
 private:
   /// Structure for holding underlying Bezier curves
-  std::deque<std::shared_ptr<Curve>> curves_;
-
-  /*!
-   * \brief Constructor for easier creation of sub-polycurve
-   * \param curve_list A list of continuus sub-curves
-   */
-  PolyCurve(std::deque<std::shared_ptr<Curve>> curve_list);
+  std::deque<Curve> curves_;
 };
 
 } // namespace Bezier

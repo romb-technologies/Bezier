@@ -34,11 +34,15 @@ namespace Bezier
 class Curve
 {
 public:
+  ~Curve() = default;
+  ///@{
   /*!
    * \brief Create the Bezier curve
    * \param points Nx2 matrix where each row is one of N control points that define the curve
    */
   Curve(const Eigen::MatrixX2d& points);
+  Curve(Eigen::MatrixX2d&& points);
+  ///@}
 
   /*!
    * \brief Create the Bezier curve
@@ -46,11 +50,10 @@ public:
    */
   Curve(const PointVector& points);
 
-  /*!
-   * \brief Create the Bezier curve copy
-   * \param curve A Bezier curve to copy
-   */
-  Curve(const Curve& curve);
+  Curve(const Curve&);
+  Curve(Curve&&) = default;
+  Curve& operator=(const Curve&) = default;
+  Curve& operator=(Curve&&) = default;
 
   /*!
    * \brief Get order of the curve (Nth order curve is described with N+1 points);
@@ -197,7 +200,7 @@ public:
    * \brief Get the derivative of a curve
    * \return Derivative curve
    */
-  std::shared_ptr<const Curve> derivative() const;
+  const Curve& derivative() const;
 
   /*!
    * \brief Get the nth derivative of a curve
@@ -205,7 +208,7 @@ public:
    * \return Derivative curve
    * \warning double n cannot be zero
    */
-  std::shared_ptr<const Curve> derivative(uint n) const;
+  const Curve& derivative(uint n) const;
 
   /*!
    * \brief Get value of a derivative for a given t
@@ -288,7 +291,7 @@ public:
    * \param locked_curve Curve on which calculation are based.
    * \param beta_coeffs Beta-constraints used to calculate continuity. Size defines continuity order.
    */
-  void applyContinuity(const Curve& source_curve, const std::vector<double> &beta_coeffs);
+  void applyContinuity(const Curve& source_curve, const std::vector<double>& beta_coeffs);
 
 private:
   /*!
@@ -306,8 +309,8 @@ private:
   Eigen::MatrixX2d control_points_;
 
   // private caching
-  std::shared_ptr<const Curve> cached_derivative_;         /*! If generated, stores derivative for later use */
-  std::unique_ptr<std::vector<double>> cached_roots_;          /*! If generated, stores roots for later use */
+  std::unique_ptr<const Curve> cached_derivative_;         /*! If generated, stores derivative for later use */
+  std::unique_ptr<std::vector<double>> cached_roots_;      /*! If generated, stores roots for later use */
   std::unique_ptr<BoundingBox> cached_bounding_box_;       /*! If generated, stores bounding box for later use */
   std::unique_ptr<PointVector> cached_polyline_;           /*! If generated, stores polyline for later use */
   std::pair<double, double> cached_polyline_params_{0, 0}; /*! Smootheness and precision of cached polyline */
