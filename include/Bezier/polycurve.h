@@ -39,56 +39,35 @@ public:
   PolyCurve() = default;
   ~PolyCurve() = default;
 
-  ///@{
   /*!
-   * \brief Create the Bezier polycurve with only one subcurve
-   * \param curve A single curve
-   */
-  PolyCurve(const Curve& curve);
-  PolyCurve(Curve&& curve);
-  ///@}
-
-  ///@{
-  /*!
-   * \brief Create the Bezier polycurve from vector of curves
+   * \brief Create the Bezier polycurve from deque of curves
    * \param curve_list A list of curves
    */
-  PolyCurve(const std::vector<Curve>& curve_list);
-  PolyCurve(std::vector<Curve>&& curve_list);
-  ///@}
+  PolyCurve(std::deque<Curve> curves);
 
   PolyCurve(const PolyCurve&) = default;
   PolyCurve(PolyCurve&&) = default;
   PolyCurve& operator=(const PolyCurve&) = default;
   PolyCurve& operator=(PolyCurve&&) = default;
 
-  ///@{
   /*!
    * \brief Insert new curve into polycurve
    * \param idx Index where to insert new curve
    * \param curve A curve to insert
    */
-  void insertAt(uint idx, const Curve& curve);
-  void insertAt(uint idx, Curve&& curve);
-  ///@}
+  void insertAt(uint idx, Curve curve);
 
-  ///@{
   /*!
    * \brief Insert new curve at the beginning of the polycurve
    * \param curve A curve to insert
    */
-  void insertFront(const Curve& curve);
-  void insertFront(Curve&& curve);
-  ///@}
+  void insertFront(Curve curve);
 
-  ///@{
   /*!
    * \brief Insert new curve at the end of the polycurve
    * \param curve A curve to insert
    */
-  void insertBack(const Curve& curve);
-  void insertBack(Curve&& curve);
-  ///@}
+  void insertBack(Curve curve);
 
   /*!
    * \brief Remove a subcurve from the polycurve
@@ -286,7 +265,7 @@ public:
    */
   std::vector<double> projectPoint(const PointVector& point_vector) const;
 
-private:
+protected:
   /// Structure for holding underlying Bezier curves
   std::deque<Curve> curves_;
 };

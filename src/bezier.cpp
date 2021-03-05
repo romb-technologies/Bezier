@@ -18,8 +18,10 @@ inline Eigen::VectorXd trimZeroes(const Eigen::VectorXd& vec)
   return vec.head(idx);
 }
 
-Curve::Curve(const Eigen::MatrixX2d& points) : N_(static_cast<uint>(points.rows())), control_points_(points){};
-Curve::Curve(Eigen::MatrixX2d&& points) : N_(static_cast<uint>(points.rows())), control_points_(std::move(points)){};
+Curve::Curve(Eigen::MatrixX2d points)
+    : control_points_(std::move(points)), N_(static_cast<uint>(control_points_.rows()))
+{
+}
 
 Curve::Curve(const PointVector& points)
 {
@@ -27,21 +29,30 @@ Curve::Curve(const PointVector& points)
   control_points_.resize(N_, 2);
   for (uint k = 0; k < N_; k++)
     control_points_.row(k) = points[k];
+
 }
 
-Curve::Curve(const Curve& curve) : Curve(curve.control_points_){};
+Curve &Curve::operator=(const Curve & curve)
+{
+  control_points_ = curve.control_points_;
+  resetCache();
+  return *this;
+}
 
 uint Curve::order() { return N_ - 1; }
 
 PointVector Curve::controlPoints() const
 {
-  PointVector points(N_);
+  PointVector points(static_cast<unsigned long>(N_));
   for (uint k = 0; k < N_; k++)
     points[k] = control_points_.row(k);
   return points;
 }
 
-std::pair<Point, Point> Curve::endPoints() const { return {control_points_.row(0), control_points_.row(N_ - 1)}; }
+std::pair<Point, Point> Curve::endPoints() const
+{
+  return {control_points_.row(0), control_points_.row(N_ - 1)};
+}
 
 PointVector Curve::polyline(double smoothness, double precision) const
 {
@@ -132,9 +143,10 @@ void Curve::manipulateCurvature(double t, const Point& point)
   if (N_ < 3 || N_ > 4)
     throw std::logic_error{"Only quadratic and cubic curves can be manipulated"};
 
-  double r =
-      std::fabs((std::pow(t, N_ - 1) + std::pow(1 - t, N_ - 1) - 1) / (std::pow(t, N_ - 1) + std::pow(1 - t, N_ - 1)));
-  double u = std::pow(1 - t, N_ - 1) / (std::pow(t, N_ - 1) + std::pow(1 - t, N_ - 1));
+  double r = std::fabs((std::pow(t, N_ - 1) + std::pow(1 - t, N_ - 1) - 1) /
+                       (std::pow(t, N_ - 1) + std::pow(1 - t, N_ - 1)));
+  double u = std::pow(1 - t, N_ - 1) /
+             (std::pow(t, N_ - 1) + std::pow(1 - t, N_ - 1));
   Point C = u * control_points_.row(0) + (1 - u) * control_points_.row(N_ - 1);
   const Point& B = point;
   Point A = B - (C - B) / r;
@@ -161,7 +173,7 @@ void Curve::manipulateCurvature(double t, const Point& point)
 
 void Curve::elevateOrder()
 {
-  control_points_ = elevateOrderCoeffs(N_++) * control_points_;
+  control_points_ = elevateOrderCoeffs(static_cast<uint>(N_ + 1)) * control_points_;
   resetCache();
 }
 
@@ -169,7 +181,7 @@ void Curve::lowerOrder()
 {
   if (N_ == 2)
     throw std::logic_error{"Cannot further reduce the order of curve."};
-  control_points_ = lowerOrderCoeffs(N_--) * control_points_;
+  control_points_ = lowerOrderCoeffs(static_cast<uint>(N_ - 1)) * control_points_;
   resetCache();
 }
 
@@ -177,7 +189,8 @@ Point Curve::valueAt(double t) const
 {
   if (N_ == 0)
     return {0, 0};
-  Eigen::VectorXd power_basis = Eigen::pow(t, Eigen::ArrayXd::LinSpaced(N_, 0, N_ - 1));
+  Eigen::VectorXd power_basis =
+      Eigen::pow(t, Eigen::ArrayXd::LinSpaced(N_, 0, N_ - 1));
   return (power_basis.transpose() * bernsteinCoeffs(N_) * control_points_).transpose();
 }
 
@@ -186,9 +199,11 @@ PointVector Curve::valueAt(const std::vector<double>& t_vector) const
   PointVector points;
   points.reserve(t_vector.size());
 
-  auto t_matrix =
-      Eigen::Map<const Eigen::VectorXd>(t_vector.data(), static_cast<int>(t_vector.size())).replicate(1, N_);
-  auto p_matrix = Eigen::ArrayXd::LinSpaced(N_, 0, N_ - 1).transpose().replicate(static_cast<int>(t_vector.size()), 1);
+  auto t_matrix = Eigen::Map<const Eigen::VectorXd>(t_vector.data(), static_cast<int>(t_vector.size()))
+                      .replicate(1, N_);
+  auto p_matrix = Eigen::ArrayXd::LinSpaced(N_, 0, N_ - 1)
+                      .transpose()
+                      .replicate(static_cast<int>(t_vector.size()), 1);
   Eigen::MatrixXd power_basis = Eigen::pow(t_matrix.array(), p_matrix.array());
   Eigen::MatrixXd points_eigen = (power_basis * bernsteinCoeffs(N_) * control_points_);
 
@@ -236,9 +251,11 @@ const Curve& Curve::derivative() const
   {
     (const_cast<Curve*>(this))
         ->cached_derivative_.reset(
-            N_ == 1 ? new Curve(PointVector{Point(0, 0)})
-                    : new Curve(
-                          ((N_ - 1) * (control_points_.bottomRows(N_ - 1) - control_points_.topRows(N_ - 1))).eval()));
+            N_ == 1
+                ? new Curve(PointVector{Point(0, 0)})
+                : new Curve(((N_ - 1) * (control_points_.bottomRows(N_ - 1) -
+                                                             control_points_.topRows(N_ - 1)))
+                                .eval()));
   }
   return *cached_derivative_;
 }
@@ -306,7 +323,8 @@ BoundingBox Curve::boundingBox() const
 
 std::pair<Curve, Curve> Curve::splitCurve(double z) const
 {
-  return {Curve(splittingCoeffsLeft(N_, z) * control_points_), Curve(splittingCoeffsRight(N_, z) * control_points_)};
+  return {Curve(splittingCoeffsLeft(N_, z) * control_points_),
+          Curve(splittingCoeffsRight(N_, z) * control_points_)};
 }
 
 PointVector Curve::intersections(const Curve& curve, double epsilon) const
@@ -334,8 +352,10 @@ PointVector Curve::intersections(const Curve& curve, double epsilon) const
     {
       if (subcurves.empty())
       {
-        subcurves.emplace_back(splittingCoeffsLeft(N_, root_pair.first - epsilon / 2) * control_points_);
-        subcurves.emplace_back(splittingCoeffsRight(N_, root_pair.first + epsilon / 2) * control_points_);
+        subcurves.emplace_back(splittingCoeffsLeft(N_, root_pair.first - epsilon / 2) *
+                               control_points_);
+        subcurves.emplace_back(splittingCoeffsRight(N_, root_pair.first + epsilon / 2) *
+                               control_points_);
       }
       else
       {
@@ -414,8 +434,8 @@ PointVector Curve::intersections(const Curve& curve, double epsilon) const
     else
     {
       // divide into two subcurves
-      subcurves_b.emplace_back(curve.splittingCoeffsRight(N_) * part_b);
-      subcurves_b.emplace_back(curve.splittingCoeffsLeft(N_) * part_b);
+      subcurves_b.emplace_back(splittingCoeffsRight(N_) * part_b);
+      subcurves_b.emplace_back(splittingCoeffsLeft(N_) * part_b);
     }
 
     // insert all combinations for next iteration
@@ -527,6 +547,7 @@ void Curve::applyContinuity(const Curve& source_curve, const std::vector<double>
 
 void Curve::resetCache()
 {
+  N_ = static_cast<uint>(control_points_.size());
   cached_derivative_.reset();
   cached_roots_.reset();
   cached_bounding_box_.reset();

@@ -8,35 +8,13 @@ inline double binomial(uint n, uint k) { return tgamma(n + 1) / (tgamma(k + 1) *
 
 using namespace Bezier;
 
-PolyCurve::PolyCurve(const Curve& curve) { curves_.emplace_back(curve); }
-PolyCurve::PolyCurve(Curve&& curve) { curves_.emplace_back(curve); }
+PolyCurve::PolyCurve(std::deque<Curve> curves) : curves_(std::move(curves)) {}
 
-PolyCurve::PolyCurve(const std::vector<Curve>& curve_list)
-{
-  for (const auto& curve : curve_list)
-    insertBack(curve);
-}
-PolyCurve::PolyCurve(std::vector<Curve>&& curve_list)
-{
-  for (auto&& curve : curve_list)
-    insertBack(std::move(curve));
-}
+void PolyCurve::insertAt(uint idx, Curve curve) { curves_.emplace(curves_.begin() + idx, curve); }
 
-void PolyCurve::insertAt(uint idx, const Curve& curve)
-{
-  curves_.insert(curves_.begin() + idx, curve);
-}
+void PolyCurve::insertFront(Curve curve) { curves_.emplace_front(curve); }
 
-void PolyCurve::insertAt(uint idx, Curve&& curve)
-{
-  curves_.insert(curves_.begin() + idx, std::move(curve));
-}
-
-void PolyCurve::insertFront(const Curve& curve) { insertAt(0, curve); }
-void PolyCurve::insertFront(Curve&& curve) { insertAt(0, std::move(curve)); }
-
-void PolyCurve::insertBack(const Curve& curve) { insertAt(size(), curve); }
-void PolyCurve::insertBack(Curve&& curve) { insertAt(size(), std::move(curve)); }
+void PolyCurve::insertBack(Curve curve) { curves_.emplace_back(curve); }
 
 void PolyCurve::removeAt(uint idx)
 {
@@ -63,15 +41,9 @@ uint PolyCurve::curveIdx(double t) const
 Curve& PolyCurve::curve(uint idx) { return curves_[idx]; }
 const Curve& PolyCurve::curve(uint idx) const { return curves_[idx]; }
 
-std::deque<Curve>& PolyCurve::curves()
-{
-  return curves_;
-}
+std::deque<Curve>& PolyCurve::curves() { return curves_; }
 
-const std::deque<Curve>& PolyCurve::curves() const
-{
-  return curves_;
-}
+const std::deque<Curve>& PolyCurve::curves() const { return curves_; }
 
 PointVector PolyCurve::polyline(double smoothness, double precision) const
 {
@@ -168,7 +140,7 @@ Point PolyCurve::valueAt(double t) const
   return curves_[idx].valueAt(t - idx);
 }
 
-PointVector PolyCurve::valueAt(const std::vector<double> &t_vector) const
+PointVector PolyCurve::valueAt(const std::vector<double>& t_vector) const
 {
   PointVector points;
   points.reserve(t_vector.size());
@@ -233,8 +205,7 @@ template <> PointVector PolyCurve::intersections<Curve>(const Curve& curve, doub
   return points;
 }
 
-template <>
-PointVector PolyCurve::intersections<PolyCurve>(const PolyCurve& poly_curve, double epsilon) const
+template <> PointVector PolyCurve::intersections<PolyCurve>(const PolyCurve& poly_curve, double epsilon) const
 {
   PointVector points;
   for (auto& curve : curves_)
@@ -264,7 +235,7 @@ double PolyCurve::projectPoint(const Point& point) const
   return min_t;
 }
 
-std::vector<double> PolyCurve::projectPoint(const PointVector &point_vector) const
+std::vector<double> PolyCurve::projectPoint(const PointVector& point_vector) const
 {
   std::vector<double> t_vector;
   t_vector.reserve(point_vector.size());

@@ -35,14 +35,12 @@ class Curve
 {
 public:
   ~Curve() = default;
-  ///@{
+
   /*!
    * \brief Create the Bezier curve
    * \param points Nx2 matrix where each row is one of N control points that define the curve
    */
-  Curve(const Eigen::MatrixX2d& points);
-  Curve(Eigen::MatrixX2d&& points);
-  ///@}
+  Curve(Eigen::MatrixX2d points);
 
   /*!
    * \brief Create the Bezier curve
@@ -50,9 +48,9 @@ public:
    */
   Curve(const PointVector& points);
 
-  Curve(const Curve&);
+  Curve(const Curve& curve) : Curve(curve.control_points_) {}
   Curve(Curve&&) = default;
-  Curve& operator=(const Curve&) = default;
+  Curve& operator=(const Curve&);
   Curve& operator=(Curve&&) = default;
 
   /*!
@@ -131,7 +129,7 @@ public:
    * \param t Curve parameter
    * \param point Point where curve should pass for a given t
    *
-   * \warning Only works for quadratic and cubic curves
+   * \warning CAN THROW: Only works for quadratic and cubic curves
    * \warning Resets cached data
    */
   void manipulateCurvature(double t, const Point& point);
@@ -156,6 +154,7 @@ public:
    * \brief Get the point on curve for a given t
    * \param t Curve parameter
    * \return Point on a curve for a given t
+   * \warning CAN THROW: Cannot be called for curves of 1st order
    */
   Point valueAt(double t) const;
 
@@ -293,7 +292,20 @@ public:
    */
   void applyContinuity(const Curve& source_curve, const std::vector<double>& beta_coeffs);
 
+protected:
+  /*!
+   * \brief N x 2 matrix where each row corresponds to control Point
+   * \warning Any changes made to control_points_ require a call to resetCache() funtion!
+   */
+  Eigen::MatrixX2d control_points_;
+
+  /// Reset all privately cached data
+  inline void resetCache();
+
 private:
+  /// Number of control points (order + 1)
+  uint N_{};
+
   /*!
    * \brief Coefficients for matrix operations
    */
@@ -302,11 +314,6 @@ private:
    * \brief Map of different coefficient matrices, depending on the order of the curve
    */
   using CoeffsMap = std::map<uint, Coeffs>;
-
-  /// Number of control points (order + 1)
-  uint N_;
-  /// N x 2 matrix where each row corresponds to control Point
-  Eigen::MatrixX2d control_points_;
 
   // private caching
   std::unique_ptr<const Curve> cached_derivative_;         /*! If generated, stores derivative for later use */
@@ -317,9 +324,6 @@ private:
   std::unique_ptr<Eigen::VectorXd>
       cached_projection_polynomial_part_;                   /*! Constant part of point projection polynomial */
   Eigen::MatrixXd cached_projection_polynomial_derivative_; /*! Polynomial representation of the curve derivative */
-
-  /// Reset all privately cached data
-  inline void resetCache();
 
   // static caching
   static CoeffsMap bernstein_coeffs_;       /*! Map of Bernstein coefficients */
