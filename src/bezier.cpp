@@ -38,7 +38,7 @@ Curve& Curve::operator=(const Curve& curve)
   return *this;
 }
 
-uint Curve::order() { return N_ - 1; }
+uint Curve::order() const { return N_ - 1; }
 
 PointVector Curve::controlPoints() const
 {

@@ -57,7 +57,7 @@ public:
    * \brief Get order of the curve (Nth order curve is described with N+1 points);
    * \return Order of curve
    */
-  uint order();
+  uint order() const;
 
   /*!
    * \brief Get the control points
