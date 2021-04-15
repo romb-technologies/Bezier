@@ -60,10 +60,17 @@ public:
   uint order() const;
 
   /*!
-   * \brief Get the control points
+   * \brief Get a vector of control points
    * \return A vector of control points
    */
   PointVector controlPoints() const;
+
+  /*!
+   * \brief Get the control point at index idx
+   * \param idx Index of chosen control point
+   * \return A vector of control points
+   */
+  Point controlPoint(uint idx) const;
 
   /*!
    * \brief Get first and last control points
@@ -119,7 +126,7 @@ public:
 
   /*!
    * \brief Set the new coordinates to a control point
-   * \param index Index of chosen control point
+   * \param idx Index of chosen control point
    * \param point New control point
    */
   void manipulateControlPoint(uint idx, const Point& point);

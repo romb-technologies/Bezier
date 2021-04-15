@@ -48,6 +48,11 @@ PointVector Curve::controlPoints() const
   return points;
 }
 
+Point Curve::controlPoint(uint idx) const
+{
+  return control_points_.row(idx);
+}
+
 std::pair<Point, Point> Curve::endPoints() const { return {control_points_.row(0), control_points_.row(N_ - 1)}; }
 
 PointVector Curve::polyline(double smoothness, double precision) const
