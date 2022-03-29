@@ -19,7 +19,8 @@
 
 #include <deque>
 
-#include "declarations.h"
+#include "Bezier/declarations.h"
+#include "Bezier/bezier.h"
 
 namespace Bezier
 {
@@ -175,7 +176,7 @@ public:
    * \param index Index of chosen control point
    * \param point New control point
    */
-  void manipulateControlPoint(uint idx, const Point& point);
+  void moveControlPoint(uint idx, const Point& point);
 
   /*!
    * \brief Get the point on polycurve for a given t
@@ -264,6 +265,20 @@ public:
    * \return Vector of parameters t
    */
   std::vector<double> projectPoint(const PointVector& point_vector) const;
+
+  /*!
+   * \brief Get distance of the point to the polycurve
+   * \param point Point to project on the polycurve
+   * \return Distance to the curve
+   */
+  double distance(const Point& point) const;
+
+  /*!
+   * \brief Get the distance vector of points to the polycurve
+   * \param point_vector Points to project on the polycurve
+   * \return Vector of distances
+   */
+  std::vector<double> distance(const PointVector& point_vector) const;
 
 protected:
   /// Structure for holding underlying Bezier curves

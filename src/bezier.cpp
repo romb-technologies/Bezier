@@ -1,6 +1,8 @@
 #include "Bezier/bezier.h"
 #include "Bezier/legendre_gauss.h"
 
+#include <execution>
+#include <functional>
 #include <numeric>
 
 #include <unsupported/Eigen/MatrixFunctions>
@@ -13,7 +15,7 @@ inline double binomial(uint n, uint k) { return factorial(n) / (factorial(k) * f
 inline Eigen::VectorXd trimZeroes(const Eigen::VectorXd& vec)
 {
   auto idx = vec.size();
-  while (vec(idx - 1) == 0.0)
+  while (idx && vec(idx - 1) == 0.0)
     --idx;
   return vec.head(idx);
 }
@@ -48,10 +50,7 @@ PointVector Curve::controlPoints() const
   return points;
 }
 
-Point Curve::controlPoint(uint idx) const
-{
-  return control_points_.row(idx);
-}
+Point Curve::controlPoint(uint idx) const { return control_points_.row(idx); }
 
 std::pair<Point, Point> Curve::endPoints() const { return {control_points_.row(0), control_points_.row(N_ - 1)}; }
 
@@ -84,8 +83,8 @@ PointVector Curve::polyline(double smoothness, double precision) const
       }
     }
 
-    (const_cast<Curve*>(this))->cached_polyline_params_ = {smoothness, precision};
-    (const_cast<Curve*>(this))->cached_polyline_.reset(polyline);
+    const_cast<Curve*>(this)->cached_polyline_params_ = {smoothness, precision};
+    const_cast<Curve*>(this)->cached_polyline_.reset(polyline);
   }
   return *cached_polyline_;
 }
@@ -133,7 +132,7 @@ void Curve::reverse()
   resetCache();
 }
 
-void Curve::manipulateControlPoint(uint idx, const Point& point)
+void Curve::moveControlPoint(uint idx, const Point& point)
 {
   control_points_.row(idx) = point;
   resetCache();
@@ -189,8 +188,9 @@ Point Curve::valueAt(double t) const
 {
   if (N_ == 0)
     return {0, 0};
-  Eigen::VectorXd power_basis = Eigen::pow(t, Eigen::ArrayXd::LinSpaced(N_, 0, N_ - 1));
-  return (power_basis.transpose() * bernsteinCoeffs(N_) * control_points_).transpose();
+  return (Eigen::VectorXd(Eigen::pow(t, Eigen::ArrayXd::LinSpaced(N_, 0, N_ - 1))).transpose() * bernsteinCoeffs(N_) *
+          control_points_)
+      .transpose();
 }
 
 PointVector Curve::valueAt(const std::vector<double>& t_vector) const
@@ -200,7 +200,8 @@ PointVector Curve::valueAt(const std::vector<double>& t_vector) const
 
   auto t_matrix =
       Eigen::Map<const Eigen::VectorXd>(t_vector.data(), static_cast<int>(t_vector.size())).replicate(1, N_);
-  auto p_matrix = Eigen::ArrayXd::LinSpaced(N_, 0, N_ - 1).transpose().replicate(static_cast<int>(t_vector.size()), 1);
+  auto p_matrix =
+      Eigen::ArrayXd::LinSpaced(N_, 0, N_ - 1).transpose().replicate(static_cast<int>(t_vector.size()), 1);
   Eigen::MatrixXd power_basis = Eigen::pow(t_matrix.array(), p_matrix.array());
   Eigen::MatrixXd points_eigen = (power_basis * bernsteinCoeffs(N_) * control_points_);
 
@@ -212,17 +213,17 @@ PointVector Curve::valueAt(const std::vector<double>& t_vector) const
 
 double Curve::curvatureAt(double t) const
 {
-  Point d1 = derivativeAt(t);
-  Point d2 = derivativeAt(2, t);
+  Vector d1 = derivativeAt(t);
+  Vector d2 = derivativeAt(2, t);
 
   return (d1.x() * d2.y() - d1.y() * d2.x()) / std::pow(d1.norm(), 3);
 }
 
 double Curve::curvatureDerivativeAt(double t) const
 {
-  auto d1 = derivativeAt(t);
-  auto d2 = derivativeAt(2, t);
-  auto d3 = derivativeAt(3, t);
+  Vector d1 = derivativeAt(t);
+  Vector d2 = derivativeAt(2, t);
+  Vector d3 = derivativeAt(3, t);
 
   return (d1.x() * d3.y() - d1.y() * d3.x()) / std::pow(d1.norm(), 3) -
          3 * d1.dot(d2) * (d1.x() * d2.y() - d1.y() * d2.x()) / std::pow(d1.norm(), 5);
@@ -246,11 +247,10 @@ const Curve& Curve::derivative() const
 {
   if (!cached_derivative_)
   {
-    (const_cast<Curve*>(this))
-        ->cached_derivative_.reset(
-            N_ == 1 ? new Curve(PointVector{Point(0, 0)})
-                    : new Curve(
-                          ((N_ - 1) * (control_points_.bottomRows(N_ - 1) - control_points_.topRows(N_ - 1))).eval()));
+    const_cast<Curve*>(this)->cached_derivative_.reset(
+        N_ == 1
+            ? new Curve(PointVector{Point(0, 0)})
+            : new Curve(((N_ - 1) * (control_points_.bottomRows(N_ - 1) - control_points_.topRows(N_ - 1))).eval()));
   }
   return *cached_derivative_;
 }
@@ -279,15 +279,25 @@ std::vector<double> Curve::roots() const
       std::vector<double> roots_X, roots_Y;
       Eigen::MatrixXd bezier_polynomial = bernsteinCoeffs(N_) * control_points_;
       Eigen::PolynomialSolver<double, Eigen::Dynamic> poly_solver;
-      poly_solver.compute(trimZeroes(bezier_polynomial.col(0)));
-      poly_solver.realRoots(roots_X);
-      poly_solver.compute(trimZeroes(bezier_polynomial.col(1)));
-      poly_solver.realRoots(roots_Y);
+      auto trimmed = trimZeroes(bezier_polynomial.col(0));
+      if (trimmed.size())
+      {
+        poly_solver.compute(trimmed);
+        poly_solver.realRoots(roots_X);
+      }
+      trimmed = trimZeroes(bezier_polynomial.col(1));
+      if (trimmed.size())
+      {
+        poly_solver.compute(trimmed);
+        poly_solver.realRoots(roots_Y);
+      }
       roots->reserve(roots_X.size() + roots_Y.size());
-      std::copy_if(std::make_move_iterator(roots_X.begin()), std::make_move_iterator(roots_X.end()),
-                   std::back_inserter(*roots), [](double t) { return t >= 0 && t <= 1; });
-      std::copy_if(std::make_move_iterator(roots_Y.begin()), std::make_move_iterator(roots_Y.end()),
-                   std::back_inserter(*roots), [](double t) { return t >= 0 && t <= 1; });
+      std::copy_if(std::execution::par_unseq, std::make_move_iterator(roots_X.begin()),
+                   std::make_move_iterator(roots_X.end()), std::back_inserter(*roots),
+                   [](double t) { return t >= 0 && t <= 1; });
+      std::copy_if(std::execution::par_unseq, std::make_move_iterator(roots_Y.begin()),
+                   std::make_move_iterator(roots_Y.end()), std::back_inserter(*roots),
+                   [](double t) { return t >= 0 && t <= 1; });
     }
     const_cast<Curve*>(this)->cached_roots_.reset(roots);
   }
@@ -306,9 +316,9 @@ BoundingBox Curve::boundingBox() const
     extremes.emplace_back(control_points_.row(N_ - 1));
 
     // find mininum and maximum along each axis
-    auto x_extremes = std::minmax_element(extremes.begin(), extremes.end(),
+    auto x_extremes = std::minmax_element(std::execution::par_unseq, extremes.begin(), extremes.end(),
                                           [](const Point& lhs, const Point& rhs) { return lhs.x() < rhs.x(); });
-    auto y_extremes = std::minmax_element(extremes.begin(), extremes.end(),
+    auto y_extremes = std::minmax_element(std::execution::par_unseq, extremes.begin(), extremes.end(),
                                           [](const Point& lhs, const Point& rhs) { return lhs.y() < rhs.y(); });
     const_cast<Curve*>(this)->cached_bounding_box_.reset(new BoundingBox(
         Point(x_extremes.first->x(), y_extremes.first->y()), Point(x_extremes.second->x(), y_extremes.second->y())));
@@ -373,8 +383,7 @@ PointVector Curve::intersections(const Curve& curve, double epsilon) const
 
   while (!subcurve_pairs.empty())
   {
-    Eigen::MatrixX2d part_a = std::get<0>(subcurve_pairs.back());
-    Eigen::MatrixX2d part_b = std::get<1>(subcurve_pairs.back());
+    auto [part_a, part_b] = subcurve_pairs.back();
     subcurve_pairs.pop_back();
 
     BoundingBox bbox1 = bbox(part_a);
@@ -390,7 +399,7 @@ PointVector Curve::intersections(const Curve& curve, double epsilon) const
       // segments converged, check if not already found and add new
       Point new_point = bbox1.center();
       if (points_of_intersection.end() ==
-          std::find_if(points_of_intersection.begin(), points_of_intersection.end(),
+          std::find_if(std::execution::par_unseq, points_of_intersection.begin(), points_of_intersection.end(),
                        [new_point, epsilon](const Point& point) { return (point - new_point).norm() < epsilon; }))
         points_of_intersection.emplace_back(new_point);
 
@@ -484,10 +493,9 @@ double Curve::projectPoint(const Point& point) const
 
 std::vector<double> Curve::projectPoint(const PointVector& point_vector) const
 {
-  std::vector<double> t_vector;
-  t_vector.reserve(point_vector.size());
-  for (const auto& point : point_vector)
-    t_vector.emplace_back(projectPoint(point));
+  std::vector<double> t_vector(point_vector.size());
+  std::transform(std::execution::par_unseq, point_vector.begin(), point_vector.end(), t_vector.begin(),
+                 [this](const Point& point) { return projectPoint(point); });
   return t_vector;
 }
 
@@ -495,10 +503,9 @@ double Curve::distance(const Point& point) const { return (point - valueAt(proje
 
 std::vector<double> Curve::distance(const PointVector& point_vector) const
 {
-  std::vector<double> dist_vector;
-  dist_vector.reserve(point_vector.size());
-  for (const auto& point : point_vector)
-    dist_vector.emplace_back(distance(point));
+  std::vector<double> dist_vector(point_vector.size());
+  std::transform(std::execution::par_unseq, point_vector.begin(), point_vector.end(), dist_vector.begin(),
+                 [this](const Point& point) { return distance(point); });
   return dist_vector;
 }
 

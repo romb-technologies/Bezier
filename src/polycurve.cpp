@@ -1,6 +1,7 @@
 #include "Bezier/polycurve.h"
-#include "Bezier/bezier.h"
 
+#include <execution>
+#include <functional>
 #include <numeric>
 #include <utility>
 
@@ -16,15 +17,7 @@ void PolyCurve::insertFront(Curve curve) { curves_.emplace_front(curve); }
 
 void PolyCurve::insertBack(Curve curve) { curves_.emplace_back(curve); }
 
-void PolyCurve::removeAt(uint idx)
-{
-  if (idx == 0)
-    removeFirst();
-  else if (idx == size() - 1)
-    removeBack();
-  else
-    curves_.erase(curves_.begin() + idx);
-}
+void PolyCurve::removeAt(uint idx) { curves_.erase(curves_.begin() + idx); }
 
 void PolyCurve::removeFirst() { curves_.pop_front(); }
 
@@ -39,6 +32,7 @@ uint PolyCurve::curveIdx(double t) const
 }
 
 Curve& PolyCurve::curve(uint idx) { return curves_[idx]; }
+
 const Curve& PolyCurve::curve(uint idx) const { return curves_[idx]; }
 
 std::deque<Curve>& PolyCurve::curves() { return curves_; }
@@ -122,12 +116,12 @@ PointVector PolyCurve::controlPoints() const
   return cp;
 }
 
-void PolyCurve::manipulateControlPoint(uint idx, const Point& point)
+void PolyCurve::moveControlPoint(uint idx, const Point& point)
 {
   for (auto& curve : curves_)
     if (idx <= curve.order())
     {
-      curve.manipulateControlPoint(idx, point);
+      curve.moveControlPoint(idx, point);
       break;
     }
     else
@@ -237,9 +231,18 @@ double PolyCurve::projectPoint(const Point& point) const
 
 std::vector<double> PolyCurve::projectPoint(const PointVector& point_vector) const
 {
-  std::vector<double> t_vector;
-  t_vector.reserve(point_vector.size());
-  for (const auto& point : point_vector)
-    t_vector.emplace_back(projectPoint(point));
+  std::vector<double> t_vector(point_vector.size());
+  std::transform(std::execution::par_unseq, point_vector.begin(), point_vector.end(), t_vector.begin(),
+                 [this](const Point& point) { return projectPoint(point); });
   return t_vector;
+}
+
+double PolyCurve::distance(const Point& point) const { return (point - valueAt(projectPoint(point))).norm(); }
+
+std::vector<double> PolyCurve::distance(const PointVector& point_vector) const
+{
+  std::vector<double> dist_vector(point_vector.size());
+  std::transform(std::execution::par_unseq, point_vector.begin(), point_vector.end(), dist_vector.begin(),
+                 [this](const Point& point) { return distance(point); });
+  return dist_vector;
 }

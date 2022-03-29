@@ -3,7 +3,7 @@ project(Bezier
   LANGUAGES CXX
   VERSION 0.2.0)
 
-set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
@@ -40,6 +40,8 @@ if(BUILD_SHARED_LIBS)
 else()
   add_library(bezier STATIC ${Bezier_SRC})
 endif()
+
+target_link_libraries(bezier PUBLIC tbb)
 
 target_include_directories(bezier PUBLIC
   $<BUILD_INTERFACE:${Bezier_SOURCE_DIR}/include>
