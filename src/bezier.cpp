@@ -109,35 +109,29 @@ double Curve::length(double t) const { return length(0.0, t); }
 
 double Curve::length(double t1, double t2) const
 {
-  double sum = 0;
+  uint N = static_cast<uint>(std::clamp(N_ * std::ceil(std::fabs(t2 - t1) / 0.2), 0., 63.));
 
-  for (uint k = 0; k < LegendreGauss::N; k++)
-    sum += LegendreGauss::weights[k] * derivativeAt(LegendreGauss::abcissae[k] * (t2 - t1) / 2 + (t1 + t2) / 2).norm();
-
-  return sum * (t2 - t1) / 2;
+  return std::accumulate(LegendreGauss::coefficients[N].begin(), LegendreGauss::coefficients[N].end(), 0.0,
+                         [&](double sum, const auto& coeff) {
+                           return sum + std::get<1>(coeff) *
+                                            derivativeAt(std::get<0>(coeff) * (t2 - t1) / 2 + (t1 + t2) / 2).norm();
+                         }) *
+         (t2 - t1) / 2;
 }
 
 double Curve::iterateByLength(double t, double s, double epsilon) const
 {
-
-  const double s_t = length(t);
-
-  if (s_t + s < 0)
-    return 0;
-  if (s_t + s > length())
-    return 1;
-
-  double f{-s}, f_d{};
+  double f{-s}, f_d{}, t_out{t};
 
   while (std::fabs(f) > epsilon)
   {
     // Halley
-    f_d = derivativeAt(t).norm();
-    t -= (2 * f * f_d) / (2 * f_d * f_d - f * derivativeAt(2, t).norm());
-    f = (length(t) - s_t - s);
+    f_d = derivativeAt(t_out).norm();
+    t_out -= (2 * f * f_d) / (2 * f_d * f_d - f * derivativeAt(2, t_out).norm());
+    f = (length(t, t_out) - s);
   }
 
-  return t;
+  return std::clamp(t_out, 0., 1.);
 }
 
 void Curve::reverse()

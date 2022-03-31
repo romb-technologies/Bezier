@@ -25,12 +25,6 @@ set(Bezier_INC
   )
 
 # Options
-
-if(NOT LEGENDRE_GAUSS_PRECISION)
-  message(STATUS "Setting Legendre Gauss precision to default value (10).")
-  set(LEGENDRE_GAUSS_PRECISION  10)
-endif()
-
 option(BUILD_SHARED_LIBS "Build shared library (.so) instead of static one (.a)" OFF)
 
 # build rules
