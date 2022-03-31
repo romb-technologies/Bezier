@@ -120,11 +120,10 @@ public:
 
   /*!
    * \brief Get a polyline representation of the polycurve as a vector of points on curve
-   * \param smoothness Smoothness factor > 1 (more resulting points when closer to 1)
-   * \param precision Minimal distance between two subsequent points
+   * \param flatness Error tolerance of approximation
    * \return A vector of polyline vertices
    */
-  PointVector polyline(double smoothness = 1.0001, double precision = 1.0) const;
+  PointVector polyline(double flatness = 0.5) const;
 
   /*!
    * \brief Compute exaxt arc length with Legendre-Gauss quadrature

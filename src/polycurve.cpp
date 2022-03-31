@@ -2,10 +2,26 @@
 
 #include <execution>
 #include <functional>
+#include <mutex>
 #include <numeric>
 #include <utility>
 
-inline double binomial(uint n, uint k) { return tgamma(n + 1) / (tgamma(k + 1) * tgamma(n - k + 1)); }
+enum Policy
+{
+  seq,
+  par
+};
+
+template <class F> auto maybe_parallel(Policy p, F f)
+{
+  switch (p)
+  {
+  case seq:
+    return f(std::execution::seq);
+  case par:
+    return f(std::execution::par_unseq);
+  }
+}
 
 using namespace Bezier;
 
@@ -39,12 +55,12 @@ std::deque<Curve>& PolyCurve::curves() { return curves_; }
 
 const std::deque<Curve>& PolyCurve::curves() const { return curves_; }
 
-PointVector PolyCurve::polyline(double smoothness, double precision) const
+PointVector PolyCurve::polyline(double flatness) const
 {
   PointVector polyline;
   for (uint idx = 0; idx < size(); idx++)
   {
-    auto new_poly = curves_[idx].polyline(smoothness, precision);
+    auto new_poly = curves_[idx].polyline(flatness);
     polyline.reserve(polyline.size() + new_poly.size() - (idx ? 1 : 0));
     polyline.insert(polyline.end(), new_poly.begin() + (idx ? 1 : 0), new_poly.end());
   }
@@ -65,16 +81,26 @@ double PolyCurve::length(double t1, double t2) const
   if (idx1 + 1 == idx2)
     return curves_[idx1].length(t1 - idx1, 1.0) + curves_[idx2].length(0.0, t2 - idx2);
 
-  return std::accumulate(begin(curves_) + idx1 + 1, begin(curves_) + idx2,
-                         curves_[idx1].length(t1 - idx1, 1.0) + curves_[idx2].length(0.0, t2 - idx2),
-                         [](double sum, const Curve& curve) { return sum + curve.length(); });
+  return maybe_parallel(size() > 300 ? par : seq, [&](auto& pol) {
+    return std::reduce(
+        pol, begin(curves_) + idx1 + 1, begin(curves_) + idx2,
+        curves_[idx1].length(t1 - idx1, 1.0) + curves_[idx2].length(0.0, t2 - idx2), [](const auto& a, const auto& b) {
+          if constexpr (std::is_same<decltype(a), const Curve&>() && std::is_same<decltype(b), const Curve&>())
+            return a.length() + b.length();
+          if constexpr (std::is_same<decltype(a), const double&>() && std::is_same<decltype(b), const double&>())
+            return a + b;
+          if constexpr (std::is_same<decltype(a), const double&>() && std::is_same<decltype(b), const Curve&>())
+            return a + b.length();
+          if constexpr (std::is_same<decltype(a), const Curve&>() && std::is_same<decltype(b), const double&>())
+            return a.length() + b;
+        });
+  });
 }
 
 double PolyCurve::iterateByLength(double t, double s, double epsilon) const
 {
   double s_t = length(t);
-  //  if (s_t + s < 0 || s_t + s > length())
-  //    throw std::out_of_range{"Resulting parameter t not in [0, n] range."};
+
   if (s_t + s < 0)
     return 0;
   if (s_t + s > length())
@@ -101,7 +127,7 @@ double PolyCurve::iterateByLength(double t, double s, double epsilon) const
 
 std::pair<Point, Point> PolyCurve::endPoints() const
 {
-  return std::make_pair(curves_.front().endPoints().first, curves_.back().endPoints().second);
+  return std::make_pair(curves_[0].endPoints().first, curves_[size() - 1].endPoints().second);
 }
 
 PointVector PolyCurve::controlPoints() const
@@ -136,10 +162,8 @@ Point PolyCurve::valueAt(double t) const
 
 PointVector PolyCurve::valueAt(const std::vector<double>& t_vector) const
 {
-  PointVector points;
-  points.reserve(t_vector.size());
-  for (auto t : t_vector)
-    points.emplace_back(valueAt(t));
+  PointVector points(t_vector.size());
+  std::transform(t_vector.begin(), t_vector.end(), points.begin(), [this](double t) { return valueAt(t); });
   return points;
 }
 
@@ -182,57 +206,82 @@ Point PolyCurve::derivativeAt(uint n, double t) const
 BoundingBox PolyCurve::boundingBox() const
 {
   BoundingBox bbox;
-  for (auto& curve : curves_)
-    bbox.extend(curve.boundingBox());
+  maybe_parallel(size() > 10 ? par : seq, [&](auto& pol) {
+    std::for_each(pol, curves_.begin(), curves_.end(),
+                  [&bbox](const Curve& curve) { bbox.extend(curve.boundingBox()); });
+  });
   return bbox;
 }
 
 template <> PointVector PolyCurve::intersections<Curve>(const Curve& curve, double epsilon) const
 {
   PointVector points;
-  for (const auto& curve_temp : curves_)
-  {
-    auto new_points = curve_temp.intersections(curve, epsilon);
+  std::mutex m;
+  std::for_each(std::execution::par_unseq, curves_.begin(), curves_.end(), [&](const Curve& curve_) {
+    auto new_points = curve_.intersections(curve, epsilon);
+    std::scoped_lock l(m);
     points.reserve(points.size() + new_points.size());
     points.insert(points.end(), new_points.begin(), new_points.end());
-  }
+  });
   return points;
 }
 
 template <> PointVector PolyCurve::intersections<PolyCurve>(const PolyCurve& poly_curve, double epsilon) const
 {
   PointVector points;
-  for (auto& curve : curves_)
-  {
+  std::mutex m;
+  std::for_each(std::execution::par_unseq, curves_.begin(), curves_.end(), [&](const Curve& curve) {
     auto new_points = poly_curve.intersections(curve, epsilon);
+    std::scoped_lock l(m);
     points.reserve(points.size() + new_points.size());
     points.insert(points.end(), new_points.begin(), new_points.end());
-  }
+  });
   return points;
 }
 
 double PolyCurve::projectPoint(const Point& point) const
 {
-  double min_t = curves_.front().projectPoint(point);
-  double min_dist = (point - curves_.front().valueAt(min_t)).norm();
+  auto getPair = [&point](const Curve& curve) -> std::pair<double, double> {
+    double t = curve.projectPoint(point);
+    return {t, (point - curve.valueAt(t)).norm()};
+  };
 
-  for (uint idx = 1; idx < size(); idx++)
-  {
-    double t = curves_[idx].projectPoint(point);
-    double dist = (point - curves_[idx].valueAt(t)).norm();
-    if (dist < min_dist)
-    {
-      min_dist = dist;
-      min_t = idx + t;
-    }
-  }
-  return min_t;
+  return maybe_parallel(size() > 20 ? par : seq, [&](auto& pol) {
+    return std::reduce(pol, curves_.begin() + 1, curves_.end(), getPair(curves_[0]),
+                       [&getPair](const auto& a, const auto& b) {
+                         if constexpr (std::is_same<decltype(a), const Curve&>() &&
+                                       std::is_same<decltype(b), const Curve&>())
+                         {
+                           auto a_ = getPair(a);
+                           auto b_ = getPair(b);
+                           return a_.second < b_.second ? a_ : b_;
+                         }
+                         if constexpr (std::is_same<decltype(a), const std::pair<double, double>&>() &&
+                                       std::is_same<decltype(b), const std::pair<double, double>&>())
+                         {
+                           return a.second < b.second ? a : b;
+                         }
+                         if constexpr (std::is_same<decltype(a), const std::pair<double, double>&>() &&
+                                       std::is_same<decltype(b), const Curve&>())
+                         {
+                           auto b_ = getPair(b);
+                           return a.second < b_.second ? a : b_;
+                         }
+                         if constexpr (std::is_same<decltype(a), const Curve&>() &&
+                                       std::is_same<decltype(b), const std::pair<double, double>&>())
+                         {
+                           auto a_ = getPair(a);
+                           return a_.second < b.second ? a_ : b;
+                         }
+                       })
+        .first;
+  });
 }
 
 std::vector<double> PolyCurve::projectPoint(const PointVector& point_vector) const
 {
   std::vector<double> t_vector(point_vector.size());
-  std::transform(std::execution::par_unseq, point_vector.begin(), point_vector.end(), t_vector.begin(),
+  std::transform(point_vector.begin(), point_vector.end(), t_vector.begin(),
                  [this](const Point& point) { return projectPoint(point); });
   return t_vector;
 }
@@ -242,7 +291,7 @@ double PolyCurve::distance(const Point& point) const { return (point - valueAt(p
 std::vector<double> PolyCurve::distance(const PointVector& point_vector) const
 {
   std::vector<double> dist_vector(point_vector.size());
-  std::transform(std::execution::par_unseq, point_vector.begin(), point_vector.end(), dist_vector.begin(),
+  std::transform(point_vector.begin(), point_vector.end(), dist_vector.begin(),
                  [this](const Point& point) { return distance(point); });
   return dist_vector;
 }

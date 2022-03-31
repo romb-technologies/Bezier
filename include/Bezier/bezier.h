@@ -80,11 +80,10 @@ public:
 
   /*!
    * \brief Get a polyline representation of the curve as a vector of points on curve
-   * \param smoothness Smoothness factor > 1 (more resulting points when closer to 1)
-   * \param precision Minimal distance between two subsequent points
+   * \param flatness Error tolerance of approximation
    * \return A vector of polyline vertices
    */
-  PointVector polyline(double smoothness = 1.0001, double precision = 1.0) const;
+  PointVector polyline(double flatness = 0.5) const;
 
   /*!
    * \brief Compute exaxt arc length with Legendre-Gauss quadrature
@@ -327,7 +326,7 @@ private:
   std::unique_ptr<std::vector<double>> cached_roots_;      /*! If generated, stores roots for later use */
   std::unique_ptr<BoundingBox> cached_bounding_box_;       /*! If generated, stores bounding box for later use */
   std::unique_ptr<PointVector> cached_polyline_;           /*! If generated, stores polyline for later use */
-  std::pair<double, double> cached_polyline_params_{0, 0}; /*! Smootheness and precision of cached polyline */
+  double cached_polyline_flatness_{0}; /*! Flatness of cached polyline */
   std::unique_ptr<Eigen::VectorXd>
       cached_projection_polynomial_part_;                   /*! Constant part of point projection polynomial */
   Eigen::MatrixXd cached_projection_polynomial_derivative_; /*! Polynomial representation of the curve derivative */
