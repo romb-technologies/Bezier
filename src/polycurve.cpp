@@ -111,12 +111,12 @@ PointVector PolyCurve::controlPoints() const
   return cp;
 }
 
-void PolyCurve::moveControlPoint(uint idx, const Point& point)
+void PolyCurve::setControlPoint(uint idx, const Point& point)
 {
   for (auto& curve : curves_)
     if (idx <= curve.order())
     {
-      curve.moveControlPoint(idx, point);
+      curve.setControlPoint(idx, point);
       break;
     }
     else

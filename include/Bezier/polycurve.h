@@ -175,7 +175,7 @@ public:
    * \param index Index of chosen control point
    * \param point New control point
    */
-  void moveControlPoint(uint idx, const Point& point);
+  void setControlPoint(uint idx, const Point& point);
 
   /*!
    * \brief Get the point on polycurve for a given t

@@ -129,7 +129,7 @@ public:
    * \param idx Index of chosen control point
    * \param point New control point
    */
-  void moveControlPoint(uint idx, const Point& point);
+  void setControlPoint(uint idx, const Point& point);
 
   /*!
    * \brief Manipulate the curve so that it passes through wanted point for given 't'

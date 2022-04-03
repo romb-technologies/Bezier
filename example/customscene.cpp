@@ -226,12 +226,12 @@ void CustomScene::mouseMoveEvent(QGraphicsSceneMouseEvent* mouseEvent)
     if (is_curve)
     {
       c_curve->prepareGeometryChange();
-      c_curve->moveControlPoint(cp_to_update.second, p);
+      c_curve->setControlPoint(cp_to_update.second, p);
     }
     if (is_poly)
     {
       c_poly->prepareGeometryChange();
-      c_poly->moveControlPoint(cp_to_update.second, p);
+      c_poly->setControlPoint(cp_to_update.second, p);
     }
     update();
   }

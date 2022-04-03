@@ -145,7 +145,7 @@ void Curve::reverse()
   resetCache();
 }
 
-void Curve::moveControlPoint(uint idx, const Point& point)
+void Curve::setControlPoint(uint idx, const Point& point)
 {
   control_points_.row(idx) = point;
   resetCache();
