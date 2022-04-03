@@ -18,7 +18,6 @@
 #define DECLARATIONS_H
 
 #include <Eigen/Dense>
-#include <memory>
 #include <vector>
 
 /*!

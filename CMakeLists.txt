@@ -35,8 +35,6 @@ else()
   add_library(bezier STATIC ${Bezier_SRC})
 endif()
 
-target_link_libraries(bezier PUBLIC tbb)
-
 target_include_directories(bezier PUBLIC
   $<BUILD_INTERFACE:${Bezier_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>
