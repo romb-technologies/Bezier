@@ -6,11 +6,14 @@
  *
  * Abcissae and weights taken from:
  * https://pomax.github.io/bezierinfo/legendre-gauss.html
-*/
+ */
 
 #include <vector>
 
-namespace LegendreGauss {
+namespace LegendreGauss
+{
+
+// clang-format off
 
 /// A vector of Legendre-Gauss coefficients up to N=64 as vectors of {abcissae, weight} pairs
 static const std::vector<std::vector<std::pair<long double, long double>>> coefficients{
@@ -8464,6 +8467,8 @@ static const std::vector<std::vector<std::pair<long double, long double>>> coeff
   }
 };
 
-}
+// clang-format on
+
+} // namespace LegendreGauss
 
 #endif // LEGENDRE_GAUSS_H

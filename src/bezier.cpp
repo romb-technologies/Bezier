@@ -8,9 +8,9 @@
 
 using namespace Bezier;
 
-inline double factorial(uint k) { return (std::tgamma(k + 1)); }
+inline double factorial(unsigned int k) { return (std::tgamma(k + 1)); }
 
-inline double binomial(uint n, uint k)
+inline double binomial(unsigned int n, unsigned int k)
 {
   return std::exp(std::lgamma(n + 1) - std::lgamma(n - k + 1) - std::lgamma(k + 1));
 }
@@ -24,15 +24,15 @@ inline Eigen::VectorXd trimZeroes(const Eigen::VectorXd& vec)
 }
 
 Curve::Curve(Eigen::MatrixX2d points)
-    : control_points_(std::move(points)), N_(static_cast<uint>(control_points_.rows()))
+    : control_points_(std::move(points)), N_(static_cast<unsigned int>(control_points_.rows()))
 {
 }
 
 Curve::Curve(const PointVector& points)
 {
-  N_ = static_cast<uint>(points.size());
+  N_ = static_cast<unsigned int>(points.size());
   control_points_.resize(N_, 2);
-  for (uint k = 0; k < N_; k++)
+  for (unsigned int k = 0; k < N_; k++)
     control_points_.row(k) = points[k];
 }
 
@@ -43,17 +43,17 @@ Curve& Curve::operator=(const Curve& curve)
   return *this;
 }
 
-uint Curve::order() const { return N_ - 1; }
+unsigned int Curve::order() const { return N_ - 1; }
 
 PointVector Curve::controlPoints() const
 {
   PointVector points(static_cast<unsigned long>(N_));
-  for (uint k = 0; k < N_; k++)
+  for (unsigned int k = 0; k < N_; k++)
     points[k] = control_points_.row(k);
   return points;
 }
 
-Point Curve::controlPoint(uint idx) const { return control_points_.row(idx); }
+Point Curve::controlPoint(unsigned int idx) const { return control_points_.row(idx); }
 
 std::pair<Point, Point> Curve::endPoints() const { return {control_points_.row(0), control_points_.row(N_ - 1)}; }
 
@@ -75,7 +75,7 @@ PointVector Curve::polyline(double flatness) const
       Eigen::ArrayXd X(Eigen::Index(N_ - 2));
       Eigen::ArrayXd Y(Eigen::Index(N_ - 2));
       Eigen::ArrayXd l = Eigen::ArrayXd::LinSpaced(N_ - 2, 1, N_ - 2);
-      Eigen::ArrayXd b = l.unaryExpr([n = N_ - 1](uint k) { return binomial(n, k); });
+      Eigen::ArrayXd b = l.unaryExpr([n = N_ - 1](unsigned int k) { return binomial(n, k); });
 
       while (!subcurves.empty())
       {
@@ -114,7 +114,7 @@ double Curve::length(double t) const { return length(0.0, t); }
 
 double Curve::length(double t1, double t2) const
 {
-  uint N = static_cast<uint>(std::clamp(N_ * std::ceil(std::fabs(t2 - t1) / 0.2), 0., 63.));
+  unsigned int N = static_cast<unsigned int>(std::clamp(N_ * std::ceil(std::fabs(t2 - t1) / 0.2), 0., 63.));
 
   return std::accumulate(LegendreGauss::coefficients[N].begin(), LegendreGauss::coefficients[N].end(), 0.0,
                          [&](double sum, const auto& coeff) {
@@ -145,7 +145,7 @@ void Curve::reverse()
   resetCache();
 }
 
-void Curve::setControlPoint(uint idx, const Point& point)
+void Curve::setControlPoint(unsigned int idx, const Point& point)
 {
   control_points_.row(idx) = point;
   resetCache();
@@ -185,7 +185,7 @@ void Curve::manipulateCurvature(double t, const Point& point)
 
 void Curve::elevateOrder()
 {
-  control_points_ = elevateOrderCoeffs(static_cast<uint>(N_)) * control_points_;
+  control_points_ = elevateOrderCoeffs(static_cast<unsigned int>(N_)) * control_points_;
   resetCache();
 }
 
@@ -193,7 +193,7 @@ void Curve::lowerOrder()
 {
   if (N_ == 2)
     throw std::logic_error{"Cannot further reduce the order of curve."};
-  control_points_ = lowerOrderCoeffs(static_cast<uint>(N_)) * control_points_;
+  control_points_ = lowerOrderCoeffs(static_cast<unsigned int>(N_)) * control_points_;
   resetCache();
 }
 
@@ -217,7 +217,7 @@ PointVector Curve::valueAt(const std::vector<double>& t_vector) const
   Eigen::MatrixXd power_basis = Eigen::pow(t_matrix.array(), p_matrix.array());
   Eigen::MatrixXd points_eigen = power_basis * bernsteinCoeffs(N_) * control_points_;
 
-  for (uint k = 0; k < points_eigen.rows(); k++)
+  for (unsigned int k = 0; k < points_eigen.rows(); k++)
     points.emplace_back(points_eigen.row(k));
 
   return points;
@@ -267,19 +267,19 @@ const Curve& Curve::derivative() const
   return *cached_derivative_;
 }
 
-const Curve& Curve::derivative(uint n) const
+const Curve& Curve::derivative(unsigned int n) const
 {
   if (n == 0)
     return *this;
   auto nth_derivative = &derivative();
-  for (uint k = 1; k < n; k++)
+  for (unsigned int k = 1; k < n; k++)
     nth_derivative = &nth_derivative->derivative();
   return *nth_derivative;
 }
 
 Vector Curve::derivativeAt(double t) const { return derivative().valueAt(t); }
 
-Vector Curve::derivativeAt(uint n, double t) const { return derivative(n).valueAt(t); }
+Vector Curve::derivativeAt(unsigned int n, double t) const { return derivative(n).valueAt(t); }
 
 std::vector<double> Curve::roots() const
 {
@@ -363,7 +363,7 @@ PointVector Curve::intersections(const Curve& curve, double epsilon) const
     auto t = extrema();
     std::sort(t.begin(), t.end());
     std::vector<Eigen::MatrixX2d> subcurves;
-    for (uint k = 0; k < t.size(); k++)
+    for (unsigned int k = 0; k < t.size(); k++)
     {
       if (subcurves.empty())
       {
@@ -382,8 +382,8 @@ PointVector Curve::intersections(const Curve& curve, double epsilon) const
     }
 
     // create all pairs of subcurves
-    for (uint k = 0; k < subcurves.size(); k++)
-      for (uint i = k + 1; i < subcurves.size(); i++)
+    for (unsigned int k = 0; k < subcurves.size(); k++)
+      for (unsigned int i = k + 1; i < subcurves.size(); i++)
         subcurve_pairs.emplace_back(subcurves[k], subcurves[i]);
   }
 
@@ -411,8 +411,8 @@ PointVector Curve::intersections(const Curve& curve, double epsilon) const
       // - last pair is one where both subcurves have smallest t ranges
       Eigen::MatrixX2d subcurve_a_1(splittingCoeffsRight(N_) * cp_a);
       Eigen::MatrixX2d subcurve_a_2(splittingCoeffsLeft(N_) * cp_a);
-      Eigen::MatrixX2d subcurve_b_1(splittingCoeffsRight(static_cast<uint>(cp_b.rows())) * cp_b);
-      Eigen::MatrixX2d subcurve_b_2(splittingCoeffsLeft(static_cast<uint>(cp_b.rows())) * cp_b);
+      Eigen::MatrixX2d subcurve_b_1(splittingCoeffsRight(static_cast<unsigned int>(cp_b.rows())) * cp_b);
+      Eigen::MatrixX2d subcurve_b_2(splittingCoeffsLeft(static_cast<unsigned int>(cp_b.rows())) * cp_b);
       subcurve_pairs.emplace_back(subcurve_a_1, subcurve_b_1);
       subcurve_pairs.emplace_back(subcurve_a_2, std::move(subcurve_b_1));
       subcurve_pairs.emplace_back(std::move(subcurve_a_1), subcurve_b_2);
@@ -431,7 +431,7 @@ double Curve::projectPoint(const Point& point) const
     Eigen::MatrixXd derivate_polynomial = (bernsteinCoeffs(N_ - 1) * derivative().control_points_);
 
     Eigen::VectorXd polynomial_part = Eigen::VectorXd::Zero(curve_polynomial.rows() + derivate_polynomial.rows() - 1);
-    for (uint k = 0; k < curve_polynomial.rows(); k++)
+    for (unsigned int k = 0; k < curve_polynomial.rows(); k++)
       polynomial_part.middleRows(k, derivate_polynomial.rows()) +=
           derivate_polynomial * curve_polynomial.row(k).transpose();
 
@@ -486,7 +486,7 @@ std::vector<double> Curve::distance(const PointVector& point_vector) const
 
 void Curve::applyContinuity(const Curve& source_curve, const std::vector<double>& beta_coeffs)
 {
-  uint c_order = static_cast<uint>(beta_coeffs.size());
+  unsigned int c_order = static_cast<unsigned int>(beta_coeffs.size());
 
   Eigen::MatrixXd pascal_alterating_matrix(Eigen::MatrixXd::Zero(c_order + 1, c_order + 1));
   pascal_alterating_matrix.diagonal(-1).setLinSpaced(-1, -static_cast<int>(c_order));
@@ -494,7 +494,7 @@ void Curve::applyContinuity(const Curve& source_curve, const std::vector<double>
 
   Eigen::MatrixXd bell_matrix(Eigen::MatrixXd::Zero(c_order + 1, c_order + 1));
   bell_matrix(0, c_order) = 1;
-  for (uint k = 0; k < c_order; k++)
+  for (unsigned int k = 0; k < c_order; k++)
     bell_matrix.block(1, c_order - k - 1, k + 1, 1) =
         bell_matrix.block(0, c_order - k, k + 1, k + 1) *
         pascal_alterating_matrix.block(k, 0, 1, k + 1)
@@ -503,12 +503,13 @@ void Curve::applyContinuity(const Curve& source_curve, const std::vector<double>
             .cwiseProduct(Eigen::Map<const Eigen::MatrixXd>(beta_coeffs.data(), k + 1, 1));
 
   Eigen::MatrixXd factorial_matrix(Eigen::MatrixXd::Zero(c_order + 1, c_order + 1));
-  factorial_matrix.diagonal() = Eigen::ArrayXd::LinSpaced(c_order + 1, 0, c_order).unaryExpr([n = N_ - 1](uint k) {
-    return factorial(n) / factorial(n - k);
-  });
+  factorial_matrix.diagonal() =
+      Eigen::ArrayXd::LinSpaced(c_order + 1, 0, c_order).unaryExpr([n = N_ - 1](unsigned int k) {
+        return factorial(n) / factorial(n - k);
+      });
 
   Eigen::Matrix2Xd derivatives(Eigen::Index(2), Eigen::Index(c_order + 1));
-  for (uint k = 0; k < c_order + 1; k++)
+  for (unsigned int k = 0; k < c_order + 1; k++)
     derivatives.col(k) = source_curve.derivative(k).control_points_.bottomRows(1).transpose();
 
   Eigen::MatrixXd derivatives_wanted = (derivatives * bell_matrix).rowwise().reverse().transpose();
@@ -519,7 +520,7 @@ void Curve::applyContinuity(const Curve& source_curve, const std::vector<double>
 
 void Curve::resetCache()
 {
-  N_ = static_cast<uint>(control_points_.rows());
+  N_ = static_cast<unsigned int>(control_points_.rows());
   cached_derivative_.reset();
   cached_roots_.reset();
   cached_bounding_box_.reset();
@@ -533,20 +534,20 @@ Curve::CoeffsMap Curve::splitting_coeffs_right_ = CoeffsMap();
 Curve::CoeffsMap Curve::elevate_order_coeffs_ = CoeffsMap();
 Curve::CoeffsMap Curve::lower_order_coeffs_ = CoeffsMap();
 
-Curve::Coeffs Curve::bernsteinCoeffs(uint n)
+Curve::Coeffs Curve::bernsteinCoeffs(unsigned int n)
 {
   if (bernstein_coeffs_.find(n) == bernstein_coeffs_.end())
   {
     bernstein_coeffs_.insert({n, Coeffs::Zero(n, n)});
     bernstein_coeffs_[n].diagonal(-1).setLinSpaced(-1, -static_cast<int>(n - 1));
     bernstein_coeffs_[n] = bernstein_coeffs_[n].exp();
-    for (uint k = 0; k < n; k++)
+    for (unsigned int k = 0; k < n; k++)
       bernstein_coeffs_[n].row(k) *= binomial(n - 1, k);
   }
   return bernstein_coeffs_[n];
 }
 
-Curve::Coeffs Curve::splittingCoeffsLeft(uint n, double z)
+Curve::Coeffs Curve::splittingCoeffsLeft(unsigned int n, double z)
 {
   if (z == 0.5)
   {
@@ -564,7 +565,7 @@ Curve::Coeffs Curve::splittingCoeffsLeft(uint n, double z)
   return bernsteinCoeffs(n).inverse() * coeffs * bernsteinCoeffs(n);
 }
 
-Curve::Coeffs Curve::splittingCoeffsRight(uint n, double z)
+Curve::Coeffs Curve::splittingCoeffsRight(unsigned int n, double z)
 {
   if (z == 0.5)
   {
@@ -572,7 +573,7 @@ Curve::Coeffs Curve::splittingCoeffsRight(uint n, double z)
     {
       splitting_coeffs_right_.insert({n, Coeffs::Zero(n, n)});
       Curve::Coeffs temp_splitting_coeffs_left = splittingCoeffsLeft(n);
-      for (uint k = 0; k < n; k++)
+      for (unsigned int k = 0; k < n; k++)
         splitting_coeffs_right_[n].block(0, n - 1 - k, n - k, 1) =
             temp_splitting_coeffs_left.diagonal(-static_cast<int>(k)).reverse();
     }
@@ -581,12 +582,12 @@ Curve::Coeffs Curve::splittingCoeffsRight(uint n, double z)
 
   Curve::Coeffs coeffs(Coeffs::Zero(n, n));
   Curve::Coeffs temp_splitting_coeffs_left = splittingCoeffsLeft(n, z);
-  for (uint k = 0; k < n; k++)
+  for (unsigned int k = 0; k < n; k++)
     coeffs.block(0, n - 1 - k, n - k, 1) = temp_splitting_coeffs_left.diagonal(-static_cast<int>(k)).reverse();
   return coeffs;
 }
 
-Curve::Coeffs Curve::elevateOrderCoeffs(uint n)
+Curve::Coeffs Curve::elevateOrderCoeffs(unsigned int n)
 {
   if (elevate_order_coeffs_.find(n) == elevate_order_coeffs_.end())
   {
@@ -597,7 +598,7 @@ Curve::Coeffs Curve::elevateOrderCoeffs(uint n)
   return elevate_order_coeffs_[n];
 }
 
-Curve::Coeffs Curve::lowerOrderCoeffs(uint n)
+Curve::Coeffs Curve::lowerOrderCoeffs(unsigned int n)
 {
   if (lower_order_coeffs_.find(n) == lower_order_coeffs_.end())
   {

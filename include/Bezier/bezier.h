@@ -58,7 +58,7 @@ public:
    * \brief Get order of the curve (Nth order curve is described with N+1 points);
    * \return Order of curve
    */
-  uint order() const;
+  unsigned int order() const;
 
   /*!
    * \brief Get a vector of control points
@@ -71,7 +71,7 @@ public:
    * \param idx Index of chosen control point
    * \return A vector of control points
    */
-  Point controlPoint(uint idx) const;
+  Point controlPoint(unsigned int idx) const;
 
   /*!
    * \brief Get first and last control points
@@ -129,7 +129,7 @@ public:
    * \param idx Index of chosen control point
    * \param point New control point
    */
-  void setControlPoint(uint idx, const Point& point);
+  void setControlPoint(unsigned int idx, const Point& point);
 
   /*!
    * \brief Manipulate the curve so that it passes through wanted point for given 't'
@@ -214,7 +214,7 @@ public:
    * \return Derivative curve
    * \warning double n cannot be zero
    */
-  const Curve& derivative(uint n) const;
+  const Curve& derivative(unsigned int n) const;
 
   /*!
    * \brief Get value of a derivative for a given t
@@ -229,7 +229,7 @@ public:
    * \param t Curve parameter
    * \return nth curve derivative at t
    */
-  Vector derivativeAt(uint n, double t) const;
+  Vector derivativeAt(unsigned int n, double t) const;
 
   /*!
    * \brief Get roots of the curve on both axes
@@ -311,7 +311,7 @@ protected:
 
 private:
   /// Number of control points (order + 1)
-  uint N_{};
+  unsigned int N_{};
 
   /*!
    * \brief Coefficients for matrix operations
@@ -320,7 +320,7 @@ private:
   /*!
    * \brief Map of different coefficient matrices, depending on the order of the curve
    */
-  using CoeffsMap = std::map<uint, Coeffs>;
+  using CoeffsMap = std::map<unsigned int, Coeffs>;
 
   // private caching
   std::unique_ptr<const Curve> cached_derivative_;    /*! If generated, stores derivative for later use */
@@ -340,15 +340,15 @@ private:
   static CoeffsMap lower_order_coeffs_;     /*! Map of coefficients for lowering the order of the curve */
 
   /// Static getter function for Bernstein coefficients
-  static Coeffs bernsteinCoeffs(uint n);
+  static Coeffs bernsteinCoeffs(unsigned int n);
   /// Static getter function for coefficients to get a subcurve t = [0, z];
-  static Coeffs splittingCoeffsLeft(uint n, double z = 0.5);
+  static Coeffs splittingCoeffsLeft(unsigned int n, double z = 0.5);
   /// Static getter function for coefficients to get a subcurve t = [z, 1];
-  static Coeffs splittingCoeffsRight(uint n, double z = 0.5);
+  static Coeffs splittingCoeffsRight(unsigned int n, double z = 0.5);
   /// Static getter function for coefficients to elevate order of curve
-  static Coeffs elevateOrderCoeffs(uint n);
+  static Coeffs elevateOrderCoeffs(unsigned int n);
   /// Static getter function for coefficients to lower order of curve
-  static Coeffs lowerOrderCoeffs(uint n);
+  static Coeffs lowerOrderCoeffs(unsigned int n);
 };
 
 } // namespace Bezier
