@@ -323,14 +323,15 @@ private:
   using CoeffsMap = std::map<unsigned int, Coeffs>;
 
   // private caching
-  std::unique_ptr<const Curve> cached_derivative_;    /*! If generated, stores derivative for later use */
-  std::unique_ptr<std::vector<double>> cached_roots_; /*! If generated, stores roots for later use */
-  std::unique_ptr<BoundingBox> cached_bounding_box_;  /*! If generated, stores bounding box for later use */
-  std::unique_ptr<PointVector> cached_polyline_;      /*! If generated, stores polyline for later use */
-  double cached_polyline_flatness_{0};                /*! Flatness of cached polyline */
-  std::unique_ptr<Eigen::VectorXd>
-      cached_projection_polynomial_part_;                   /*! Constant part of point projection polynomial */
-  Eigen::MatrixXd cached_projection_polynomial_derivative_; /*! Polynomial representation of the curve derivative */
+  mutable std::unique_ptr<const Curve> cached_derivative_;    /*! If generated, stores derivative for later use */
+  mutable std::unique_ptr<std::vector<double>> cached_roots_; /*! If generated, stores roots for later use */
+  mutable std::unique_ptr<BoundingBox> cached_bounding_box_;  /*! If generated, stores bounding box for later use */
+  mutable std::unique_ptr<PointVector> cached_polyline_;      /*! If generated, stores polyline for later use */
+  mutable double cached_polyline_flatness_{0};                /*! Flatness of cached polyline */
+  mutable std::unique_ptr<Eigen::VectorXd>
+      cached_projection_polynomial_part_; /*! Constant part of point projection polynomial */
+  mutable Eigen::MatrixXd
+      cached_projection_polynomial_derivative_; /*! Polynomial representation of the curve derivative */
 
   // static caching
   static CoeffsMap bernstein_coeffs_;       /*! Map of Bernstein coefficients */

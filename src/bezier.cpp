@@ -102,8 +102,8 @@ PointVector Curve::polyline(double flatness) const
       }
     }
 
-    const_cast<Curve*>(this)->cached_polyline_flatness_ = flatness;
-    const_cast<Curve*>(this)->cached_polyline_.reset(polyline);
+    cached_polyline_flatness_ = flatness;
+    cached_polyline_.reset(polyline);
   }
   return *cached_polyline_;
 }
@@ -259,7 +259,7 @@ const Curve& Curve::derivative() const
 {
   if (!cached_derivative_)
   {
-    const_cast<Curve*>(this)->cached_derivative_.reset(
+    cached_derivative_.reset(
         N_ == 1
             ? new Curve(PointVector{Point(0, 0)})
             : new Curve(((N_ - 1) * (control_points_.bottomRows(N_ - 1) - control_points_.topRows(N_ - 1))).eval()));
@@ -309,7 +309,7 @@ std::vector<double> Curve::roots() const
       std::copy_if(std::make_move_iterator(roots_Y.begin()), std::make_move_iterator(roots_Y.end()),
                    std::back_inserter(*roots), [](double t) { return t >= 0 && t <= 1; });
     }
-    const_cast<Curve*>(this)->cached_roots_.reset(roots);
+    cached_roots_.reset(roots);
   }
   return *cached_roots_;
 }
@@ -330,8 +330,8 @@ BoundingBox Curve::boundingBox() const
                                           [](const Point& lhs, const Point& rhs) { return lhs.x() < rhs.x(); });
     auto y_extremes = std::minmax_element(extremes.begin(), extremes.end(),
                                           [](const Point& lhs, const Point& rhs) { return lhs.y() < rhs.y(); });
-    const_cast<Curve*>(this)->cached_bounding_box_.reset(new BoundingBox(
-        Point(x_extremes.first->x(), y_extremes.first->y()), Point(x_extremes.second->x(), y_extremes.second->y())));
+    cached_bounding_box_.reset(new BoundingBox(Point(x_extremes.first->x(), y_extremes.first->y()),
+                                               Point(x_extremes.second->x(), y_extremes.second->y())));
   }
   return *cached_bounding_box_;
 }
@@ -435,8 +435,8 @@ double Curve::projectPoint(const Point& point) const
       polynomial_part.middleRows(k, derivate_polynomial.rows()) +=
           derivate_polynomial * curve_polynomial.row(k).transpose();
 
-    const_cast<Curve*>(this)->cached_projection_polynomial_part_.reset(new Eigen::VectorXd(std::move(polynomial_part)));
-    const_cast<Curve*>(this)->cached_projection_polynomial_derivative_ = std::move(derivate_polynomial);
+    cached_projection_polynomial_part_.reset(new Eigen::VectorXd(std::move(polynomial_part)));
+    cached_projection_polynomial_derivative_ = std::move(derivate_polynomial);
   }
 
   Eigen::VectorXd polynomial = *cached_projection_polynomial_part_;
