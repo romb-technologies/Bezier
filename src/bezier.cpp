@@ -75,7 +75,12 @@ PointVector Curve::polyline(double flatness) const
       Eigen::ArrayXd X(Eigen::Index(N_ - 2));
       Eigen::ArrayXd Y(Eigen::Index(N_ - 2));
       Eigen::ArrayXd l = Eigen::ArrayXd::LinSpaced(N_ - 2, 1, N_ - 2);
+
+#if __cpp_init_captures
       Eigen::ArrayXd b = l.unaryExpr([n = N_ - 1](unsigned int k) { return binomial(n, k); });
+#else
+      Eigen::ArrayXd b = l.unaryExpr([this](unsigned int k) { return binomial(N_ - 1, k); });
+#endif
 
       while (!subcurves.empty())
       {
@@ -114,10 +119,16 @@ double Curve::length(double t) const { return length(0.0, t); }
 
 double Curve::length(double t1, double t2) const
 {
+#if __cpp_lib_clamp
   unsigned int N = static_cast<unsigned int>(std::clamp(N_ * std::ceil(std::fabs(t2 - t1) / 0.2), 0., 63.));
+#else
+  unsigned int N = N_ * std::ceil(std::fabs(t2 - t1) / 0.2);
+  if (N > 63)
+    N = 63;
+#endif
 
   return std::accumulate(LegendreGauss::coefficients[N].begin(), LegendreGauss::coefficients[N].end(), 0.0,
-                         [&](double sum, const auto& coeff) {
+                         [&](double sum, const std::pair<long double, long double>& coeff) {
                            return sum + std::get<1>(coeff) *
                                             derivativeAt(std::get<0>(coeff) * (t2 - t1) / 2 + (t1 + t2) / 2).norm();
                          }) *
@@ -136,7 +147,15 @@ double Curve::iterateByLength(double t, double s, double epsilon) const
     f = (length(t, t_out) - s);
   }
 
+#if __cpp_lib_clamp
   return std::clamp(t_out, 0., 1.);
+#else
+  if (t_out < 0)
+    return 0.;
+  if (t_out > 1.)
+    return 1.;
+  return t_out;
+#endif
 }
 
 void Curve::reverse()
@@ -378,7 +397,11 @@ PointVector Curve::intersections(const Curve& curve, double epsilon) const
         subcurves.emplace_back(splittingCoeffsRight(N_, t[k] + epsilon / 2) * new_cp);
       }
 
+#if __cpp_init_captures
       std::for_each(t.begin() + k + 1, t.end(), [t = t[k]](double& x) { x = (x - t) / (1 - t); });
+#else
+      std::for_each(t.begin() + k + 1, t.end(), [t, k](double& x) { x = (x - t[k]) / (1 - t[k]); });
+#endif
     }
 
     // create all pairs of subcurves
@@ -389,7 +412,12 @@ PointVector Curve::intersections(const Curve& curve, double epsilon) const
 
   while (!subcurve_pairs.empty())
   {
+#if __cpp_structured_bindings
     auto [cp_a, cp_b] = std::move(subcurve_pairs.back());
+#else
+    Eigen::MatrixX2d cp_a, cp_b;
+    std::tie(cp_a, cp_b) = std::move(subcurve_pairs.back());
+#endif
     subcurve_pairs.pop_back();
 
     BoundingBox bbox1(Point(cp_a.col(0).minCoeff(), cp_a.col(1).minCoeff()),
@@ -503,10 +531,17 @@ void Curve::applyContinuity(const Curve& source_curve, const std::vector<double>
             .cwiseProduct(Eigen::Map<const Eigen::MatrixXd>(beta_coeffs.data(), k + 1, 1));
 
   Eigen::MatrixXd factorial_matrix(Eigen::MatrixXd::Zero(c_order + 1, c_order + 1));
+
+#if __cpp_init_captures
   factorial_matrix.diagonal() =
       Eigen::ArrayXd::LinSpaced(c_order + 1, 0, c_order).unaryExpr([n = N_ - 1](unsigned int k) {
         return factorial(n) / factorial(n - k);
       });
+#else
+  factorial_matrix.diagonal() = Eigen::ArrayXd::LinSpaced(c_order + 1, 0, c_order).unaryExpr([this](unsigned int k) {
+    return factorial(N_ - 1) / factorial(N_ - 1 - k);
+  });
+#endif
 
   Eigen::Matrix2Xd derivatives(Eigen::Index(2), Eigen::Index(c_order + 1));
   for (unsigned int k = 0; k < c_order + 1; k++)

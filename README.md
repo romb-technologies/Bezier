@@ -39,7 +39,7 @@ target_link_libraries(target bezier)
     - [ ] More sophisticated example
 
 ## Dependencies
-  - c++17
+  - c++11
   - Eigen3.3
 
 ## Instalation
