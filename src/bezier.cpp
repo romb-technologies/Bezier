@@ -47,7 +47,7 @@ unsigned int Curve::order() const { return N_ - 1; }
 
 PointVector Curve::controlPoints() const
 {
-  PointVector points(static_cast<unsigned long>(N_));
+  PointVector points(N_);
   for (unsigned int k = 0; k < N_; k++)
     points[k] = control_points_.row(k);
   return points;
@@ -72,26 +72,37 @@ PointVector Curve::polyline(double flatness) const
       std::vector<Eigen::MatrixX2d> subcurves;
       subcurves.emplace_back(control_points_);
 
-      Eigen::ArrayXd X(Eigen::Index(N_ - 2));
-      Eigen::ArrayXd Y(Eigen::Index(N_ - 2));
-      Eigen::ArrayXd l = Eigen::ArrayXd::LinSpaced(N_ - 2, 1, N_ - 2);
+      // we calculate in squared distances
+      flatness *= flatness;
 
-#if __cpp_init_captures
-      Eigen::ArrayXd b = l.unaryExpr([n = N_ - 1](unsigned int k) { return binomial(n, k); });
-#else
-      Eigen::ArrayXd b = l.unaryExpr([this](unsigned int k) { return binomial(N_ - 1, k); });
-#endif
+      double coeff{1};
+      if (N_ < 10)
+      {
+        // for N_ == 10, coeff is 0.9922, so we ignore it for higher orders
+        coeff -= std::exp2(2. - N_);
+        coeff *= coeff;
+      }
 
       while (!subcurves.empty())
       {
         auto& cp = subcurves.back();
+        const Point& p1 = cp.row(0);
+        const Point& p2 = cp.row(N_ - 1);
+        Vector u = p2 - p1;
 
-        auto step = (cp.row(N_ - 1) - cp.row(0)) / (N_ - 1);
+        auto deviation = [&p1, &p2, &u](double x, double y) {
+          Point q(x, y);
+          Vector v = q - p1;
+          double temp = u.dot(v) / u.squaredNorm();
+          if (temp < 0)
+            return v.squaredNorm();
+          if (temp > 1)
+            return (q - p2).squaredNorm();
+          else
+            return (p1 + temp * u - q).squaredNorm();
+        };
 
-        X = (b * (cp.block(1, 0, N_ - 2, 1).array() - cp(0, 0) - l * step(0))).square();
-        Y = (b * (cp.block(1, 1, N_ - 2, 1).array() - cp(0, 1) - l * step(1))).square();
-
-        if (X.maxCoeff() + Y.maxCoeff() <= 16 * flatness * flatness)
+        if (coeff * cp.rowwise().redux(deviation).maxCoeff() <= flatness)
         {
           subcurves.pop_back();
           polyline->emplace_back(cp.row(N_ - 1));
