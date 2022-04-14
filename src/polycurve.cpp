@@ -18,11 +18,11 @@ void PolyCurve::removeFirst() { curves_.pop_front(); }
 
 void PolyCurve::removeBack() { curves_.pop_back(); }
 
-unsigned int PolyCurve::size() const { return static_cast<unsigned int>(curves_.size()); }
+unsigned int PolyCurve::size() const { return curves_.size(); }
 
 unsigned int PolyCurve::curveIdx(double t) const
 {
-  unsigned int idx = static_cast<unsigned int>(t);
+  unsigned int idx = t;
   return idx - (idx == size());
 }
 
