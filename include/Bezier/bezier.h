@@ -153,6 +153,7 @@ public:
    * \brief Lower the curve order by 1
    *
    * If current shape cannot be described by lower order, it will be best aproximation
+   * \warning CAN THROW: Cannot be called for curves of 1st order
    * \warning Resets cached data
    */
   void lowerOrder();
@@ -161,16 +162,15 @@ public:
    * \brief Get the point on curve for a given t
    * \param t Curve parameter
    * \return Point on a curve for a given t
-   * \warning CAN THROW: Cannot be called for curves of 1st order
    */
   Point valueAt(double t) const;
 
   /*!
    * \brief Get the point vector on curve for given parameters
    * \param t_vector Curve parameters
-   * \return Vector of points on a curve for given parameters
+   * \return Matrix of points on a curve for given parameters
    */
-  PointVector valueAt(const std::vector<double>& t_vector) const;
+  Eigen::MatrixX2d valueAt(const std::vector<double>& t_vector) const;
 
   /*!
    * \brief Get curvature of the curve for a given t
@@ -272,25 +272,11 @@ public:
   double projectPoint(const Point& point) const;
 
   /*!
-   * \brief Get the parameter t vector where curve is closest to given points
-   * \param point_vector Points to project on curve
-   * \return Vector of parameters t
-   */
-  std::vector<double> projectPoint(const PointVector& point_vector) const;
-
-  /*!
    * \brief Get distance of the point to the curve
    * \param point Point to project on curve
    * \return Distance to the curve
    */
   double distance(const Point& point) const;
-
-  /*!
-   * \brief Get the distance vector of points to the curve
-   * \param point_vector Points to project on curve
-   * \return Vector of distances
-   */
-  std::vector<double> distance(const PointVector& point_vector) const;
 
   /*!
    * \brief applyContinuity Apply geometric continuity based on the another curve.
