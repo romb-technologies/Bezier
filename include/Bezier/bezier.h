@@ -110,6 +110,12 @@ public:
    */
   double length(double t1, double t2) const;
 
+  double length_cheb() const;
+
+  double length_cheb(double t) const;
+
+  double length_cheb(double t1, double t2) const;
+
   /*!
    * \brief Compute parameter t which is S distance from given t
    * \param t Curve parameter
@@ -318,6 +324,7 @@ private:
       cached_projection_polynomial_part_; /*! Constant part of point projection polynomial */
   mutable Eigen::MatrixXd
       cached_projection_polynomial_derivative_; /*! Polynomial representation of the curve derivative */
+  mutable std::unique_ptr<Eigen::VectorXd> cached_chebyshev_coeffs_;
 
   // static caching
   static CoeffsMap bernstein_coeffs_;       /*! Map of Bernstein coefficients */
