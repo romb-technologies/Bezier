@@ -2,6 +2,7 @@
 #include "Bezier/legendre_gauss.h"
 
 #include <numeric>
+#include <list>
 
 #include <unsupported/Eigen/FFT>
 #include <unsupported/Eigen/MatrixFunctions>
@@ -157,7 +158,6 @@ double Curve::length_cheb(double t) const
   };
   if (!cached_chebyshev_coeffs_)
   {
-    const int MAX_CACHE = 2048;
     const int START_N = 4;
     const double ALLOWED_DIFF = 1e-7;
 
@@ -165,24 +165,30 @@ double Curve::length_cheb(double t) const
     uint n = START_N;
     Eigen::VectorXd chebyshev;
 
-    std::vector<double> cached_derivative_at_point(MAX_CACHE + 1);
-    while (n <= MAX_CACHE)
+    std::list<double> cached_derivative_at_point;
+    while (true)
     {
       uint N = 2 * n;
       Eigen::VectorXd coeff(N);
+      auto ll_it = cached_derivative_at_point.begin();
       for (uint i = 0; i <= n; ++i)
       {
-        if (i % 2 == 1 || n == START_N)
-        {
+        if(i % 2 == 1 || n == START_N){
           double y = std::cos(i * M_PI / n);
           double curr_deriv = derivativeAt((1 + y) * 0.5).norm();
-          cached_derivative_at_point.at((MAX_CACHE / n) * i) = curr_deriv;
           coeff(i) = curr_deriv / n;
+          
+          if(n == START_N)
+            cached_derivative_at_point.insert(cached_derivative_at_point.end(), curr_deriv);
+          else
+            cached_derivative_at_point.insert(ll_it, curr_deriv);
+          
         }
-        else
-        {
-          coeff(i) = cached_derivative_at_point.at((MAX_CACHE / n) * i) / n;
+        else{
+          coeff(i) = *ll_it / n;
+          ll_it++;
         }
+
         if (i == 0 || i == n)
           continue;
         coeff(N - i) = coeff[i];
@@ -704,4 +710,100 @@ Curve::Coeffs Curve::lowerOrderCoeffs(unsigned n)
                                        elevateOrderCoeffs(n - 1).transpose();
   }
   return lower_order_coeffs_[n];
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+double Curve::length_cheb_orig(double t) const
+{
+  auto evaluate_chebyshev = [](double x, const Eigen::VectorXd& coeff) {
+    x = 2 * x - 1;
+    switch (coeff.size())
+    {
+    case 0:
+      return 0.;
+    case 1:
+      return coeff[0];
+    default:
+      double tn_1 = 1;
+      double tn = x;
+      double res = coeff[0] + coeff[1] * x;
+      for (int i = 1; i + 1 < coeff.size();)
+      {
+        std::swap(tn_1, tn);
+        tn = 2 * x * tn_1 - tn;
+        res += coeff[++i] * tn;
+      }
+      return res;
+    }
+  };
+  if (!cached_chebyshev_coeffs_)
+  {
+    const int MAX_CACHE = 2048;
+    const int START_N = 4;
+    const double ALLOWED_DIFF = 1e-7;
+
+    double last_val = -1;
+    uint n = START_N;
+    Eigen::VectorXd chebyshev;
+
+    std::vector<double> cached_derivative_at_point(MAX_CACHE + 1);
+    while (n <= MAX_CACHE)
+    {
+      uint N = 2 * n;
+      Eigen::VectorXd coeff(N);
+      for (uint i = 0; i <= n; ++i)
+      {
+        if (i % 2 == 1 || n == START_N)
+        {
+          double y = std::cos(i * M_PI / n);
+          double curr_deriv = derivativeAt((1 + y) * 0.5).norm();
+          cached_derivative_at_point.at((MAX_CACHE / n) * i) = curr_deriv;
+          coeff(i) = curr_deriv / n;
+        }
+        else
+        {
+          coeff(i) = cached_derivative_at_point.at((MAX_CACHE / n) * i) / n;
+        }
+        if (i == 0 || i == n)
+          continue;
+        coeff(N - i) = coeff[i];
+      }
+
+      Eigen::FFT<double> fft;
+      Eigen::VectorXcd temp(N);
+      fft.fwd(temp, coeff);
+      Eigen::VectorXd chebyshev_orig = temp.real().head(n + 1);
+      chebyshev = Eigen::VectorXd::Zero(n);
+      chebyshev.tail(n - 1) = (chebyshev_orig.head(n - 1) - chebyshev_orig.tail(n - 1)).array() /
+                              Eigen::ArrayXd::LinSpaced(n - 1, 4, 4 * (n - 1));
+
+      double val = evaluate_chebyshev(t, chebyshev);
+      if (abs(last_val - val) > ALLOWED_DIFF)
+      {
+        n *= 2;
+
+        last_val = val;
+      }
+      else
+        break;
+    }
+    chebyshev(0) = -evaluate_chebyshev(0, chebyshev);
+    cached_chebyshev_coeffs_ = std::make_unique<Eigen::VectorXd>(chebyshev);
+  }
+  return evaluate_chebyshev(t, *cached_chebyshev_coeffs_);
 }
