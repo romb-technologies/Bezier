@@ -113,7 +113,6 @@ public:
   double length_cheb() const;
 
   double length_cheb(double t) const;
-  double length_cheb_orig(double t) const;
 
   double length_cheb(double t1, double t2) const;
 
