@@ -173,7 +173,7 @@ double Curve::length_cheb(double t) const
     uint n = START_N;
     Eigen::VectorXd chebyshev;
 
-    std::unordered_map<int, double> cached_derivative_at_point;
+    std::vector<double> cached_derivative_at_point(MAX_CACHE + 1);
     while (n <= MAX_CACHE)
     {
       uint N = 2 * n;
@@ -184,12 +184,12 @@ double Curve::length_cheb(double t) const
         {
           double y = std::cos(i * M_PI / n);
           double curr_deriv = derivativeAt((1 + y) * 0.5).norm();
-          cached_derivative_at_point[(MAX_CACHE / n) * i] = curr_deriv;
+          cached_derivative_at_point.at((MAX_CACHE / n) * i) = curr_deriv;
           coeff(i) = curr_deriv / n;
         }
         else
         {
-          coeff(i) = cached_derivative_at_point[(MAX_CACHE / n) * i] / n;
+          coeff(i) = cached_derivative_at_point.at((MAX_CACHE / n) * i) / n;
         }
         if (i == 0 || i == n)
           continue;
@@ -699,4 +699,3 @@ Curve::Coeffs Curve::lowerOrderCoeffs(unsigned int n)
   }
   return lower_order_coeffs_[n];
 }
-
