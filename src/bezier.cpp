@@ -84,7 +84,8 @@ PointVector Curve::polyline(double flatness) const
         const Point& p2 = cp.row(N_ - 1);
         Vector u = p2 - p1;
 
-        auto deviation = [&p1, &p2, &u](double x, double y) {
+        auto deviation = [&p1, &p2, &u](double x, double y)
+        {
           Point q(x, y);
           Vector v = q - p1;
           double t = u.dot(v) / u.squaredNorm();
@@ -134,7 +135,8 @@ double Curve::length_cheb() const { return length_cheb(1.0); }
 
 double Curve::length_cheb(double t) const
 {
-  auto evaluate_chebyshev = [](double x, const Eigen::VectorXd& coeff) {
+  auto evaluate_chebyshev = [](double x, const Eigen::VectorXd& coeff)
+  {
     x = 2 * x - 1;
     switch (coeff.size())
     {
@@ -157,18 +159,17 @@ double Curve::length_cheb(double t) const
   };
   if (!cached_chebyshev_coeffs_)
   {
-    const int MAX_CACHE = 2048;
-    const int START_N = 4;
-    const double ALLOWED_DIFF = 1e-7;
+    const int START_N = 16;
+    const double ALLOWED_DIFF = 1e-4;
 
-    double last_val = -1;
-    uint n = START_N;
+    double last_val = -1.0;
+    unsigned int n = START_N;
     Eigen::VectorXd chebyshev;
 
-    std::vector<double> cached_derivative_at_point(MAX_CACHE + 1);
-    while (n <= MAX_CACHE)
+    std::vector<double> cached_derivative_at_point;
+    while (true)
     {
-      uint N = 2 * n;
+      unsigned int N = 2 * n;
       Eigen::VectorXd coeff(N);
       for (uint i = 0; i <= n; ++i)
       {
@@ -176,12 +177,34 @@ double Curve::length_cheb(double t) const
         {
           double y = std::cos(i * M_PI / n);
           double curr_deriv = derivativeAt((1 + y) * 0.5).norm();
-          cached_derivative_at_point.at((MAX_CACHE / n) * i) = curr_deriv;
+          cached_derivative_at_point.push_back(curr_deriv);
           coeff(i) = curr_deriv / n;
         }
         else
         {
-          coeff(i) = cached_derivative_at_point.at((MAX_CACHE / n) * i) / n;
+          int gcd = std::gcd(n, i);
+          int index;
+          int n1 = n / gcd;
+          int i1 = i / gcd;
+
+          if (n1 == i1)
+          {
+            coeff(i) = (cached_derivative_at_point[START_N]) / n;
+          }
+          else if (i1 == 0)
+          {
+            coeff(i) = (cached_derivative_at_point[0]) / n;
+          }
+          else if (n1 <= START_N)
+          {
+            index = (START_N / n1) * i1;
+            coeff(i) = (cached_derivative_at_point[index]) / n;
+          }
+          else
+          {
+            index = (n1 / 2) + (i1 / 2) + 1;
+            coeff(i) = (cached_derivative_at_point[index]) / n;
+          }
         }
         if (i == 0 || i == n)
           continue;
@@ -442,7 +465,8 @@ std::pair<Curve, Curve> Curve::splitCurve(double z) const
 PointVector Curve::intersections(const Curve& curve, double epsilon) const
 {
   PointVector points_of_intersection;
-  auto insertNewRoot = [&points_of_intersection, epsilon](Point new_point) {
+  auto insertNewRoot = [&points_of_intersection, epsilon](Point new_point)
+  {
     // check if not already found, and add new point
     if (std::none_of(points_of_intersection.begin(), points_of_intersection.end(),
                      [&new_point, epsilon](const Point& point) { return (point - new_point).norm() < epsilon; }))
