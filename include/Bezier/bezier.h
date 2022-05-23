@@ -87,34 +87,25 @@ public:
   PointVector polyline(double flatness = 0.5) const;
 
   /*!
-   * \brief Compute exaxt arc length with Legendre-Gauss quadrature
+   * \brief Compute exaxt arc length with Chebyshev polynomials
    * \return Arc length
-   * \warning Precision depends on value of LEGENDRE_GAUSS_N at compile time
    */
   double length() const;
 
   /*!
-   * \brief Compute exact arc length with Legendre-Gauss quadrature
+   * \brief Compute exaxt arc length with Chebyshev polynomials
    * \param t Curve parameter to which length is computed
    * \return Arc length from start to parameter t
-   * \warning Precision depends on value of LEGENDRE_GAUSS_N at compile time
    */
   double length(double t) const;
 
   /*!
-   * \brief Compute exact arc length with Legendre-Gauss quadrature
+   * \brief Compute exaxt arc length with Chebyshev polynomials
    * \param t1 Curve parameter from which length is computed
    * \param t2 Curve parameter to which length is computed
    * \return Arc length between paramaters t1 and t2
-   * \warning Precision depends on value of LEGENDRE_GAUSS_N at compile time
    */
   double length(double t1, double t2) const;
-
-  double length_cheb() const;
-
-  double length_cheb(double t) const;
-
-  double length_cheb(double t1, double t2) const;
 
   /*!
    * \brief Compute parameter t which is S distance from given t

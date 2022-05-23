@@ -85,8 +85,7 @@ PointVector Curve::polyline(double flatness) const
         const Point& p2 = cp.row(N_ - 1);
         Vector u = p2 - p1;
 
-        auto deviation = [&p1, &p2, &u](double x, double y)
-        {
+        auto deviation = [&p1, &p2, &u](double x, double y) {
           Point q(x, y);
           Vector v = q - p1;
           double t = u.dot(v) / u.squaredNorm();
@@ -117,34 +116,11 @@ PointVector Curve::polyline(double flatness) const
   return *cached_polyline_;
 }
 
-double Curve::length() const { return length(0.0, 1.0); }
+double Curve::length() const { return length(1.0); }
 
-double Curve::length(double t) const { return length(0.0, t); }
-
-double Curve::length(double t1, double t2) const
+double Curve::length(double t) const
 {
-#if __cpp_lib_clamp
-  unsigned int N = static_cast<unsigned int>(std::clamp(N_ * std::ceil(std::fabs(t2 - t1) / 0.2), 0., 63.));
-#else
-  unsigned int N = N_ * std::ceil(std::fabs(t2 - t1) / 0.2);
-  if (N > 63)
-    N = 63;
-#endif
-
-  return std::accumulate(LegendreGauss::coefficients[N].begin(), LegendreGauss::coefficients[N].end(), 0.0,
-                         [&](double sum, const std::pair<double, double>& coeff) {
-                           return sum + std::get<1>(coeff) *
-                                            derivativeAt(std::get<0>(coeff) * (t2 - t1) / 2 + (t1 + t2) / 2).norm();
-                         }) *
-         (t2 - t1) / 2;
-}
-
-double Curve::length_cheb() const { return length_cheb(1.0); }
-
-double Curve::length_cheb(double t) const
-{
-  auto evaluate_chebyshev = [](double x, const Eigen::VectorXd& coeff)
-  {
+  auto evaluate_chebyshev = [](double x, const Eigen::VectorXd& coeff) {
     x = 2 * x - 1;
     switch (coeff.size())
     {
@@ -167,75 +143,55 @@ double Curve::length_cheb(double t) const
   };
   if (!cached_chebyshev_coeffs_)
   {
-    const int START_N = 16;
-    const double ALLOWED_DIFF = 1e-4;
+    const int START_LOG_N = 6;
+    const double epsilon = 1e-4;
 
     double last_val = -1.0;
-    unsigned int n = START_N;
+    unsigned int log_n = START_LOG_N;
+    unsigned int n = 1 << START_LOG_N;
     Eigen::VectorXd chebyshev;
 
-    std::vector<double> cached_derivative_at_point;
-    while (true)
+    std::vector<double> derivative_cache(2);
+    derivative_cache[0] = derivativeAt((1 + std::cos(0)) * 0.5).norm();
+    derivative_cache[1] = derivativeAt((1 + std::cos(M_PI)) * 0.5).norm();
+    derivative_cache.reserve(n + 1);
+    for (int i = 2; i <= n / 2; i <<= 1)
+      for (int j = 1; j < i; j += 2)
+        derivative_cache.emplace_back(derivativeAt((1 + std::cos(j * M_PI / i)) * 0.5).norm());
+
+    double val{};
+
+    while (abs(last_val - val) > epsilon)
     {
+      last_val = val;
       unsigned int N = 2 * n;
       Eigen::VectorXd coeff(N);
-      for (uint i = 0; i <= n; ++i)
-      {
-        if (i % 2 == 1 || n == START_N)
-        {
-          double y = std::cos(i * M_PI / n);
-          double curr_deriv = derivativeAt((1 + y) * 0.5).norm();
-          cached_derivative_at_point.push_back(curr_deriv);
-          coeff(i) = curr_deriv / n;
-        }
-        else
-        {
-          int gcd = std::gcd(n, i);
-          int index;
-          int n1 = n / gcd;
-          int i1 = i / gcd;
+      derivative_cache.reserve(n + 1);
+      for (int i = 1; i < n; i += 2)
+        derivative_cache.emplace_back(derivativeAt((1 + std::cos(i * M_PI / n)) * 0.5).norm());
 
-          if (n1 == i1)
-          {
-            coeff(i) = (cached_derivative_at_point[START_N]) / n;
-          }
-          else if (i1 == 0)
-          {
-            coeff(i) = (cached_derivative_at_point[0]) / n;
-          }
-          else if (n1 <= START_N)
-          {
-            index = (START_N / n1) * i1;
-            coeff(i) = (cached_derivative_at_point[index]) / n;
-          }
-          else
-          {
-            index = (n1 / 2) + (i1 / 2) + 1;
-            coeff(i) = (cached_derivative_at_point[index]) / n;
-          }
+      coeff(0) = derivative_cache[0];
+      coeff(n) = derivative_cache[1];
+
+      for (int k = 1; k <= log_n; k++)
+        for (int i = 0; i < 1 << k - 1; i++)
+        {
+          int index = (1 << log_n + 1 - (k + 1)) + (i << log_n + 1 - k);
+          coeff(index) = coeff(N - index) = derivative_cache[(1 << k - 1) + 1 + i];
         }
-        if (i == 0 || i == n)
-          continue;
-        coeff(N - i) = coeff[i];
-      }
 
       Eigen::FFT<double> fft;
       Eigen::VectorXcd temp(N);
+      coeff /= n;
       fft.fwd(temp, coeff);
       Eigen::VectorXd chebyshev_orig = temp.real().head(n + 1);
       chebyshev = Eigen::VectorXd::Zero(n);
       chebyshev.tail(n - 1) = (chebyshev_orig.head(n - 1) - chebyshev_orig.tail(n - 1)).array() /
                               Eigen::ArrayXd::LinSpaced(n - 1, 4, 4 * (n - 1));
 
-      double val = evaluate_chebyshev(t, chebyshev);
-      if (abs(last_val - val) > ALLOWED_DIFF)
-      {
-        n *= 2;
-
-        last_val = val;
-      }
-      else
-        break;
+      n *= 2;
+      log_n++;
+      val = evaluate_chebyshev(t, chebyshev);
     }
     chebyshev(0) = -evaluate_chebyshev(0, chebyshev);
     cached_chebyshev_coeffs_ = std::make_unique<Eigen::VectorXd>(chebyshev);
@@ -243,7 +199,7 @@ double Curve::length_cheb(double t) const
   return evaluate_chebyshev(t, *cached_chebyshev_coeffs_);
 }
 
-double Curve::length_cheb(double t1, double t2) const { return length_cheb(t2) - length_cheb(t1); }
+double Curve::length(double t1, double t2) const { return length(t2) - length(t1); }
 
 double Curve::iterateByLength(double t, double s, double epsilon) const
 {
@@ -459,8 +415,7 @@ std::pair<Curve, Curve> Curve::splitCurve(double z) const
 PointVector Curve::intersections(const Curve& curve, double epsilon) const
 {
   PointVector points_of_intersection;
-  auto insertNewRoot = [&points_of_intersection, epsilon](Point new_point)
-  {
+  auto insertNewRoot = [&points_of_intersection, epsilon](Point new_point) {
     // check if not already found, and add new point
     if (std::none_of(points_of_intersection.begin(), points_of_intersection.end(),
                      [&new_point, epsilon](const Point& point) { return (point - new_point).norm() < epsilon; }))
@@ -615,9 +570,9 @@ void Curve::applyContinuity(const Curve& source_curve, const std::vector<double>
   Eigen::MatrixXd factorial_matrix(Eigen::MatrixXd::Zero(c_order + 1, c_order + 1));
 
   // factorial(k) = std::tgamma(k+1)
-  factorial_matrix.diagonal() =
-      Eigen::ArrayXd::LinSpaced(c_order + 1, 0, c_order)
-          .unaryExpr([this](unsigned int k) { return std::tgamma(N_) / std::tgamma(N_ - k); });
+  factorial_matrix.diagonal() = Eigen::ArrayXd::LinSpaced(c_order + 1, 0, c_order).unaryExpr([this](unsigned int k) {
+    return std::tgamma(N_) / std::tgamma(N_ - k);
+  });
 
   Eigen::Matrix2Xd derivatives(Eigen::Index(2), Eigen::Index(c_order + 1));
   for (unsigned int k = 0; k < c_order + 1; k++)
@@ -650,8 +605,9 @@ Curve::Coeffs Curve::bernsteinCoeffs(unsigned int n)
 {
   if (bernstein_coeffs_.find(n) == bernstein_coeffs_.end())
   {
-    auto binomial = [](unsigned int n, unsigned int k)
-    { return std::exp(std::lgamma(n + 1) - std::lgamma(n - k + 1) - std::lgamma(k + 1)); };
+    auto binomial = [](unsigned int n, unsigned int k) {
+      return std::exp(std::lgamma(n + 1) - std::lgamma(n - k + 1) - std::lgamma(k + 1));
+    };
     bernstein_coeffs_.insert({n, Coeffs::Zero(n, n)});
     bernstein_coeffs_[n].diagonal(-1).setLinSpaced(-1, -static_cast<int>(n - 1));
     bernstein_coeffs_[n] = bernstein_coeffs_[n].exp();
