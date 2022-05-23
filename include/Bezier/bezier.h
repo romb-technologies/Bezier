@@ -87,20 +87,32 @@ public:
   PointVector polyline(double flatness = 0.5) const;
 
   /*!
+<<<<<<< HEAD
    * \brief Compute exact arc length with Chebyshev polynomials
+=======
+   * \brief Compute exaxt arc length with Chebyshev polynomials
+>>>>>>> e2f6218cd4d88e1bdbe851ac5f6dcea647a5f9b7
    * \return Arc length
    */
   double length() const;
 
   /*!
+<<<<<<< HEAD
    * \brief Compute exact arc length with Chebyshev polynomials
+=======
+   * \brief Compute exaxt arc length with Chebyshev polynomials
+>>>>>>> e2f6218cd4d88e1bdbe851ac5f6dcea647a5f9b7
    * \param t Curve parameter to which length is computed
    * \return Arc length from start to parameter t
    */
   double length(double t) const;
 
   /*!
+<<<<<<< HEAD
    * \brief Compute exact arc length with Chebyshev polynomials
+=======
+   * \brief Compute exaxt arc length with Chebyshev polynomials
+>>>>>>> e2f6218cd4d88e1bdbe851ac5f6dcea647a5f9b7
    * \param t1 Curve parameter from which length is computed
    * \param t2 Curve parameter to which length is computed
    * \return Arc length between paramaters t1 and t2
