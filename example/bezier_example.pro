@@ -45,8 +45,7 @@ HEADERS += \
         qpolycurve.h \
         ../include/Bezier/bezier.h \
         ../include/Bezier/polycurve.h \
-        ../include/Bezier/declarations.h \
-        ../include/Bezier/legendre_gauss.h
+        ../include/Bezier/declarations.h
 
 FORMS += \
         mainwindow.ui

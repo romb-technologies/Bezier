@@ -19,7 +19,6 @@ set(Bezier_SRC
 
 set(Bezier_INC
   include/Bezier/declarations.h
-  include/Bezier/legendre_gauss.h
   include/Bezier/bezier.h
   include/Bezier/polycurve.h
   )
@@ -40,7 +39,6 @@ target_include_directories(bezier PUBLIC
   $<INSTALL_INTERFACE:include>
 )
 
-target_compile_definitions(bezier PRIVATE LEGENDRE_GAUSS_N=${LEGENDRE_GAUSS_PRECISION})
 
 set_target_properties(bezier PROPERTIES VERSION ${PROJECT_VERSION})
 set_target_properties(bezier PROPERTIES PUBLIC_HEADER "${Bezier_INC}")
