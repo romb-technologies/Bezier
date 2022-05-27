@@ -39,7 +39,6 @@ target_include_directories(bezier PUBLIC
   $<INSTALL_INTERFACE:include>
 )
 
-
 set_target_properties(bezier PROPERTIES VERSION ${PROJECT_VERSION})
 set_target_properties(bezier PROPERTIES PUBLIC_HEADER "${Bezier_INC}")
 

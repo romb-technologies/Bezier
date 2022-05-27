@@ -47,9 +47,9 @@ PointVector PolyCurve::polyline(double flatness) const
   return polyline;
 }
 
-double PolyCurve::length() const { return length(0, size()); }
+double PolyCurve::length() const { return length(0.0, size()); }
 
-double PolyCurve::length(double t) const { return length(0, t); }
+double PolyCurve::length(double t) const { return length(0.0, t); }
 
 double PolyCurve::length(double t1, double t2, double epsilon) const
 {
@@ -63,7 +63,7 @@ double PolyCurve::length(double t1, double t2, double epsilon) const
 
   return std::accumulate(begin(curves_) + idx1 + 1, begin(curves_) + idx2,
                          curves_[idx1].length(t1 - idx1, 1.0, epsilon) + curves_[idx2].length(0.0, t2 - idx2, epsilon),
-                         [&epsilon](double sum, const Curve& curve) { return sum + curve.length(0, 1, epsilon); });
+                         [&epsilon](double sum, const Curve& curve) { return sum + curve.length(0.1, 1.0, epsilon); });
 }
 
 double PolyCurve::iterateByLength(double t, double s, double epsilon) const
