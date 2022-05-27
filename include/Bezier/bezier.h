@@ -87,25 +87,26 @@ public:
   PointVector polyline(double flatness = 0.5) const;
 
   /*!
-   * \brief Compute exact arc length with Chebyshev polynomials
+   * \brief Compute exact arc length using Chebyshev polynomials. Default epsilon is 0.001
    * \return Arc length
    */
   double length() const;
 
   /*!
-   * \brief Compute exact arc length with Chebyshev polynomials
+   * \brief Compute exact arc length using Chebyshev polynomials. Default epsilon is 0.001
    * \param t Curve parameter to which length is computed
    * \return Arc length from start to parameter t
    */
   double length(double t) const;
 
   /*!
-   * \brief Compute exact arc length with Chebyshev polynomials
+   * \brief Compute exact arc length using Chebyshev polynomials
    * \param t1 Curve parameter from which length is computed
    * \param t2 Curve parameter to which length is computed
+   * \param epsilon Precision of resulting t, default is 0.001
    * \return Arc length between paramaters t1 and t2
    */
-  double length(double t1, double t2) const;
+  double length(double t1, double t2, double epsilon = 0.001) const;
 
   /*!
    * \brief Compute parameter t which is S distance from given t

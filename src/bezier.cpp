@@ -1,5 +1,4 @@
 #include "Bezier/bezier.h"
-#include "Bezier/legendre_gauss.h"
 
 #include <numeric>
 
@@ -108,9 +107,11 @@ PointVector Curve::polyline(double flatness) const
   return *cached_polyline_;
 }
 
-double Curve::length() const { return length(1.0); }
+double Curve::length() const { return length(0, 1.0); }
 
-double Curve::length(double t) const
+double Curve::length(double t) const { return length(0, t); }
+
+double Curve::length(double t1, double t2, double epsilon) const
 {
   auto evaluate_chebyshev = [](double x, const Eigen::VectorXd& coeff) {
     x = 2 * x - 1;
@@ -136,7 +137,6 @@ double Curve::length(double t) const
   if (!cached_chebyshev_coeffs_)
   {
     const int START_LOG_N = 6;
-    const double epsilon = 1e-4;
 
     double last_val = -1.0;
     unsigned int log_n = START_LOG_N;
@@ -183,15 +183,16 @@ double Curve::length(double t) const
 
       n *= 2;
       log_n++;
-      val = evaluate_chebyshev(t, chebyshev);
+      val = evaluate_chebyshev(t2, chebyshev);
     }
     chebyshev(0) = -evaluate_chebyshev(0, chebyshev);
     cached_chebyshev_coeffs_ = std::make_unique<Eigen::VectorXd>(chebyshev);
   }
-  return evaluate_chebyshev(t, *cached_chebyshev_coeffs_);
-}
+  if (t1 == 0)
+    return evaluate_chebyshev(t2, *cached_chebyshev_coeffs_);
 
-double Curve::length(double t1, double t2) const { return length(t2) - length(t1); }
+  return evaluate_chebyshev(t2, *cached_chebyshev_coeffs_) - evaluate_chebyshev(t1, *cached_chebyshev_coeffs_);
+}
 
 double Curve::iterateByLength(double t, double s, double epsilon) const
 {
