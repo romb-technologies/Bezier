@@ -146,9 +146,8 @@ double Curve::length(double t1, double t2, double epsilon) const
   {
     const int START_LOG_N = 6;
 
-    double last_val = -1.0;
     unsigned int log_n = START_LOG_N;
-    unsigned int n = 1 << START_LOG_N;
+    unsigned int n = std::exp2(START_LOG_N);
     Eigen::VectorXd chebyshev;
 
     std::vector<double> derivative_cache(2);
@@ -159,6 +158,7 @@ double Curve::length(double t1, double t2, double epsilon) const
       for (int j = 1; j < i; j += 2)
         derivative_cache.emplace_back(derivativeAt((1 + std::cos(j * M_PI / i)) * 0.5).norm());
 
+    double last_val{-1.0};
     double val{};
 
     while (abs(last_val - val) > epsilon)
@@ -174,10 +174,10 @@ double Curve::length(double t1, double t2, double epsilon) const
       coeff(n) = derivative_cache[1];
 
       for (int k = 1; k <= log_n; k++)
-        for (int i = 0; i < 1 << k - 1; i++)
+        for (int i = 0; i < std::exp2(k - 1); i++)
         {
-          int index = (1 << log_n + 1 - (k + 1)) + (i << log_n + 1 - k);
-          coeff(index) = coeff(N - index) = derivative_cache[(1 << k - 1) + 1 + i];
+          int index = std::exp2(log_n + 1 - (k + 1)) + (i * std::exp2(log_n + 1 - k));
+          coeff(index) = coeff(N - index) = derivative_cache[std::exp2(k - 1) + 1 + i];
         }
 
       Eigen::FFT<double> fft;
