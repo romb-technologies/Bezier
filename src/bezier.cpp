@@ -107,9 +107,9 @@ PointVector Curve::polyline(double flatness) const
   return *cached_polyline_;
 }
 
-double Curve::length() const { return length(0, 1.0); }
+double Curve::length() const { return length(0.0, 1.0); }
 
-double Curve::length(double t) const { return length(0, t); }
+double Curve::length(double t) const { return length(0.0, t); }
 
 double Curve::length(double t1, double t2, double epsilon) const
 {
@@ -134,7 +134,7 @@ double Curve::length(double t1, double t2, double epsilon) const
       return res;
     }
   };
-  if (!cached_chebyshev_coeffs_)
+  if (!cached_chebyshev_coeffs_ || epsilon > cached_chebyshev_epsilon)
   {
     const int START_LOG_N = 6;
 
@@ -187,6 +187,7 @@ double Curve::length(double t1, double t2, double epsilon) const
     }
     chebyshev(0) = -evaluate_chebyshev(0, chebyshev);
     cached_chebyshev_coeffs_ = std::make_unique<Eigen::VectorXd>(chebyshev);
+    cached_chebyshev_epsilon = epsilon;
   }
   if (t1 == 0)
     return evaluate_chebyshev(t2, *cached_chebyshev_coeffs_);

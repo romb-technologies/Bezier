@@ -311,12 +311,13 @@ private:
   mutable std::unique_ptr<std::vector<double>> cached_roots_; /*! If generated, stores roots for later use */
   mutable std::unique_ptr<BoundingBox> cached_bounding_box_;  /*! If generated, stores bounding box for later use */
   mutable std::unique_ptr<PointVector> cached_polyline_;      /*! If generated, stores polyline for later use */
-  mutable double cached_polyline_flatness_{0};                /*! Flatness of cached polyline */
+  mutable double cached_polyline_flatness_{};                 /*! Flatness of cached polyline */
   mutable std::unique_ptr<Eigen::VectorXd>
       cached_projection_polynomial_part_; /*! Constant part of point projection polynomial */
   mutable Eigen::MatrixXd
       cached_projection_polynomial_derivative_; /*! Polynomial representation of the curve derivative */
   mutable std::unique_ptr<Eigen::VectorXd> cached_chebyshev_coeffs_;
+  mutable double cached_chebyshev_epsilon{};
 
   // static caching
   static CoeffsMap bernstein_coeffs_;       /*! Map of Bernstein coefficients */
