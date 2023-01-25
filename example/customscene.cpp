@@ -23,9 +23,9 @@ void CustomScene::drawForeground(QPainter* painter, const QRectF& rect)
     {
       Bezier::BoundingBox bbox;
       if (is_curve)
-        bbox = c_curve->boundingBox(true);
+        bbox = c_curve->boundingBox();
       if (is_poly)
-        bbox = c_poly->boundingBox(true);
+        bbox = c_poly->boundingBox();
       painter->drawRect(bbox.min().x(), bbox.min().y(), bbox.max().x() - bbox.min().x(),
                         bbox.max().y() - bbox.min().y());
     }
@@ -40,16 +40,16 @@ void CustomScene::drawForeground(QPainter* painter, const QRectF& rect)
       {
         Bezier::PointVector inter;
         if (items()[k]->type() == QGraphicsItem::UserType + 1 && items()[i]->type() == QGraphicsItem::UserType + 1)
-          inter = static_cast<qCurve*>(items()[i])->pointsOfIntersection(*static_cast<qCurve*>(items()[k]));
+          inter = static_cast<qCurve*>(items()[i])->intersections(*static_cast<qCurve*>(items()[k]));
         if (items()[k]->type() == QGraphicsItem::UserType + 1 && items()[i]->type() == QGraphicsItem::UserType + 2)
           inter = static_cast<qPolyCurve*>(items()[i])
-                      ->pointsOfIntersection(*static_cast<Bezier::Curve*>(static_cast<qCurve*>(items()[k])));
+                      ->intersections(*static_cast<Bezier::Curve*>(static_cast<qCurve*>(items()[k])));
         if (items()[k]->type() == QGraphicsItem::UserType + 2 && items()[i]->type() == QGraphicsItem::UserType + 1)
           inter = static_cast<qPolyCurve*>(items()[k])
-                      ->pointsOfIntersection(*static_cast<Bezier::Curve*>(static_cast<qCurve*>(items()[i])));
+                      ->intersections(*static_cast<Bezier::Curve*>(static_cast<qCurve*>(items()[i])));
         if (items()[k]->type() == QGraphicsItem::UserType + 2 && items()[i]->type() == QGraphicsItem::UserType + 2)
           inter = static_cast<qPolyCurve*>(items()[i])
-                      ->pointsOfIntersection(*static_cast<Bezier::PolyCurve*>(static_cast<qPolyCurve*>(items()[k])));
+                      ->intersections(*static_cast<Bezier::PolyCurve*>(static_cast<qPolyCurve*>(items()[k])));
 
         for (auto& dot : inter)
           painter->drawEllipse(QPointF(dot.x(), dot.y()), 3, 3);
@@ -226,12 +226,12 @@ void CustomScene::mouseMoveEvent(QGraphicsSceneMouseEvent* mouseEvent)
     if (is_curve)
     {
       c_curve->prepareGeometryChange();
-      c_curve->manipulateControlPoint(cp_to_update.second, p);
+      c_curve->setControlPoint(cp_to_update.second, p);
     }
     if (is_poly)
     {
       c_poly->prepareGeometryChange();
-      c_poly->manipulateControlPoint(cp_to_update.second, p);
+      c_poly->setControlPoint(cp_to_update.second, p);
     }
     update();
   }
@@ -359,11 +359,10 @@ Delete - delete curve/polycurve");
     for (auto&& curve : selectedItems())
       if (is_curve)
       {
-        std::shared_ptr<Bezier::Curve> ptr(c_curve);
         if (new_poly)
-          new_poly->insertBack(ptr);
+          new_poly->insertBack(*c_curve);
         else
-          new_poly = new qPolyCurve(ptr);
+          new_poly = new qPolyCurve(*c_curve);
         removeItem(curve);
       }
     if (new_poly)

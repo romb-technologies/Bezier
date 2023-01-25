@@ -77,6 +77,6 @@ void qCurve::paint(QPainter* painter, const QStyleOptionGraphicsItem* option, QW
 
 QRectF qCurve::boundingRect() const
 {
-  auto bbox = boundingBox(false);
+  auto bbox = boundingBox();
   return QRectF(QPointF(bbox.min().x(), bbox.min().y()), QPointF(bbox.max().x(), bbox.max().y()));
 }

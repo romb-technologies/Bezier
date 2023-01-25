@@ -1,37 +1,31 @@
-cmake_minimum_required(VERSION 3.1)
-project(Bezier
+cmake_minimum_required(VERSION 3.13.0)
+project(bezier
   LANGUAGES CXX
   VERSION 0.2.0)
 
-set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-add_compile_options(-fPIC)
+add_compile_options(-fPIC -O2)
 
 find_package(Eigen3 REQUIRED)
-include_directories(SYSTEM ${EIGEN3_INCLUDE_DIR})
+include_directories(SYSTEM ${EIGEN3_INCLUDE_DIR} include)
 
 set(Bezier_SRC
-  src/bezier.cpp
-  src/polycurve.cpp
+  ${PROJECT_SOURCE_DIR}/src/bezier.cpp
+  ${PROJECT_SOURCE_DIR}/src/polycurve.cpp
   )
 
 set(Bezier_INC
-  include/Bezier/declarations.h
-  include/Bezier/legendre_gauss.h
-  include/Bezier/bezier.h
-  include/Bezier/polycurve.h
+  ${PROJECT_SOURCE_DIR}/include/Bezier/declarations.h
+  ${PROJECT_SOURCE_DIR}/include/Bezier/legendre_gauss.h
+  ${PROJECT_SOURCE_DIR}/include/Bezier/bezier.h
+  ${PROJECT_SOURCE_DIR}/include/Bezier/polycurve.h
   )
 
 # Options
-
-if(NOT LEGENDRE_GAUSS_PRECISION)
-  message(STATUS "Setting Legendre Gauss precision to default value (10).")
-  set(LEGENDRE_GAUSS_PRECISION  10)
-endif()
-
-option(BUILD_SHARED_LIBS "Build shared library (.so) instead of static one (/.a)" OFF)
+option(BUILD_SHARED_LIBS "Build shared library (.so) instead of static one (.a)" OFF)
 
 # build rules
 

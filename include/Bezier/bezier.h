@@ -18,6 +18,7 @@
 #define BEZIER_H
 
 #include <map>
+#include <memory>
 
 #include "declarations.h"
 
@@ -34,11 +35,13 @@ namespace Bezier
 class Curve
 {
 public:
+  ~Curve() = default;
+
   /*!
    * \brief Create the Bezier curve
    * \param points Nx2 matrix where each row is one of N control points that define the curve
    */
-  Curve(const Eigen::MatrixX2d& points);
+  Curve(Eigen::MatrixX2d points);
 
   /*!
    * \brief Create the Bezier curve
@@ -46,23 +49,29 @@ public:
    */
   Curve(const PointVector& points);
 
-  /*!
-   * \brief Create the Bezier curve copy
-   * \param curve A Bezier curve to copy
-   */
   Curve(const Curve& curve);
+  Curve(Curve&&) = default;
+  Curve& operator=(const Curve&);
+  Curve& operator=(Curve&&) = default;
 
   /*!
-   * \brief Get order of curve (Nth order curve is described with N+1 points);
+   * \brief Get order of the curve (Nth order curve is described with N+1 points);
    * \return Order of curve
    */
-  uint order();
+  unsigned order() const;
 
   /*!
-   * \brief Get the control points
+   * \brief Get a vector of control points
    * \return A vector of control points
    */
   PointVector controlPoints() const;
+
+  /*!
+   * \brief Get the control point at index idx
+   * \param idx Index of chosen control point
+   * \return A vector of control points
+   */
+  Point controlPoint(unsigned idx) const;
 
   /*!
    * \brief Get first and last control points
@@ -71,12 +80,11 @@ public:
   std::pair<Point, Point> endPoints() const;
 
   /*!
-   * \brief Get a polyline representation of curve as a vector of points on curve
-   * \param smoothness Smoothness factor > 1 (more resulting points when closer to 1)
-   * \param precision Minimal distance between two subsequent points
+   * \brief Get a polyline representation of the curve as a vector of points on curve
+   * \param flatness Error tolerance of approximation
    * \return A vector of polyline vertices
    */
-  PointVector polyline(double smoothness = 1.0001, double precision = 1.0) const;
+  PointVector polyline(double flatness = 0.5) const;
 
   /*!
    * \brief Compute exaxt arc length with Legendre-Gauss quadrature
@@ -107,10 +115,9 @@ public:
    * \param t Curve parameter
    * \param s Distance to iterate
    * \param epsilon Precision of resulting t
-   * \param max_iter Maximum number of iterations for Newton-Rhapson
    * \return New parameter t
    */
-  double iterateByLength(double t, double s, double epsilon = 0.001, std::size_t max_iter = 15) const;
+  double iterateByLength(double t, double s, double epsilon = 0.001) const;
 
   /*!
    * \brief Reverse order of control points
@@ -119,17 +126,17 @@ public:
 
   /*!
    * \brief Set the new coordinates to a control point
-   * \param index Index of chosen control point
+   * \param idx Index of chosen control point
    * \param point New control point
    */
-  void manipulateControlPoint(uint idx, const Point& point);
+  void setControlPoint(unsigned idx, const Point& point);
 
   /*!
    * \brief Manipulate the curve so that it passes through wanted point for given 't'
    * \param t Curve parameter
    * \param point Point where curve should pass for a given t
    *
-   * \warning Only works for quadratic and cubic curves
+   * \warning CAN THROW: Only works for quadratic and cubic curves
    * \warning Resets cached data
    */
   void manipulateCurvature(double t, const Point& point);
@@ -146,6 +153,7 @@ public:
    * \brief Lower the curve order by 1
    *
    * If current shape cannot be described by lower order, it will be best aproximation
+   * \warning CAN THROW: Cannot be called for curves of 1st order
    * \warning Resets cached data
    */
   void lowerOrder();
@@ -158,21 +166,28 @@ public:
   Point valueAt(double t) const;
 
   /*!
-   * \brief Get curvature of curve for a given t
+   * \brief Get the point vector on curve for given parameters
+   * \param t_vector Curve parameters
+   * \return Matrix of points on a curve for given parameters
+   */
+  Eigen::MatrixX2d valueAt(const std::vector<double>& t_vector) const;
+
+  /*!
+   * \brief Get curvature of the curve for a given t
    * \param t Curve parameter
    * \return Curvature of a curve for a given t
    */
   double curvatureAt(double t) const;
 
   /*!
-   * \brief Get curvature derivative of curve for a given t
+   * \brief Get curvature derivative of the curve for a given t
    * \param t Curve parameter
    * \return Curvature derivative of a curve for a given t
    */
   double curvatureDerivativeAt(double t) const;
 
   /*!
-   * \brief Get the tangent of curve for a given t
+   * \brief Get the tangent of the curve for a given t
    * \param t Curve parameter
    * \param normalize If the resulting tangent should be normalized
    * \return Tangent of a curve for a given t
@@ -180,7 +195,7 @@ public:
   Vector tangentAt(double t, bool normalize = true) const;
 
   /*!
-   * \brief Get the normal of curve for a given t
+   * \brief Get the normal of the curve for a given t
    * \param t Curve parameter
    * \param normalize If the resulting normal should be normalized
    * \return Normal of a curve for given t
@@ -191,50 +206,52 @@ public:
    * \brief Get the derivative of a curve
    * \return Derivative curve
    */
-  std::shared_ptr<const Curve> derivative() const;
+  const Curve& derivative() const;
 
   /*!
    * \brief Get the nth derivative of a curve
    * \param n Desired number of derivative
    * \return Derivative curve
-   * \warning Parameter n cannot be zero
+   * \warning double n cannot be zero
    */
-  std::shared_ptr<const Curve> derivative(uint n) const;
+  const Curve& derivative(unsigned n) const;
 
   /*!
    * \brief Get value of a derivative for a given t
    * \param t Curve parameter
-   * \return Derivative curve
+   * \return Curve derivative at t
    */
-  Point derivativeAt(double t) const;
+  Vector derivativeAt(double t) const;
 
   /*!
    * \brief Get value of an nth derivative for a given t
    * \param n Desired number of derivative
    * \param t Curve parameter
-   * \return Derivative curve
+   * \return nth curve derivative at t
    */
-  Point derivativeAt(uint n, double t) const;
+  Vector derivativeAt(unsigned n, double t) const;
 
   /*!
-   * \brief Get the roots of curve on both axis
-   * \param step Size of step in coarse search
-   * \param epsilon Precision of resulting t
-   * \param max_iter Maximum number of iterations for Newton-Rhapson
-   * \return A vector of extreme points
+   * \brief Get roots of the curve on both axes
+   * \return A vector of parameters where curve passes through axes
    */
-  PointVector roots(double step = 0.1, double epsilon = 0.001, std::size_t max_iter = 15) const;
+  std::vector<double> roots() const;
+
+  /*!
+   * \brief Get all extrema of the curve
+   * \return A vector of parameters where extrema are
+   */
+  std::vector<double> extrema() const;
 
   /*!
    * \brief Get the bounding box of curve
-   * \param use_roots If algorithm should use roots
    * \return Bounding box (if use_roots is false, returns the bounding box of control points)
    */
-  BoundingBox boundingBox(bool use_roots = true) const;
+  BoundingBox boundingBox() const;
 
   /*!
    * \brief Split the curve into two subcurves
-   * \param z Parameter t at which to split the curve
+   * \param z double t at which to split the curve
    * \return Pair of two subcurves
    */
   std::pair<Curve, Curve> splitCurve(double z = 0.5) const;
@@ -242,29 +259,46 @@ public:
   /*!
    * \brief Get the points of intersection with another curve
    * \param curve Curve to intersect with
-   * \param stop_at_first If first point of intersection is enough
    * \param epsilon Precision of resulting intersection
    * \return A vector af points of intersection between curves
    */
-  PointVector pointsOfIntersection(const Curve& curve, bool stop_at_first = false, double epsilon = 0.001) const;
+  PointVector intersections(const Curve& curve, double epsilon = 0.001) const;
 
   /*!
    * \brief Get the parameter t where curve is closest to given point
    * \param point Point to project on curve
-   * \param step Size of step in coarse search
-   * \param epsilon Precision of resulting projection
-   * \return Parameter t
+   * \return double t
    */
-  double projectPoint(const Point& point, double step = 0.01, double epsilon = 0.001, std::size_t max_iter = 15) const;
+  double projectPoint(const Point& point) const;
+
+  /*!
+   * \brief Get distance of the point to the curve
+   * \param point Point to project on curve
+   * \return Distance to the curve
+   */
+  double distance(const Point& point) const;
 
   /*!
    * \brief applyContinuity Apply geometric continuity based on the another curve.
    * \param locked_curve Curve on which calculation are based.
    * \param beta_coeffs Beta-constraints used to calculate continuity. Size defines continuity order.
    */
-  void applyContinuity(const Curve& source_curve, std::vector<double>& beta_coeffs);
+  void applyContinuity(const Curve& source_curve, const std::vector<double>& beta_coeffs);
+
+protected:
+  /*!
+   * \brief N x 2 matrix where each row corresponds to control Point
+   * \warning Any changes made to control_points_ require a call to resetCache() funtion!
+   */
+  Eigen::MatrixX2d control_points_;
+
+  /// Reset all privately cached data
+  inline void resetCache();
 
 private:
+  /// Number of control points (order + 1)
+  unsigned N_{};
+
   /*!
    * \brief Coefficients for matrix operations
    */
@@ -272,44 +306,36 @@ private:
   /*!
    * \brief Map of different coefficient matrices, depending on the order of the curve
    */
-  using CoeffsMap = std::map<uint, Coeffs>;
-
-  /// Number of control points (order + 1)
-  uint N_;
-  /// N x 2 matrix where each row corresponds to control Point
-  Eigen::MatrixX2d control_points_;
+  using CoeffsMap = std::map<unsigned, Coeffs>;
 
   // private caching
-  std::shared_ptr<const Curve> cached_derivative_; /*! If generated, stores derivative for later use */
-  std::unique_ptr<PointVector> cached_roots_;      /*! If generated, stores roots for later use */
-  std::tuple<double, double, std::size_t> cached_roots_params_{0, 0, 0}; /*! epsilon and max_iter of cached roots */
-  std::unique_ptr<BoundingBox>
-      cached_bounding_box_tight_; /*! If generated, stores bounding box (use_roots = true) for later use */
-  std::unique_ptr<BoundingBox>
-      cached_bounding_box_relaxed_; /*! If generated, stores bounding box (use_roots = false) for later use */
-  std::unique_ptr<PointVector> cached_polyline_;            /*! If generated, stores polyline for later use */
-  std::tuple<double, double> cached_polyline_params_{0, 0}; /*! Smootheness and precision of cached polyline */
-
-  /// Reset all privately cached data
-  inline void resetCache();
+  mutable std::unique_ptr<const Curve> cached_derivative_;    /*! If generated, stores derivative for later use */
+  mutable std::unique_ptr<std::vector<double>> cached_roots_; /*! If generated, stores roots for later use */
+  mutable std::unique_ptr<BoundingBox> cached_bounding_box_;  /*! If generated, stores bounding box for later use */
+  mutable std::unique_ptr<PointVector> cached_polyline_;      /*! If generated, stores polyline for later use */
+  mutable double cached_polyline_flatness_{0};                /*! Flatness of cached polyline */
+  mutable std::unique_ptr<Eigen::VectorXd>
+      cached_projection_polynomial_part_; /*! Constant part of point projection polynomial */
+  mutable Eigen::MatrixXd
+      cached_projection_polynomial_derivative_; /*! Polynomial representation of the curve derivative */
 
   // static caching
   static CoeffsMap bernstein_coeffs_;       /*! Map of Bernstein coefficients */
   static CoeffsMap splitting_coeffs_left_;  /*! Map of coefficients to get subcurve for t = [0, 0.5] */
   static CoeffsMap splitting_coeffs_right_; /*! Map of coefficients to get subcurve for t = [0.5, 1] */
-  static CoeffsMap elevate_order_coeffs_;   /*! Map of coefficients for elevating the order of curve */
-  static CoeffsMap lower_order_coeffs_;     /*! Map of coefficients for lowering the order of curve */
+  static CoeffsMap elevate_order_coeffs_;   /*! Map of coefficients for elevating the order of the curve */
+  static CoeffsMap lower_order_coeffs_;     /*! Map of coefficients for lowering the order of the curve */
 
-  /// Private getter function for Bernstein coefficients
-  Coeffs bernsteinCoeffs() const;
-  /// Private getter function for coefficients to get a subcurve t = [0, z];
-  Coeffs splittingCoeffsLeft(double z = 0.5) const;
-  /// Private getter function for coefficients to get a subcurve t = [z, 1];
-  Coeffs splittingCoeffsRight(double z = 0.5) const;
-  /// Private getter function for coefficients to elevate order of curve
-  Coeffs elevateOrderCoeffs(uint n) const;
-  /// Private getter function for coefficients to lower order of curve
-  Coeffs lowerOrderCoeffs(uint n) const;
+  /// Static getter function for Bernstein coefficients
+  static Coeffs bernsteinCoeffs(unsigned n);
+  /// Static getter function for coefficients to get a subcurve t = [0, z];
+  static Coeffs splittingCoeffsLeft(unsigned n, double z = 0.5);
+  /// Static getter function for coefficients to get a subcurve t = [z, 1];
+  static Coeffs splittingCoeffsRight(unsigned n, double z = 0.5);
+  /// Static getter function for coefficients to elevate order of curve
+  static Coeffs elevateOrderCoeffs(unsigned n);
+  /// Static getter function for coefficients to lower order of curve
+  static Coeffs lowerOrderCoeffs(unsigned n);
 };
 
 } // namespace Bezier

@@ -19,7 +19,6 @@
 
 #include <Eigen/Dense>
 #include <vector>
-#include <memory>
 
 /*!
  * Nominal namespace containing class pre-definitions and typedefs
@@ -58,17 +57,20 @@ class PolyCurve;
  * \brief Point in xy plane
  */
 using Point = Eigen::Vector2d;
-/*!
- * \brief A Vector in xy plane
- */
-using Vector = Eigen::Vector2d;
+
 /*!
  * \brief A vector of Points
  */
 using PointVector = std::vector<Point>;
+
+/*!
+ * \brief A Vector in xy plane
+ */
+using Vector = Eigen::Vector2d;
+
 /*!
  * \brief Bounding box class
  */
 using BoundingBox = Eigen::AlignedBox2d;
-}
+} // namespace Bezier
 #endif // DECLARATIONS_H
