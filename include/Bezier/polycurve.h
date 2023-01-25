@@ -56,7 +56,7 @@ public:
    * \param idx Index where to insert new curve
    * \param curve A curve to insert
    */
-  void insertAt(unsigned int idx, Curve curve);
+  void insertAt(unsigned idx, Curve curve);
 
   /*!
    * \brief Insert new curve at the beginning of the polycurve
@@ -74,7 +74,7 @@ public:
    * \brief Remove a subcurve from the polycurve
    * \param idx Index of subcurve to remove
    */
-  void removeAt(unsigned int idx);
+  void removeAt(unsigned idx);
 
   /*!
    * \brief Remove a subcurve from the beginning of the polycurve
@@ -90,14 +90,14 @@ public:
    * \brief Get number of subcurves
    * \return Number of subcurves
    */
-  unsigned int size() const;
+  unsigned size() const;
 
   /*!
    * \brief Resolve polycurve parameter to subcurve index
    * \param t A polycurve parameter
    * \return An index of of subcurve where parameter t is
    */
-  unsigned int curveIdx(double t) const;
+  unsigned curveIdx(double t) const;
 
   ///@{
   /*!
@@ -105,8 +105,8 @@ public:
    * \param idx Subcurve index
    * \return A reference to curve
    */
-  Curve& curve(unsigned int idx);
-  const Curve& curve(unsigned int idx) const;
+  Curve& curve(unsigned idx);
+  const Curve& curve(unsigned idx) const;
   ///@}
 
   ///@{
@@ -175,7 +175,7 @@ public:
    * \param index Index of chosen control point
    * \param point New control point
    */
-  void setControlPoint(unsigned int idx, const Point& point);
+  void setControlPoint(unsigned idx, const Point& point);
 
   /*!
    * \brief Get the point on polycurve for a given t
@@ -234,7 +234,7 @@ public:
    * \param t Curve parameter
    * \return nth curve derivative at t
    */
-  Vector derivativeAt(unsigned int n, double t) const;
+  Vector derivativeAt(unsigned n, double t) const;
 
   /*!
    * \brief Get the bounding box of the polycurve

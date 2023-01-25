@@ -6,29 +6,29 @@ using namespace Bezier;
 
 PolyCurve::PolyCurve(std::deque<Curve> curves) : curves_(std::move(curves)) {}
 
-void PolyCurve::insertAt(unsigned int idx, Curve curve) { curves_.emplace(curves_.begin() + idx, curve); }
+void PolyCurve::insertAt(unsigned idx, Curve curve) { curves_.emplace(curves_.begin() + idx, curve); }
 
 void PolyCurve::insertFront(Curve curve) { curves_.emplace_front(curve); }
 
 void PolyCurve::insertBack(Curve curve) { curves_.emplace_back(curve); }
 
-void PolyCurve::removeAt(unsigned int idx) { curves_.erase(curves_.begin() + idx); }
+void PolyCurve::removeAt(unsigned idx) { curves_.erase(curves_.begin() + idx); }
 
 void PolyCurve::removeFirst() { curves_.pop_front(); }
 
 void PolyCurve::removeBack() { curves_.pop_back(); }
 
-unsigned int PolyCurve::size() const { return curves_.size(); }
+unsigned PolyCurve::size() const { return curves_.size(); }
 
-unsigned int PolyCurve::curveIdx(double t) const
+unsigned PolyCurve::curveIdx(double t) const
 {
-  unsigned int idx = t;
+  unsigned idx = t;
   return idx - (idx == size());
 }
 
-Curve& PolyCurve::curve(unsigned int idx) { return curves_[idx]; }
+Curve& PolyCurve::curve(unsigned idx) { return curves_[idx]; }
 
-const Curve& PolyCurve::curve(unsigned int idx) const { return curves_[idx]; }
+const Curve& PolyCurve::curve(unsigned idx) const { return curves_[idx]; }
 
 std::deque<Curve>& PolyCurve::curves() { return curves_; }
 
@@ -37,7 +37,7 @@ const std::deque<Curve>& PolyCurve::curves() const { return curves_; }
 PointVector PolyCurve::polyline(double flatness) const
 {
   PointVector polyline;
-  for (unsigned int idx = 0; idx < size(); idx++)
+  for (unsigned idx = 0; idx < size(); idx++)
   {
     auto new_poly = curves_[idx].polyline(flatness);
     polyline.reserve(polyline.size() + new_poly.size() - (idx ? 1 : 0));
@@ -53,8 +53,8 @@ double PolyCurve::length(double t) const { return length(0, t); }
 
 double PolyCurve::length(double t1, double t2) const
 {
-  unsigned int idx1 = curveIdx(t1);
-  unsigned int idx2 = curveIdx(t2);
+  unsigned idx1 = curveIdx(t1);
+  unsigned idx2 = curveIdx(t2);
 
   if (idx1 == idx2)
     return curves_[idx1].length(t1 - idx1, t2 - idx2);
@@ -75,7 +75,7 @@ double PolyCurve::iterateByLength(double t, double s, double epsilon) const
   if (s_t + s > length())
     return size();
 
-  unsigned int idx = curveIdx(t);
+  unsigned idx = curveIdx(t);
   t -= idx;
   s_t -= length(idx);
 
@@ -111,7 +111,7 @@ PointVector PolyCurve::controlPoints() const
   return cp;
 }
 
-void PolyCurve::setControlPoint(unsigned int idx, const Point& point)
+void PolyCurve::setControlPoint(unsigned idx, const Point& point)
 {
   for (auto& curve : curves_)
     if (idx <= curve.order())
@@ -125,7 +125,7 @@ void PolyCurve::setControlPoint(unsigned int idx, const Point& point)
 
 Point PolyCurve::valueAt(double t) const
 {
-  unsigned int idx = curveIdx(t);
+  unsigned idx = curveIdx(t);
   return curves_[idx].valueAt(t - idx);
 }
 
@@ -138,37 +138,37 @@ PointVector PolyCurve::valueAt(const std::vector<double>& t_vector) const
 
 double PolyCurve::curvatureAt(double t) const
 {
-  unsigned int idx = curveIdx(t);
+  unsigned idx = curveIdx(t);
   return curves_[idx].curvatureAt(t - idx);
 }
 
 double PolyCurve::curvatureDerivativeAt(double t) const
 {
-  unsigned int idx = curveIdx(t);
+  unsigned idx = curveIdx(t);
   return curves_[idx].curvatureDerivativeAt(t - idx);
 }
 
 Vector PolyCurve::tangentAt(double t, bool normalize) const
 {
-  unsigned int idx = curveIdx(t);
+  unsigned idx = curveIdx(t);
   return curves_[idx].tangentAt(t - idx, normalize);
 }
 
 Vector PolyCurve::normalAt(double t, bool normalize) const
 {
-  unsigned int idx = curveIdx(t);
+  unsigned idx = curveIdx(t);
   return curves_[idx].normalAt(t - idx, normalize);
 }
 
 Point PolyCurve::derivativeAt(double t) const
 {
-  unsigned int idx = curveIdx(t);
+  unsigned idx = curveIdx(t);
   return curves_[idx].derivativeAt(t - idx);
 }
 
-Point PolyCurve::derivativeAt(unsigned int n, double t) const
+Point PolyCurve::derivativeAt(unsigned n, double t) const
 {
-  unsigned int idx = curveIdx(t);
+  unsigned idx = curveIdx(t);
   return curves_[idx].derivativeAt(n, t - idx);
 }
 
@@ -207,7 +207,7 @@ template <> PointVector PolyCurve::intersections<PolyCurve>(const PolyCurve& pol
 double PolyCurve::projectPoint(const Point& point) const
 {
   double min_t{}, min_dist{std::numeric_limits<double>::infinity()};
-  for (unsigned int k = 0; k < curves_.size(); k++)
+  for (unsigned k = 0; k < curves_.size(); k++)
   {
     double t = curves_[k].projectPoint(point);
     double dist = (point - curves_[k].valueAt(t)).norm();
