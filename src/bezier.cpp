@@ -131,25 +131,40 @@ double Curve::length(double t1, double t2) const
 
 double Curve::iterateByLength(double t, double s, double epsilon) const
 {
-  double f{-s}, f_d{}, t_out{t};
+  if (std::fabs(s) < epsilon) // no-op
+    return t;
 
-  while (std::fabs(f) > epsilon)
+  std::pair<double, double> lbracket = {0.0, length(t, 0.0)};
+  if (s < 0.0 && s < lbracket.second + epsilon) // out-of-scope
+    return 0.0;
+
+  std::pair<double, double> rbracket = {1.0, length(t, 1.0)};
+  if (s > 0.0 && s > rbracket.second - epsilon) // out-of-scope
+    return 1.0;
+
+  std::pair<double, double> guess = {t, 0.0};
+
+  while (std::fabs(guess.second - s) > epsilon)
   {
-    // Halley
-    f_d = derivativeAt(t_out).norm();
-    t_out -= (2 * f * f_d) / (2 * f_d * f_d - f * derivativeAt(2, t_out).norm());
-    f = (length(t, t_out) - s);
+    // Halley's method
+    double f = guess.second - s;
+    double f_d = derivativeAt(guess.first).norm();
+    double f_d2 = derivativeAt(2, guess.first).norm();
+    guess.first -= (2 * f * f_d) / (2 * f_d * f_d - f * f_d2);
+
+    // root bracketing, if not in bounds, use bisection method
+    if (guess.first <= lbracket.first || guess.first >= rbracket.first)
+      guess.first = (lbracket.first + rbracket.first) / 2;
+
+    // check for when brackets approach numerical limits
+    if (guess.first <= lbracket.first || guess.first >= rbracket.first)
+      break;
+
+    guess.second = length(t, guess.first);
+    (guess.second < s ? lbracket : rbracket) = guess;
   }
 
-#if __cpp_lib_clamp
-  return std::clamp(t_out, 0., 1.);
-#else
-  if (t_out < 0)
-    return 0.;
-  if (t_out > 1.)
-    return 1.;
-  return t_out;
-#endif
+  return guess.first;
 }
 
 void Curve::reverse()
