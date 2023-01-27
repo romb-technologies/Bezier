@@ -1,0 +1,6 @@
+var searchData=
+[
+  ['derivative',['derivative',['../class_bezier_1_1_curve.html#a1d0478acbb4e935fb6c9face47e794a3',1,'Bezier::Curve::derivative() const'],['../class_bezier_1_1_curve.html#ac22e85864ce73e6a4f236c56e7cb56a3',1,'Bezier::Curve::derivative(unsigned n) const']]],
+  ['derivativeat',['derivativeAt',['../class_bezier_1_1_curve.html#a73ec2676d50977cdaa7f6c029f7b440b',1,'Bezier::Curve::derivativeAt(double t) const'],['../class_bezier_1_1_curve.html#aae241a4fb84c9bb3d6b4286210912597',1,'Bezier::Curve::derivativeAt(unsigned n, double t) const'],['../class_bezier_1_1_poly_curve.html#a73ec2676d50977cdaa7f6c029f7b440b',1,'Bezier::PolyCurve::derivativeAt(double t) const'],['../class_bezier_1_1_poly_curve.html#aae241a4fb84c9bb3d6b4286210912597',1,'Bezier::PolyCurve::derivativeAt(unsigned n, double t) const']]],
+  ['distance',['distance',['../class_bezier_1_1_curve.html#a24338fe79cd02f1049c3163159552555',1,'Bezier::Curve::distance()'],['../class_bezier_1_1_poly_curve.html#a24338fe79cd02f1049c3163159552555',1,'Bezier::PolyCurve::distance(const Point &amp;point) const'],['../class_bezier_1_1_poly_curve.html#a535b90670a04ffce784a53354d5d2ad4',1,'Bezier::PolyCurve::distance(const PointVector &amp;point_vector) const']]]
+];
