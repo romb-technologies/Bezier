@@ -150,10 +150,9 @@ public:
    * \brief Compute parameter t which is S distance from given t
    * \param t Curve parameter
    * \param s Distance to iterate
-   * \param epsilon Precision of resulting t
    * \return New parameter t
    */
-  double iterateByLength(double t, double s, double epsilon = 0.001) const;
+  double iterateByLength(double t, double s) const;
 
   /*!
    * \brief Get first and last control points

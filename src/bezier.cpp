@@ -188,22 +188,30 @@ double Curve::length(double t) const
 
 double Curve::length(double t1, double t2) const { return length(t2) - length(t1); }
 
-double Curve::iterateByLength(double t, double s, double epsilon) const
+double Curve::iterateByLength(double t, double s) const
 {
+  const double epsilon = std::sqrt(std::numeric_limits<double>::epsilon());
+
   if (std::fabs(s) < epsilon) // no-op
     return t;
 
   double s_t = length(t);
 
-  std::pair<double, double> lbracket = {0.0, -s_t};
-  if (s < lbracket.second + epsilon) // out-of-scope
-    return 0.0;
-
-  std::pair<double, double> rbracket = {1.0, length() - s_t};
-  if (s > rbracket.second - epsilon) // out-of-scope
-    return 1.0;
-
-  std::pair<double, double> guess = {t, 0.0};
+  std::pair<double, double> lbracket, rbracket, guess{t, 0.0};
+  if (s < 0)
+  {
+    lbracket = {0.0, -s_t};
+    if (s < lbracket.second + epsilon) // out-of-scope
+      return 0.0;
+    rbracket = guess;
+  }
+  else // s > 0
+  {
+    rbracket = {1.0, length() - s_t};
+    if (s > rbracket.second - epsilon) // out-of-scope
+      return 1.0;
+    lbracket = guess;
+  }
 
   while (std::fabs(guess.second - s) > epsilon)
   {
@@ -217,8 +225,7 @@ double Curve::iterateByLength(double t, double s, double epsilon) const
     if (guess.first <= lbracket.first || guess.first >= rbracket.first)
       guess.first = (lbracket.first + rbracket.first) / 2;
 
-    // check for when brackets approach numerical limits
-    if (guess.first <= lbracket.first || guess.first >= rbracket.first)
+    if (rbracket.first - lbracket.first < epsilon)
       break;
 
     guess.second = length(guess.first) - s_t;

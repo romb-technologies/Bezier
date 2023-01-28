@@ -73,8 +73,10 @@ double PolyCurve::length(double t1, double t2) const
                                 [](double sum, const Curve& curve) { return sum + curve.length(); });
 }
 
-double PolyCurve::iterateByLength(double t, double s, double epsilon) const
+double PolyCurve::iterateByLength(double t, double s) const
 {
+  const double epsilon = std::sqrt(std::numeric_limits<double>::epsilon());
+
   if (std::fabs(s) < epsilon) // no-op
     return t;
 
@@ -104,7 +106,7 @@ double PolyCurve::iterateByLength(double t, double s, double epsilon) const
     t = 0.0;
   }
 
-  return idx + curves_[idx].iterateByLength(t, s, epsilon);
+  return idx + curves_[idx].iterateByLength(t, s);
 }
 
 std::pair<Point, Point> PolyCurve::endPoints() const
