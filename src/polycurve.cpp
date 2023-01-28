@@ -66,7 +66,7 @@ double PolyCurve::length(double t1, double t2) const
                          [](double sum, const Curve& curve) { return sum + curve.length(); });
 }
 
-double PolyCurve::iterateByLength(double t, double s, double epsilon) const
+double PolyCurve::iterateByLength(double t, double s) const
 {
   double s_t = length(t);
 
@@ -91,7 +91,7 @@ double PolyCurve::iterateByLength(double t, double s, double epsilon) const
     }
   }
 
-  return idx + curves_[idx].iterateByLength(t, s, epsilon);
+  return idx + curves_[idx].iterateByLength(t, s);
 }
 
 std::pair<Point, Point> PolyCurve::endPoints() const

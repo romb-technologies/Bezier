@@ -4,6 +4,7 @@
 #include <numeric>
 
 #include <unsupported/Eigen/MatrixFunctions>
+#include <unsupported/Eigen/NonLinearOptimization>
 #include <unsupported/Eigen/Polynomials>
 
 using namespace Bezier;
@@ -129,42 +130,37 @@ double Curve::length(double t1, double t2) const
          (t2 - t1) / 2;
 }
 
-double Curve::iterateByLength(double t, double s, double epsilon) const
+double Curve::iterateByLength(double t, double s) const
 {
-  if (std::fabs(s) < epsilon) // no-op
-    return t;
-
-  std::pair<double, double> lbracket = {0.0, length(t, 0.0)};
-  if (s < 0.0 && s < lbracket.second + epsilon) // out-of-scope
-    return 0.0;
-
-  std::pair<double, double> rbracket = {1.0, length(t, 1.0)};
-  if (s > 0.0 && s > rbracket.second - epsilon) // out-of-scope
-    return 1.0;
-
-  std::pair<double, double> guess = {t, 0.0};
-
-  while (std::fabs(guess.second - s) > epsilon)
+  struct DistanceFunctor
   {
-    // Halley's method
-    double f = guess.second - s;
-    double f_d = derivativeAt(guess.first).norm();
-    double f_d2 = derivativeAt(2, guess.first).norm();
-    guess.first -= (2 * f * f_d) / (2 * f_d * f_d - f * f_d2);
+    const Curve* ptr_;
+    double t_, s_;
 
-    // root bracketing, if not in bounds, use bisection method
-    if (guess.first <= lbracket.first || guess.first >= rbracket.first)
-      guess.first = (lbracket.first + rbracket.first) / 2;
+    DistanceFunctor(const Curve* ptr, double t, double s) : ptr_(ptr), t_(t), s_(s) {}
+    int values() const { return 1; }
 
-    // check for when brackets approach numerical limits
-    if (guess.first <= lbracket.first || guess.first >= rbracket.first)
-      break;
+    int operator()(const Eigen::VectorXd& x, Eigen::VectorXd& fvec) const
+    {
+      fvec(0) = ptr_->length(t_, x(0)) - s_;
+      return 0;
+    }
 
-    guess.second = length(t, guess.first);
-    (guess.second < s ? lbracket : rbracket) = guess;
-  }
+    int df(const Eigen::VectorXd& x, Eigen::MatrixXd& fvec) const
+    {
+      fvec(0) = ptr_->derivativeAt(x(0)).norm();
+      return 0;
+    }
 
-  return guess.first;
+  } df(this, t, s);
+
+  // do not use "Eigen::HybridNonLinearSolver", because it gives wrong result near curve inflections
+  Eigen::LevenbergMarquardt<DistanceFunctor> lm(df);
+  Eigen::VectorXd x(1);
+  x << t;
+  lm.minimize(x);
+
+  return x(0);
 }
 
 void Curve::reverse()
