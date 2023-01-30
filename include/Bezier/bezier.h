@@ -255,10 +255,9 @@ public:
   /*!
    * \brief Get the points of intersection with another curve
    * \param curve Curve to intersect with
-   * \param epsilon Precision of resulting intersection
    * \return A vector af points of intersection between curves
    */
-  PointVector intersections(const Curve& curve, double epsilon = 0.001) const;
+  PointVector intersections(const Curve& curve) const;
 
   /*!
    * \brief Get the parameter t where curve is closest to given point

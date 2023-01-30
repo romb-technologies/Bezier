@@ -50,7 +50,7 @@ std::pair<Point, Point> Curve::endPoints() const { return {control_points_.row(0
 
 PointVector Curve::polyline(double flatness) const
 {
-  if (!cached_polyline_ || std::fabs(cached_polyline_flatness_ - flatness) >= 1.e-10)
+  if (!cached_polyline_ || cached_polyline_flatness_ != flatness)
   {
     cached_polyline_flatness_ = flatness;
     cached_polyline_ = std::make_unique<PointVector>();
@@ -422,8 +422,10 @@ std::pair<Curve, Curve> Curve::splitCurve(double z) const
   return {Curve(splittingCoeffsLeft(N_, z) * control_points_), Curve(splittingCoeffsRight(N_, z) * control_points_)};
 }
 
-PointVector Curve::intersections(const Curve& curve, double epsilon) const
+PointVector Curve::intersections(const Curve& curve) const
 {
+  const double epsilon = std::sqrt(std::numeric_limits<double>::epsilon());
+
   PointVector points_of_intersection;
   auto insertNewRoot = [&points_of_intersection, epsilon](Point new_point) {
     // check if not already found, and add new point
@@ -435,29 +437,20 @@ PointVector Curve::intersections(const Curve& curve, double epsilon) const
   std::vector<std::pair<Eigen::MatrixX2d, Eigen::MatrixX2d>> subcurve_pairs;
 
   if (this != &curve)
-  {
     subcurve_pairs.emplace_back(control_points_, curve.control_points_);
-  }
   else
   {
     // for self intersections divide curve into subcurves at extrema
     auto t = extrema();
     std::sort(t.begin(), t.end());
     std::vector<Eigen::MatrixX2d> subcurves;
+    subcurves.emplace_back(control_points_);
     for (unsigned k = 0; k < t.size(); k++)
     {
-      if (subcurves.empty())
-      {
-        subcurves.emplace_back(splittingCoeffsLeft(N_, t[k] - epsilon / 2) * control_points_);
-        subcurves.emplace_back(splittingCoeffsRight(N_, t[k] + epsilon / 2) * control_points_);
-      }
-      else
-      {
-        Eigen::MatrixX2d new_cp = std::move(subcurves.back());
-        subcurves.pop_back();
-        subcurves.emplace_back(splittingCoeffsLeft(N_, t[k] - epsilon / 2) * new_cp);
-        subcurves.emplace_back(splittingCoeffsRight(N_, t[k] + epsilon / 2) * new_cp);
-      }
+      Eigen::MatrixX2d new_cp = std::move(subcurves.back());
+      subcurves.pop_back();
+      subcurves.emplace_back(splittingCoeffsLeft(N_, t[k] - epsilon / 2) * new_cp);
+      subcurves.emplace_back(splittingCoeffsRight(N_, t[k] + epsilon / 2) * new_cp);
 
 #if __cpp_init_captures
       std::for_each(t.begin() + k + 1, t.end(), [t = t[k]](double& x) { x = (x - t) / (1 - t); });

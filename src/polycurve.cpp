@@ -200,24 +200,24 @@ BoundingBox PolyCurve::boundingBox() const
 namespace Bezier
 {
 
-template <> PointVector PolyCurve::intersections<Curve>(const Curve& curve, double epsilon) const
+template <> PointVector PolyCurve::intersections<Curve>(const Curve& curve) const
 {
   PointVector points;
   for (const auto& curve2 : curves_)
   {
-    auto new_points = curve2.intersections(curve, epsilon);
+    auto new_points = curve2.intersections(curve);
     points.reserve(points.size() + new_points.size());
     points.insert(points.end(), std::make_move_iterator(new_points.begin()), std::make_move_iterator(new_points.end()));
   }
   return points;
 }
 
-template <> PointVector PolyCurve::intersections<PolyCurve>(const PolyCurve& poly_curve, double epsilon) const
+template <> PointVector PolyCurve::intersections<PolyCurve>(const PolyCurve& poly_curve) const
 {
   PointVector points;
   for (const auto& curve : curves_)
   {
-    auto new_points = poly_curve.intersections(curve, epsilon);
+    auto new_points = poly_curve.intersections(curve);
     points.reserve(points.size() + new_points.size());
     points.insert(points.end(), std::make_move_iterator(new_points.begin()), std::make_move_iterator(new_points.end()));
   }
