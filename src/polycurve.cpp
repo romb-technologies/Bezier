@@ -61,7 +61,7 @@ double PolyCurve::length(double t1, double t2) const
   if (idx1 + 1 == idx2)
     return curves_[idx1].length(t1 - idx1, 1.0) + curves_[idx2].length(0.0, t2 - idx2);
 
-  return std::accumulate(begin(curves_) + idx1 + 1, begin(curves_) + idx2,
+  return std::accumulate(curves_.begin() + idx1 + 1, curves_.begin() + idx2,
                          curves_[idx1].length(t1 - idx1, 1.0) + curves_[idx2].length(0.0, t2 - idx2),
                          [](double sum, const Curve& curve) { return sum + curve.length(); });
 }
