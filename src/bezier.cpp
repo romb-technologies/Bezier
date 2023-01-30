@@ -55,55 +55,50 @@ PointVector Curve::polyline(double flatness) const
     cached_polyline_flatness_ = flatness;
     cached_polyline_ = std::make_unique<PointVector>();
     cached_polyline_->emplace_back(control_points_.row(0));
-    if (N_ == 2)
+
+    std::vector<Eigen::MatrixX2d> subcurves;
+    subcurves.emplace_back(control_points_);
+
+    // we calculate in squared distances
+    flatness *= flatness;
+
+    double coeff{1};
+    if (N_ < 10)
     {
-      cached_polyline_->emplace_back(control_points_.row(1));
+      // for N_ == 10, coeff is 0.9922, so we ignore it for higher orders
+      coeff -= std::exp2(2. - N_);
+      coeff *= coeff;
     }
-    else
+
+    while (!subcurves.empty())
     {
-      std::vector<Eigen::MatrixX2d> subcurves;
-      subcurves.emplace_back(control_points_);
+      Eigen::MatrixX2d cp(std::move(subcurves.back()));
+      subcurves.pop_back();
+      const Point& p1 = cp.row(0);
+      const Point& p2 = cp.row(N_ - 1);
+      Vector u = p2 - p1;
 
-      // we calculate in squared distances
-      flatness *= flatness;
+      auto deviation = [&p1, &p2, &u](double x, double y) {
+        Point q(x, y);
+        Vector v = q - p1;
+        double t = u.dot(v) / u.squaredNorm();
+        if (t < 0)
+          return v.squaredNorm();
+        if (t > 1)
+          return (q - p2).squaredNorm();
+        return (p1 + t * u - q).squaredNorm();
+      };
 
-      double coeff{1};
-      if (N_ < 10)
+      if (coeff * cp.rowwise().redux(deviation).maxCoeff() <= flatness)
+        cached_polyline_->emplace_back(cp.row(N_ - 1));
+      else
       {
-        // for N_ == 10, coeff is 0.9922, so we ignore it for higher orders
-        coeff -= std::exp2(2. - N_);
-        coeff *= coeff;
-      }
-
-      while (!subcurves.empty())
-      {
-        Eigen::MatrixX2d cp(std::move(subcurves.back()));
-        subcurves.pop_back();
-        const Point& p1 = cp.row(0);
-        const Point& p2 = cp.row(N_ - 1);
-        Vector u = p2 - p1;
-
-        auto deviation = [&p1, &p2, &u](double x, double y) {
-          Point q(x, y);
-          Vector v = q - p1;
-          double t = u.dot(v) / u.squaredNorm();
-          if (t < 0)
-            return v.squaredNorm();
-          if (t > 1)
-            return (q - p2).squaredNorm();
-          return (p1 + t * u - q).squaredNorm();
-        };
-
-        if (coeff * cp.rowwise().redux(deviation).maxCoeff() <= flatness)
-          cached_polyline_->emplace_back(cp.row(N_ - 1));
-        else
-        {
-          subcurves.emplace_back(splittingCoeffsRight(N_) * cp);
-          subcurves.emplace_back(splittingCoeffsLeft(N_) * cp);
-        }
+        subcurves.emplace_back(splittingCoeffsRight(N_) * cp);
+        subcurves.emplace_back(splittingCoeffsLeft(N_) * cp);
       }
     }
   }
+
   return *cached_polyline_;
 }
 
@@ -346,20 +341,17 @@ const Curve& Curve::derivative() const
 {
   if (!cached_derivative_)
   {
-    cached_derivative_ =
-        N_ == 1 ? std::make_unique<const Curve>(PointVector{Point(0, 0)})
-                : std::make_unique<const Curve>(
-                      ((N_ - 1) * (control_points_.bottomRows(N_ - 1) - control_points_.topRows(N_ - 1))).eval());
+    cached_derivative_ = N_ == 1 ? std::make_unique<const Curve>(PointVector{Point(0, 0)})
+                                 : std::make_unique<const Curve>((N_ - 1) * (control_points_.bottomRows(N_ - 1) -
+                                                                             control_points_.topRows(N_ - 1)));
   }
   return *cached_derivative_;
 }
 
 const Curve& Curve::derivative(unsigned n) const
 {
-  if (n == 0)
-    return *this;
-  auto nth_derivative = &derivative();
-  for (unsigned k = 1; k < n; k++)
+  auto nth_derivative = this;
+  for (unsigned k = 0; k < n; k++)
     nth_derivative = &nth_derivative->derivative();
   return *nth_derivative;
 }
@@ -426,12 +418,12 @@ PointVector Curve::intersections(const Curve& curve) const
 {
   const double epsilon = std::sqrt(std::numeric_limits<double>::epsilon());
 
-  PointVector points_of_intersection;
-  auto insertNewRoot = [&points_of_intersection, epsilon](Point new_point) {
+  PointVector intersections;
+  auto addIntersection = [&intersections, epsilon](Point new_point) {
     // check if not already found, and add new point
-    if (std::none_of(points_of_intersection.begin(), points_of_intersection.end(),
+    if (std::none_of(intersections.begin(), intersections.end(),
                      [&new_point, epsilon](const Point& point) { return (point - new_point).norm() < epsilon; }))
-      points_of_intersection.emplace_back(std::move(new_point));
+      intersections.emplace_back(std::move(new_point));
   };
 
   std::vector<std::pair<Eigen::MatrixX2d, Eigen::MatrixX2d>> subcurve_pairs;
@@ -483,9 +475,9 @@ PointVector Curve::intersections(const Curve& curve) const
     if (!bbox1.intersects(bbox2))
       ; // no intersection
     else if (bbox1.diagonal().norm() < epsilon)
-      insertNewRoot(bbox1.center());
+      addIntersection(bbox1.center());
     else if (bbox2.diagonal().norm() < epsilon)
-      insertNewRoot(bbox2.center());
+      addIntersection(bbox2.center());
     else
     {
       // intersection exists, but segments are still too large
@@ -503,7 +495,7 @@ PointVector Curve::intersections(const Curve& curve) const
     }
   }
 
-  return points_of_intersection;
+  return intersections;
 }
 
 double Curve::projectPoint(const Point& point) const
@@ -537,16 +529,14 @@ double Curve::projectPoint(const Point& point) const
   double min_t = (point - valueAt(0.0)).norm() < (point - valueAt(1.0)).norm() ? 0.0 : 1.0;
   double min_dist = (point - valueAt(min_t)).norm();
 
-  for (auto t : candidates)
-  {
-    if (t < 0 || t > 1)
-      continue;
-
-    double dist = (point - valueAt(t)).norm();
-    if (dist < min_dist)
-      std::tie(min_t, min_dist) = std::make_pair(t, dist);
-  }
-  return min_t;
+  return std::accumulate(candidates.begin(), candidates.end(), std::make_pair(min_t, min_dist),
+                         [&](std::pair<double, double> min, double t) {
+                           if (t < 0 || t > 1)
+                             return min;
+                           double dist = (point - valueAt(t)).norm();
+                           return dist < min.second ? std::make_pair(t, dist) : min;
+                         })
+      .first;
 }
 
 double Curve::distance(const Point& point) const { return (point - valueAt(projectPoint(point))).norm(); }
