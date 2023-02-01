@@ -69,18 +69,12 @@ double PolyCurve::length(double t1, double t2) const
 double PolyCurve::iterateByLength(double t, double s) const
 {
   double s_t = length(t);
-
-  if (s_t + s < 0)
-    return 0;
-  if (s_t + s > length())
-    return size();
-
   unsigned idx = curveIdx(t);
   t -= idx;
   s_t -= length(idx);
 
   bool first_iteration = true;
-  while (curves_[idx].length() - s_t < s)
+  while (idx < size() - 1 && curves_[idx].length() - s_t < s)
   {
     s -= curve(idx++).length() - s_t;
     if (first_iteration)
