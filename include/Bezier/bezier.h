@@ -87,15 +87,13 @@ public:
   PointVector polyline(double flatness = 0.5) const;
 
   /*!
-   * \brief Compute exact arc length using Chebyshev polynomials. Default epsilon is 0.001
-   * \details Uses default epsilon of 0.001 unless the cache is already calculated
+   * \brief Compute exact arc length using Chebyshev polynomials
    * \return Arc length
    */
   double length() const;
 
   /*!
-   * \brief Compute exact arc length using Chebyshev polynomials. Default epsilon is 0.001
-   * \details Uses default epsilon of 0.001 unless the cache is already calculated
+   * \brief Compute exact arc length using Chebyshev polynomials
    * \param t Curve parameter to which length is computed
    * \return Arc length from start to parameter t
    */
@@ -103,13 +101,11 @@ public:
 
   /*!
    * \brief Compute exact arc length using Chebyshev polynomials
-   * \details If lower order functions are called after, they will use epsilon chosen in this function. If epsilon is incresed the cache will be recalculated
    * \param t1 Curve parameter from which length is computed
    * \param t2 Curve parameter to which length is computed
-   * \param epsilon Precision of resulting t, default is 0.001
    * \return Arc length between paramaters t1 and t2
    */
-  double length(double t1, double t2, double epsilon = 0.001) const;
+  double length(double t1, double t2) const;
 
   /*!
    * \brief Compute parameter t which is S distance from given t
@@ -320,7 +316,6 @@ private:
   mutable Eigen::MatrixXd
       cached_projection_polynomial_derivative_; /*! Polynomial representation of the curve derivative */
   mutable std::unique_ptr<Eigen::VectorXd> cached_chebyshev_coeffs_;  /*!  If generated, stores chebyshev coefficients for calculating the length of the curve */
-  mutable double cached_chebyshev_epsilon{};  /*! Epsilon of cached chebyshev coefficients*/
 
   // static caching
   static CoeffsMap bernstein_coeffs_;       /*! Map of Bernstein coefficients */

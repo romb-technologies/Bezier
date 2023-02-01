@@ -51,19 +51,19 @@ double PolyCurve::length() const { return length(0.0, size()); }
 
 double PolyCurve::length(double t) const { return length(0.0, t); }
 
-double PolyCurve::length(double t1, double t2, double epsilon) const
+double PolyCurve::length(double t1, double t2) const
 {
   unsigned idx1 = curveIdx(t1);
   unsigned idx2 = curveIdx(t2);
 
   if (idx1 == idx2)
-    return curves_[idx1].length(t1 - idx1, t2 - idx2, epsilon);
+    return curves_[idx1].length(t1 - idx1, t2 - idx2);
   if (idx1 + 1 == idx2)
-    return curves_[idx1].length(t1 - idx1, 1.0, epsilon) + curves_[idx2].length(0.0, t2 - idx2, epsilon);
+    return curves_[idx1].length(t1 - idx1, 1.0) + curves_[idx2].length(t2 - idx2);
 
   return std::accumulate(begin(curves_) + idx1 + 1, begin(curves_) + idx2,
-                         curves_[idx1].length(t1 - idx1, 1.0, epsilon) + curves_[idx2].length(0.0, t2 - idx2, epsilon),
-                         [&epsilon](double sum, const Curve& curve) { return sum + curve.length(0.1, 1.0, epsilon); });
+                         curves_[idx1].length(t1 - idx1, 1.0) + curves_[idx2].length(t2 - idx2),
+                         [](double sum, const Curve& curve) { return sum + curve.length(); });
 }
 
 double PolyCurve::iterateByLength(double t, double s, double epsilon) const
