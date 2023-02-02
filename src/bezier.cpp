@@ -111,77 +111,74 @@ double Curve::length() const { return length(1.0); }
 
 double Curve::length(double t) const
 {
-  auto evaluate_chebyshev = [](double x, const Eigen::VectorXd& coeff) {
-    switch (coeff.size())
+  auto evaluate_chebyshev = [](double t, const Eigen::VectorXd& coeff) {
+    t = 2 * t - 1;
+    double tn{t}, tn_1{1}, res{coeff(0) + coeff(1) * t};
+    for (unsigned k = 2; k < coeff.size(); k++)
     {
-    case 0:
-      return 0.;
-    case 1:
-      return coeff(0);
-    default:
-      x = 2 * x - 1;
-      double tn{x}, tn_1{1}, res{coeff(0) + coeff(1) * x};
-      for (unsigned i = 2; i < coeff.size(); i++)
-      {
-        std::swap(tn_1, tn);
-        tn = 2 * x * tn_1 - tn;
-        res += coeff(i) * tn;
-      }
-      return res;
+      std::swap(tn_1, tn);
+      tn = 2 * t * tn_1 - tn;
+      res += coeff(k) * tn;
     }
+    return res;
   };
+
   if (!cached_chebyshev_coeffs_)
   {
-    const double epsilon = std::sqrt(std::numeric_limits<double>::epsilon());
-    const unsigned START_LOG_N = 6;
+    const double epsilon = std::sqrt(std::numeric_limits<double>::epsilon()) * 1e-2;
+    constexpr unsigned START_LOG_N = 10;
+    unsigned log_n = START_LOG_N - 1;
+    unsigned n = std::exp2(START_LOG_N - 1);
 
-    unsigned log_n = START_LOG_N;
-    unsigned n = std::exp2(START_LOG_N);
+    Eigen::VectorXd derivative_cache(2 * n + 1);
+    auto updateDerivativeCache = [&](double n) {
+      derivative_cache.conservativeResize(n + 1);
+      derivative_cache.tail(n / 2) =
+          ((1 + Eigen::cos(Eigen::ArrayXd::LinSpaced(n / 2, 1, n - 1) * M_PI / n)) / 2).unaryExpr([&](double t) {
+            return derivativeAt(t).norm();
+          });
+    };
+
+    derivative_cache.head(2) << derivativeAt(1.0).norm(), derivativeAt(0.0).norm();
+    for (unsigned k = 2; k <= n; k *= 2)
+      updateDerivativeCache(k);
+
     Eigen::VectorXd chebyshev;
-
-    std::vector<double> derivative_cache(2);
-    derivative_cache[0] = derivativeAt((1 + std::cos(0)) / 2).norm();
-    derivative_cache[1] = derivativeAt((1 + std::cos(M_PI)) / 2).norm();
-    derivative_cache.reserve(n + 1);
-    for (unsigned k = 2; k <= n / 2; k <<= 1)
-      for (unsigned i = 1; i < k; i += 2)
-        derivative_cache.emplace_back(derivativeAt((1 + std::cos(i * M_PI / k)) / 2).norm());
-
-    double val{}, last_val{-1.0};
-
-    while (abs(last_val - val) > epsilon)
+    Eigen::FFT<double> fft;
+    Eigen::VectorXcd fft_out;
+    do
     {
-      unsigned N = 2 * n;
-      Eigen::VectorXd coeff(N);
-      derivative_cache.reserve(n + 1);
-      for (unsigned k = 1; k < n; k += 2)
-        derivative_cache.emplace_back(derivativeAt((1 + std::cos(k * M_PI / n)) / 2).norm());
-
-      coeff(0) = derivative_cache[0];
-      coeff(n) = derivative_cache[1];
-
-      for (unsigned k = 1; k <= log_n; k++)
-        for (unsigned i = 0; i < std::exp2(k - 1); i++)
-        {
-          unsigned index = std::exp2(log_n + 1 - (k + 1)) + (i * std::exp2(log_n + 1 - k));
-          coeff(index) = coeff(N - index) = derivative_cache[std::exp2(k - 1) + 1 + i];
-        }
-
-      Eigen::FFT<double> fft;
-      Eigen::VectorXcd fft_out(N);
-      fft.fwd(fft_out, coeff /= n);
-      Eigen::VectorXd chebyshev_orig = fft_out.real().head(n + 1);
-      chebyshev = Eigen::VectorXd::Zero(n);
-      chebyshev.tail(n - 1) = (chebyshev_orig.head(n - 1) - chebyshev_orig.tail(n - 1)).array() /
-                              Eigen::ArrayXd::LinSpaced(n - 1, 4, 4 * (n - 1));
-
       n *= 2;
       log_n++;
-      last_val = val;
-      val = evaluate_chebyshev(1., chebyshev);
-    }
-    chebyshev(0) = -evaluate_chebyshev(0, chebyshev);
-    cached_chebyshev_coeffs_ = std::make_unique<Eigen::VectorXd>(std::move(chebyshev));
+      updateDerivativeCache(n);
+
+      unsigned N = 2 * n;
+      Eigen::VectorXd coeff(N);
+      coeff(0) = derivative_cache(0);
+      coeff(n) = derivative_cache(1);
+
+      for (unsigned k = 1; k <= log_n; k++)
+      {
+        auto lin_spaced = Eigen::ArrayXd::LinSpaced(std::exp2(k - 1), 0, std::exp2(k - 1) - 1);
+        auto index_c = std::exp2(log_n + 1 - (k + 1)) + lin_spaced * std::exp2(log_n + 1 - k);
+        auto index_dc = std::exp2(k - 1) + 1 + lin_spaced;
+        // TODO: make use of slicing & indexing in Eigen3.4
+        // coeff(index_c) = coeff(N - index_c) = derivative_cache(index_dc) / n;
+        for (unsigned i = 0; i < lin_spaced.size(); i++)
+          coeff(index_c(i)) = coeff(N - index_c(i)) = derivative_cache(index_dc(i)) / n;
+      }
+
+      fft.fwd(fft_out, coeff);
+      chebyshev = (fft_out.real().head(n - 1) - fft_out.real().segment(2, n - 1)).array() /
+                  Eigen::ArrayXd::LinSpaced(n - 1, 4, 4 * (n - 1));
+    } while (std::fabs(chebyshev.tail<1>()[0]) > epsilon);
+
+    unsigned cut = 0;
+    while (std::fabs(chebyshev(cut)) > epsilon)
+      cut++;
+    cached_chebyshev_coeffs_ = std::make_unique<Eigen::VectorXd>(cut + 1);
+    (*cached_chebyshev_coeffs_) << 0, chebyshev.head(cut);
+    (*cached_chebyshev_coeffs_)(0) = -evaluate_chebyshev(0, *cached_chebyshev_coeffs_);
   }
   return evaluate_chebyshev(t, *cached_chebyshev_coeffs_);
 }
