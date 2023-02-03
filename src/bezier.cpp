@@ -193,12 +193,14 @@ double Curve::iterateByLength(double t, double s, double epsilon) const
   if (std::fabs(s) < epsilon) // no-op
     return t;
 
-  std::pair<double, double> lbracket = {0.0, length(t, 0.0)};
-  if (s < 0.0 && s < lbracket.second + epsilon) // out-of-scope
+  double s_t = length(t);
+
+  std::pair<double, double> lbracket = {0.0, -s_t};
+  if (s < lbracket.second + epsilon) // out-of-scope
     return 0.0;
 
-  std::pair<double, double> rbracket = {1.0, length(t, 1.0)};
-  if (s > 0.0 && s > rbracket.second - epsilon) // out-of-scope
+  std::pair<double, double> rbracket = {1.0, length() - s_t};
+  if (s > rbracket.second - epsilon) // out-of-scope
     return 1.0;
 
   std::pair<double, double> guess = {t, 0.0};
@@ -219,7 +221,7 @@ double Curve::iterateByLength(double t, double s, double epsilon) const
     if (guess.first <= lbracket.first || guess.first >= rbracket.first)
       break;
 
-    guess.second = length(t, guess.first);
+    guess.second = length(guess.first) - s_t;
     (guess.second < s ? lbracket : rbracket) = guess;
   }
 
