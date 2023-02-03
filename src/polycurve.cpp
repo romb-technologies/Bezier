@@ -53,42 +53,55 @@ double PolyCurve::length(double t) const { return length(0.0, t); }
 
 double PolyCurve::length(double t1, double t2) const
 {
+  int sign{1};
+  if (t2 < t1)
+  {
+    sign = -1;
+    std::swap(t1, t2);
+  }
+
   unsigned idx1 = curveIdx(t1);
   unsigned idx2 = curveIdx(t2);
 
   if (idx1 == idx2)
-    return curves_[idx1].length(t1 - idx1, t2 - idx2);
+    return sign * curves_[idx1].length(t1 - idx1, t2 - idx2);
   if (idx1 + 1 == idx2)
-    return curves_[idx1].length(t1 - idx1, 1.0) + curves_[idx2].length(t2 - idx2);
+    return sign * curves_[idx1].length(t1 - idx1, 1.0) + curves_[idx2].length(t2 - idx2);
 
-  return std::accumulate(begin(curves_) + idx1 + 1, begin(curves_) + idx2,
-                         curves_[idx1].length(t1 - idx1, 1.0) + curves_[idx2].length(t2 - idx2),
-                         [](double sum, const Curve& curve) { return sum + curve.length(); });
+  return sign * std::accumulate(begin(curves_) + idx1 + 1, begin(curves_) + idx2,
+                                curves_[idx1].length(t1 - idx1, 1.0) + curves_[idx2].length(t2 - idx2),
+                                [](double sum, const Curve& curve) { return sum + curve.length(); });
 }
 
 double PolyCurve::iterateByLength(double t, double s, double epsilon) const
 {
+  if (std::fabs(s) < epsilon) // no-op
+    return t;
+
   double s_t = length(t);
 
-  if (s_t + s < 0)
-    return 0;
-  if (s_t + s > length())
+  if (s < -s_t + epsilon) // out-of-scope
+    return 0.0;
+
+  if (s > length() - s_t - epsilon) // out-of-scope
     return size();
 
   unsigned idx = curveIdx(t);
   t -= idx;
-  s_t -= length(idx);
 
-  bool first_iteration = true;
-  while (curves_[idx].length() - s_t < s)
+  s_t = s < 0 ? s_t - length(idx) : length(idx + 1) - s_t;
+
+  while (-s_t > s + epsilon)
   {
-    s -= curve(idx++).length() - s_t;
-    if (first_iteration)
-    {
-      first_iteration = false;
-      s_t = 0;
-      t = 0;
-    }
+    s += s_t;
+    s_t = curves_[--idx].length();
+    t = 1.0;
+  }
+  while (s_t < s - epsilon)
+  {
+    s -= s_t;
+    s_t = curves_[++idx].length();
+    t = 0.0;
   }
 
   return idx + curves_[idx].iterateByLength(t, s, epsilon);
