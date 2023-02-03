@@ -111,6 +111,9 @@ double Curve::length() const { return length(1.0); }
 
 double Curve::length(double t) const
 {
+  if (t < 0.0 || t > 1.0)
+    throw std::logic_error{"Length can only be calculated for t within [0.0, 1.0] range."};
+
   auto evaluate_chebyshev = [](double t, const Eigen::VectorXd& coeff) {
     t = 2 * t - 1;
     double tn{t}, tn_1{1}, res{coeff(0) + coeff(1) * t};
