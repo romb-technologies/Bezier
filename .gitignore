@@ -2,3 +2,5 @@ html/
 latex/
 build*/
 *.user
+cmake-build-*/
+.idea/
