@@ -13,6 +13,20 @@ static Eigen::MatrixX2d getCurvePointsAsEigenMatrix() {
   return curve_pts;
 }
 
+static Eigen::MatrixX2d getRootsCurvePointsAsEigenMatrix() {
+  Eigen::MatrixX2d curve_pts;
+  curve_pts.resize(4, 2);
+  curve_pts << -50, -50, 75, 48, 64, 65, 50, -50;
+  return curve_pts;
+}
+
+static Eigen::MatrixX2d getIntersectionCurvePointsAsEigenMatrix() {
+  Eigen::MatrixX2d curve_pts;
+  curve_pts.resize(5, 2);
+  curve_pts << 180, 110, 175, 160, 60, 48, 164, 165, 124, 134;
+  return curve_pts;
+}
+
 static PointVector getCurvePointsAsPointVector() {
   PointVector curve_pts{{84, 162}, {246, 30}, {48, 236}, {180, 110}};
   return curve_pts;
@@ -24,13 +38,7 @@ static PointVector getExpectedPolylinePoints() {
   // clang-format on
 }
 
-static PointVector getExpectedValueAtPoints() {
-  // clang-format off
-  return {{83.99999999999998579, 161.99999999999997158}, {148.78124999999994316, 115.90625000000000000}, {143.24999999999994316, 133.75000000000000000}, {132.09374999999991473, 152.71875000000000000}, {180.00000000000002842, 109.99999999999997158}};
-  // clang-format on
-}
-
-static Eigen::MatrixX2d getExpectedValueAtMatrix() {
+static Eigen::MatrixX2d getExpectedValueAt() {
   Eigen::MatrixX2d mat;
   mat.resize(5, 2);
   mat << 83.99999999999998579, 161.99999999999997158, 148.78124999999997158,
