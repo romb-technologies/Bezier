@@ -87,26 +87,23 @@ public:
   PointVector polyline(double flatness = 0.5) const;
 
   /*!
-   * \brief Compute exaxt arc length with Legendre-Gauss quadrature
+   * \brief Compute exact arc length using Chebyshev polynomials
    * \return Arc length
-   * \warning Precision depends on value of LEGENDRE_GAUSS_N at compile time
    */
   double length() const;
 
   /*!
-   * \brief Compute exact arc length with Legendre-Gauss quadrature
+   * \brief Compute exact arc length using Chebyshev polynomials
    * \param t Curve parameter to which length is computed
    * \return Arc length from start to parameter t
-   * \warning Precision depends on value of LEGENDRE_GAUSS_N at compile time
    */
   double length(double t) const;
 
   /*!
-   * \brief Compute exact arc length with Legendre-Gauss quadrature
+   * \brief Compute exact arc length using Chebyshev polynomials
    * \param t1 Curve parameter from which length is computed
    * \param t2 Curve parameter to which length is computed
    * \return Arc length between paramaters t1 and t2
-   * \warning Precision depends on value of LEGENDRE_GAUSS_N at compile time
    */
   double length(double t1, double t2) const;
 
@@ -313,11 +310,12 @@ private:
   mutable std::unique_ptr<std::vector<double>> cached_roots_; /*! If generated, stores roots for later use */
   mutable std::unique_ptr<BoundingBox> cached_bounding_box_;  /*! If generated, stores bounding box for later use */
   mutable std::unique_ptr<PointVector> cached_polyline_;      /*! If generated, stores polyline for later use */
-  mutable double cached_polyline_flatness_{0};                /*! Flatness of cached polyline */
+  mutable double cached_polyline_flatness_{};                 /*! Flatness of cached polyline */
   mutable std::unique_ptr<Eigen::VectorXd>
       cached_projection_polynomial_part_; /*! Constant part of point projection polynomial */
   mutable Eigen::MatrixXd
       cached_projection_polynomial_derivative_; /*! Polynomial representation of the curve derivative */
+  mutable std::unique_ptr<Eigen::VectorXd> cached_chebyshev_coeffs_;  /*!  If generated, stores chebyshev coefficients for calculating the length of the curve */
 
   // static caching
   static CoeffsMap bernstein_coeffs_;       /*! Map of Bernstein coefficients */

@@ -1,8 +1,8 @@
 #include "Bezier/bezier.h"
-#include "Bezier/legendre_gauss.h"
 
 #include <numeric>
 
+#include <unsupported/Eigen/FFT>
 #include <unsupported/Eigen/MatrixFunctions>
 #include <unsupported/Eigen/Polynomials>
 
@@ -107,39 +107,100 @@ PointVector Curve::polyline(double flatness) const
   return *cached_polyline_;
 }
 
-double Curve::length() const { return length(0.0, 1.0); }
+double Curve::length() const { return length(1.0); }
 
-double Curve::length(double t) const { return length(0.0, t); }
-
-double Curve::length(double t1, double t2) const
+double Curve::length(double t) const
 {
-#if __cpp_lib_clamp
-  auto N = std::clamp(N_ * static_cast<unsigned>(std::ceil(std::fabs(t2 - t1) / 0.2)), 0u, 63u);
-#else
-  auto N = N_ * static_cast<unsigned>(std::ceil(std::fabs(t2 - t1) / 0.2));
-  if (N > 63)
-    N = 63;
-#endif
+  if (t < 0.0 || t > 1.0)
+    throw std::logic_error{"Length can only be calculated for t within [0.0, 1.0] range."};
 
-  return std::accumulate(LegendreGauss::coefficients[N].begin(), LegendreGauss::coefficients[N].end(), 0.0,
-                         [&](double sum, const std::pair<double, double>& coeff) {
-                           return sum + std::get<1>(coeff) *
-                                            derivativeAt(std::get<0>(coeff) * (t2 - t1) / 2 + (t1 + t2) / 2).norm();
-                         }) *
-         (t2 - t1) / 2;
+  auto evaluate_chebyshev = [](double t, const Eigen::VectorXd& coeff) {
+    t = 2 * t - 1;
+    double tn{t}, tn_1{1}, res{coeff(0) + coeff(1) * t};
+    for (unsigned k = 2; k < coeff.size(); k++)
+    {
+      std::swap(tn_1, tn);
+      tn = 2 * t * tn_1 - tn;
+      res += coeff(k) * tn;
+    }
+    return res;
+  };
+
+  if (!cached_chebyshev_coeffs_)
+  {
+    const double epsilon = std::sqrt(std::numeric_limits<double>::epsilon()) * 1e-2;
+    constexpr unsigned START_LOG_N = 10;
+    unsigned log_n = START_LOG_N - 1;
+    unsigned n = std::exp2(START_LOG_N - 1);
+
+    Eigen::VectorXd derivative_cache(2 * n + 1);
+    auto updateDerivativeCache = [&](double n) {
+      derivative_cache.conservativeResize(n + 1);
+      derivative_cache.tail(n / 2) =
+          ((1 + Eigen::cos(Eigen::ArrayXd::LinSpaced(n / 2, 1, n - 1) * M_PI / n)) / 2).unaryExpr([&](double t) {
+            return derivativeAt(t).norm();
+          });
+    };
+
+    derivative_cache.head(2) << derivativeAt(1.0).norm(), derivativeAt(0.0).norm();
+    for (unsigned k = 2; k <= n; k *= 2)
+      updateDerivativeCache(k);
+
+    Eigen::VectorXd chebyshev;
+    Eigen::FFT<double> fft;
+    Eigen::VectorXcd fft_out;
+    do
+    {
+      n *= 2;
+      log_n++;
+      updateDerivativeCache(n);
+
+      unsigned N = 2 * n;
+      Eigen::VectorXd coeff(N);
+      coeff(0) = derivative_cache(0);
+      coeff(n) = derivative_cache(1);
+
+      for (unsigned k = 1; k <= log_n; k++)
+      {
+        auto lin_spaced = Eigen::ArrayXd::LinSpaced(std::exp2(k - 1), 0, std::exp2(k - 1) - 1);
+        auto index_c = std::exp2(log_n + 1 - (k + 1)) + lin_spaced * std::exp2(log_n + 1 - k);
+        auto index_dc = std::exp2(k - 1) + 1 + lin_spaced;
+        // TODO: make use of slicing & indexing in Eigen3.4
+        // coeff(index_c) = coeff(N - index_c) = derivative_cache(index_dc) / n;
+        for (unsigned i = 0; i < lin_spaced.size(); i++)
+          coeff(index_c(i)) = coeff(N - index_c(i)) = derivative_cache(index_dc(i)) / n;
+      }
+
+      fft.fwd(fft_out, coeff);
+      chebyshev = (fft_out.real().head(n - 1) - fft_out.real().segment(2, n - 1)).array() /
+                  Eigen::ArrayXd::LinSpaced(n - 1, 4, 4 * (n - 1));
+    } while (std::fabs(chebyshev.tail<1>()[0]) > epsilon);
+
+    unsigned cut = 0;
+    while (std::fabs(chebyshev(cut)) > epsilon)
+      cut++;
+    cached_chebyshev_coeffs_ = std::make_unique<Eigen::VectorXd>(cut + 1);
+    (*cached_chebyshev_coeffs_) << 0, chebyshev.head(cut);
+    (*cached_chebyshev_coeffs_)(0) = -evaluate_chebyshev(0, *cached_chebyshev_coeffs_);
+  }
+  return evaluate_chebyshev(t, *cached_chebyshev_coeffs_);
 }
+
+double Curve::length(double t1, double t2) const { return length(t2) - length(t1); }
 
 double Curve::iterateByLength(double t, double s, double epsilon) const
 {
   if (std::fabs(s) < epsilon) // no-op
     return t;
 
-  std::pair<double, double> lbracket = {0.0, length(t, 0.0)};
-  if (s < 0.0 && s < lbracket.second + epsilon) // out-of-scope
+  double s_t = length(t);
+
+  std::pair<double, double> lbracket = {0.0, -s_t};
+  if (s < lbracket.second + epsilon) // out-of-scope
     return 0.0;
 
-  std::pair<double, double> rbracket = {1.0, length(t, 1.0)};
-  if (s > 0.0 && s > rbracket.second - epsilon) // out-of-scope
+  std::pair<double, double> rbracket = {1.0, length() - s_t};
+  if (s > rbracket.second - epsilon) // out-of-scope
     return 1.0;
 
   std::pair<double, double> guess = {t, 0.0};
@@ -160,7 +221,7 @@ double Curve::iterateByLength(double t, double s, double epsilon) const
     if (guess.first <= lbracket.first || guess.first >= rbracket.first)
       break;
 
-    guess.second = length(t, guess.first);
+    guess.second = length(guess.first) - s_t;
     (guess.second < s ? lbracket : rbracket) = guess;
   }
 
@@ -534,6 +595,7 @@ void Curve::resetCache()
   cached_bounding_box_.reset();
   cached_polyline_.reset();
   cached_projection_polynomial_part_.reset();
+  cached_chebyshev_coeffs_.reset();
 }
 
 Curve::CoeffsMap Curve::bernstein_coeffs_ = CoeffsMap();
