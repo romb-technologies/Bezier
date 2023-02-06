@@ -123,16 +123,15 @@ double Curve::length(double t) const
 
   if (!cached_chebyshev_coeffs_)
   {
-    const double epsilon = std::sqrt(std::numeric_limits<double>::epsilon()) * 1e-2;
     constexpr unsigned START_LOG_N = 10;
     unsigned log_n = START_LOG_N - 1;
     unsigned n = std::exp2(START_LOG_N - 1);
 
     Eigen::VectorXd derivative_cache(2 * n + 1);
-    auto updateDerivativeCache = [&](double n) {
+    auto updateDerivativeCache = [this, &derivative_cache](double n) {
       derivative_cache.conservativeResize(n + 1);
       derivative_cache.tail(n / 2) =
-          ((1 + Eigen::cos(Eigen::ArrayXd::LinSpaced(n / 2, 1, n - 1) * M_PI / n)) / 2).unaryExpr([&](double t) {
+          ((1 + Eigen::cos(Eigen::ArrayXd::LinSpaced(n / 2, 1, n - 1) * M_PI / n)) / 2).unaryExpr([this](double t) {
             return derivativeAt(t).norm();
           });
     };
@@ -169,10 +168,10 @@ double Curve::length(double t) const
       fft.fwd(fft_out, coeff);
       chebyshev = (fft_out.real().head(n - 1) - fft_out.real().segment(2, n - 1)).array() /
                   Eigen::ArrayXd::LinSpaced(n - 1, 4, 4 * (n - 1));
-    } while (std::fabs(chebyshev.tail<1>()[0]) > epsilon);
+    } while (std::fabs(chebyshev.tail<1>()[0]) > _epsilon * 1e-2);
 
     unsigned cut = 0;
-    while (std::fabs(chebyshev(cut)) > epsilon)
+    while (std::fabs(chebyshev(cut)) > _epsilon * 1e-2)
       cut++;
     cached_chebyshev_coeffs_ = std::make_unique<Eigen::VectorXd>(cut + 1);
     (*cached_chebyshev_coeffs_) << 0, chebyshev.head(cut);
@@ -185,9 +184,7 @@ double Curve::length(double t1, double t2) const { return length(t2) - length(t1
 
 double Curve::iterateByLength(double t, double s) const
 {
-  const double epsilon = std::sqrt(std::numeric_limits<double>::epsilon());
-
-  if (std::fabs(s) < epsilon) // no-op
+  if (std::fabs(s) < _epsilon) // no-op
     return t;
 
   double s_t = length(t);
@@ -196,19 +193,19 @@ double Curve::iterateByLength(double t, double s) const
   if (s < 0)
   {
     lbracket = {0.0, -s_t};
-    if (s < lbracket.second + epsilon) // out-of-scope
+    if (s < lbracket.second + _epsilon) // out-of-scope
       return 0.0;
     rbracket = guess;
   }
   else // s > 0
   {
     rbracket = {1.0, length() - s_t};
-    if (s > rbracket.second - epsilon) // out-of-scope
+    if (s > rbracket.second - _epsilon) // out-of-scope
       return 1.0;
     lbracket = guess;
   }
 
-  while (std::fabs(guess.second - s) > epsilon)
+  while (std::fabs(guess.second - s) > _epsilon)
   {
     // Halley's method
     double f = guess.second - s;
@@ -220,7 +217,7 @@ double Curve::iterateByLength(double t, double s) const
     if (guess.first <= lbracket.first || guess.first >= rbracket.first)
       guess.first = (lbracket.first + rbracket.first) / 2;
 
-    if (rbracket.first - lbracket.first < epsilon)
+    if (rbracket.first - lbracket.first < _epsilon)
       break;
 
     guess.second = length(guess.first) - s_t;
@@ -416,13 +413,11 @@ std::pair<Curve, Curve> Curve::splitCurve(double z) const
 
 PointVector Curve::intersections(const Curve& curve) const
 {
-  const double epsilon = std::sqrt(std::numeric_limits<double>::epsilon());
-
   PointVector intersections;
-  auto addIntersection = [&intersections, epsilon](Point new_point) {
+  auto addIntersection = [&intersections](Point new_point) {
     // check if not already found, and add new point
     if (std::none_of(intersections.begin(), intersections.end(),
-                     [&new_point, epsilon](const Point& point) { return (point - new_point).norm() < epsilon; }))
+                     [&new_point](const Point& point) { return (point - new_point).norm() < _epsilon; }))
       intersections.emplace_back(std::move(new_point));
   };
 
@@ -441,8 +436,8 @@ PointVector Curve::intersections(const Curve& curve) const
     {
       Eigen::MatrixX2d new_cp = std::move(subcurves.back());
       subcurves.pop_back();
-      subcurves.emplace_back(splittingCoeffsLeft(N_, t[k] - epsilon / 2) * new_cp);
-      subcurves.emplace_back(splittingCoeffsRight(N_, t[k] + epsilon / 2) * new_cp);
+      subcurves.emplace_back(splittingCoeffsLeft(N_, t[k] - _epsilon / 2) * new_cp);
+      subcurves.emplace_back(splittingCoeffsRight(N_, t[k] + _epsilon / 2) * new_cp);
 
 #if __cpp_init_captures
       std::for_each(t.begin() + k + 1, t.end(), [t = t[k]](double& x) { x = (x - t) / (1 - t); });
@@ -474,9 +469,9 @@ PointVector Curve::intersections(const Curve& curve) const
 
     if (!bbox1.intersects(bbox2))
       ; // no intersection
-    else if (bbox1.diagonal().norm() < epsilon)
+    else if (bbox1.diagonal().norm() < _epsilon)
       addIntersection(bbox1.center());
-    else if (bbox2.diagonal().norm() < epsilon)
+    else if (bbox2.diagonal().norm() < _epsilon)
       addIntersection(bbox2.center());
     else
     {
@@ -530,7 +525,7 @@ double Curve::projectPoint(const Point& point) const
   double min_dist = (point - valueAt(min_t)).norm();
 
   return std::accumulate(candidates.begin(), candidates.end(), std::make_pair(min_t, min_dist),
-                         [&](std::pair<double, double> min, double t) {
+                         [this, &point](std::pair<double, double> min, double t) {
                            if (t < 0 || t > 1)
                              return min;
                            double dist = (point - valueAt(t)).norm();
