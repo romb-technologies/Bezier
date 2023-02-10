@@ -150,10 +150,9 @@ public:
    * \brief Compute parameter t which is S distance from given t
    * \param t Curve parameter
    * \param s Distance to iterate
-   * \param epsilon Precision of resulting t
    * \return New parameter t
    */
-  double iterateByLength(double t, double s, double epsilon = 0.001) const;
+  double iterateByLength(double t, double s) const;
 
   /*!
    * \brief Get first and last control points
@@ -242,11 +241,9 @@ public:
   /*!
    * \brief Get the points of intersection with another curve or polycurve
    * \param curve Curve to intersect with
-   * \param epsilon Precision of resulting intersection
    * \return A vector af points of intersection between curves
    */
-  template <typename Curve_PolyCurve>
-  PointVector intersections(const Curve_PolyCurve& curve, double epsilon = 0.001) const;
+  template <typename Curve_PolyCurve> PointVector intersections(const Curve_PolyCurve& curve) const;
 
   /*!
    * \brief Get the parameter t where polycurve is closest to given point

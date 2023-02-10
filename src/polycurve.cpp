@@ -73,17 +73,17 @@ double PolyCurve::length(double t1, double t2) const
                                 [](double sum, const Curve& curve) { return sum + curve.length(); });
 }
 
-double PolyCurve::iterateByLength(double t, double s, double epsilon) const
+double PolyCurve::iterateByLength(double t, double s) const
 {
-  if (std::fabs(s) < epsilon) // no-op
+  if (std::fabs(s) < _epsilon) // no-op
     return t;
 
   double s_t = length(t);
 
-  if (s < -s_t + epsilon) // out-of-scope
+  if (s < -s_t + _epsilon) // out-of-scope
     return 0.0;
 
-  if (s > length() - s_t - epsilon) // out-of-scope
+  if (s > length() - s_t - _epsilon) // out-of-scope
     return size();
 
   unsigned idx = curveIdx(t);
@@ -91,20 +91,20 @@ double PolyCurve::iterateByLength(double t, double s, double epsilon) const
 
   s_t = s < 0 ? s_t - length(idx) : length(idx + 1) - s_t;
 
-  while (-s_t > s + epsilon)
+  while (-s_t > s + _epsilon)
   {
     s += s_t;
     s_t = curves_[--idx].length();
     t = 1.0;
   }
-  while (s_t < s - epsilon)
+  while (s_t < s - _epsilon)
   {
     s -= s_t;
     s_t = curves_[++idx].length();
     t = 0.0;
   }
 
-  return idx + curves_[idx].iterateByLength(t, s, epsilon);
+  return idx + curves_[idx].iterateByLength(t, s);
 }
 
 std::pair<Point, Point> PolyCurve::endPoints() const
@@ -198,24 +198,24 @@ BoundingBox PolyCurve::boundingBox() const
 namespace Bezier
 {
 
-template <> PointVector PolyCurve::intersections<Curve>(const Curve& curve, double epsilon) const
+template <> PointVector PolyCurve::intersections<Curve>(const Curve& curve) const
 {
   PointVector points;
   for (const auto& curve2 : curves_)
   {
-    auto new_points = curve2.intersections(curve, epsilon);
+    auto new_points = curve2.intersections(curve);
     points.reserve(points.size() + new_points.size());
     points.insert(points.end(), std::make_move_iterator(new_points.begin()), std::make_move_iterator(new_points.end()));
   }
   return points;
 }
 
-template <> PointVector PolyCurve::intersections<PolyCurve>(const PolyCurve& poly_curve, double epsilon) const
+template <> PointVector PolyCurve::intersections<PolyCurve>(const PolyCurve& poly_curve) const
 {
   PointVector points;
   for (const auto& curve : curves_)
   {
-    auto new_points = poly_curve.intersections(curve, epsilon);
+    auto new_points = poly_curve.intersections(curve);
     points.reserve(points.size() + new_points.size());
     points.insert(points.end(), std::make_move_iterator(new_points.begin()), std::make_move_iterator(new_points.end()));
   }

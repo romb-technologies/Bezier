@@ -8,6 +8,16 @@
 
 using namespace Bezier;
 
+#ifndef __cpp_lib_make_unique
+namespace std
+{
+template <typename T, typename... Args> inline std::unique_ptr<T> make_unique(Args&&... args)
+{
+  return std::unique_ptr<T>(new T(std::forward<Args>(args)...));
+}
+} // namespace std
+#endif
+
 Eigen::VectorXd trimZeroes(const Eigen::VectorXd& vec)
 {
   auto idx = vec.size();
@@ -50,60 +60,55 @@ std::pair<Point, Point> Curve::endPoints() const { return {control_points_.row(0
 
 PointVector Curve::polyline(double flatness) const
 {
-  if (!cached_polyline_ || std::fabs(cached_polyline_flatness_ - flatness) >= 1.e-10)
+  if (!cached_polyline_ || cached_polyline_flatness_ != flatness)
   {
     cached_polyline_flatness_ = flatness;
     cached_polyline_ = std::make_unique<PointVector>();
     cached_polyline_->emplace_back(control_points_.row(0));
-    if (N_ == 2)
+
+    std::vector<Eigen::MatrixX2d> subcurves;
+    subcurves.emplace_back(control_points_);
+
+    // we calculate in squared distances
+    flatness *= flatness;
+
+    double coeff{1};
+    if (N_ < 10)
     {
-      cached_polyline_->emplace_back(control_points_.row(1));
+      // for N_ == 10, coeff is 0.9922, so we ignore it for higher orders
+      coeff -= std::exp2(2. - N_);
+      coeff *= coeff;
     }
-    else
+
+    while (!subcurves.empty())
     {
-      std::vector<Eigen::MatrixX2d> subcurves;
-      subcurves.emplace_back(control_points_);
+      Eigen::MatrixX2d cp(std::move(subcurves.back()));
+      subcurves.pop_back();
+      const Point& p1 = cp.row(0);
+      const Point& p2 = cp.row(N_ - 1);
+      Vector u = p2 - p1;
 
-      // we calculate in squared distances
-      flatness *= flatness;
+      auto deviation = [&p1, &p2, &u](double x, double y) {
+        Point q(x, y);
+        Vector v = q - p1;
+        double t = u.dot(v) / u.squaredNorm();
+        if (t < 0)
+          return v.squaredNorm();
+        if (t > 1)
+          return (q - p2).squaredNorm();
+        return (p1 + t * u - q).squaredNorm();
+      };
 
-      double coeff{1};
-      if (N_ < 10)
+      if (coeff * cp.rowwise().redux(deviation).maxCoeff() <= flatness)
+        cached_polyline_->emplace_back(cp.row(N_ - 1));
+      else
       {
-        // for N_ == 10, coeff is 0.9922, so we ignore it for higher orders
-        coeff -= std::exp2(2. - N_);
-        coeff *= coeff;
-      }
-
-      while (!subcurves.empty())
-      {
-        Eigen::MatrixX2d cp(std::move(subcurves.back()));
-        subcurves.pop_back();
-        const Point& p1 = cp.row(0);
-        const Point& p2 = cp.row(N_ - 1);
-        Vector u = p2 - p1;
-
-        auto deviation = [&p1, &p2, &u](double x, double y) {
-          Point q(x, y);
-          Vector v = q - p1;
-          double t = u.dot(v) / u.squaredNorm();
-          if (t < 0)
-            return v.squaredNorm();
-          if (t > 1)
-            return (q - p2).squaredNorm();
-          return (p1 + t * u - q).squaredNorm();
-        };
-
-        if (coeff * cp.rowwise().redux(deviation).maxCoeff() <= flatness)
-          cached_polyline_->emplace_back(cp.row(N_ - 1));
-        else
-        {
-          subcurves.emplace_back(splittingCoeffsRight(N_) * cp);
-          subcurves.emplace_back(splittingCoeffsLeft(N_) * cp);
-        }
+        subcurves.emplace_back(splittingCoeffsRight(N_) * cp);
+        subcurves.emplace_back(splittingCoeffsLeft(N_) * cp);
       }
     }
   }
+
   return *cached_polyline_;
 }
 
@@ -128,16 +133,15 @@ double Curve::length(double t) const
 
   if (!cached_chebyshev_coeffs_)
   {
-    const double epsilon = std::sqrt(std::numeric_limits<double>::epsilon()) * 1e-2;
     constexpr unsigned START_LOG_N = 10;
     unsigned log_n = START_LOG_N - 1;
     unsigned n = std::exp2(START_LOG_N - 1);
 
     Eigen::VectorXd derivative_cache(2 * n + 1);
-    auto updateDerivativeCache = [&](double n) {
+    auto updateDerivativeCache = [this, &derivative_cache](double n) {
       derivative_cache.conservativeResize(n + 1);
       derivative_cache.tail(n / 2) =
-          ((1 + Eigen::cos(Eigen::ArrayXd::LinSpaced(n / 2, 1, n - 1) * M_PI / n)) / 2).unaryExpr([&](double t) {
+          ((1 + Eigen::cos(Eigen::ArrayXd::LinSpaced(n / 2, 1, n - 1) * M_PI / n)) / 2).unaryExpr([this](double t) {
             return derivativeAt(t).norm();
           });
     };
@@ -174,10 +178,10 @@ double Curve::length(double t) const
       fft.fwd(fft_out, coeff);
       chebyshev = (fft_out.real().head(n - 1) - fft_out.real().segment(2, n - 1)).array() /
                   Eigen::ArrayXd::LinSpaced(n - 1, 4, 4 * (n - 1));
-    } while (std::fabs(chebyshev.tail<1>()[0]) > epsilon);
+    } while (std::fabs(chebyshev.tail<1>()[0]) > _epsilon * 1e-2);
 
     unsigned cut = 0;
-    while (std::fabs(chebyshev(cut)) > epsilon)
+    while (std::fabs(chebyshev(cut)) > _epsilon * 1e-2)
       cut++;
     cached_chebyshev_coeffs_ = std::make_unique<Eigen::VectorXd>(cut + 1);
     (*cached_chebyshev_coeffs_) << 0, chebyshev.head(cut);
@@ -188,24 +192,30 @@ double Curve::length(double t) const
 
 double Curve::length(double t1, double t2) const { return length(t2) - length(t1); }
 
-double Curve::iterateByLength(double t, double s, double epsilon) const
+double Curve::iterateByLength(double t, double s) const
 {
-  if (std::fabs(s) < epsilon) // no-op
+  if (std::fabs(s) < _epsilon) // no-op
     return t;
 
   double s_t = length(t);
 
-  std::pair<double, double> lbracket = {0.0, -s_t};
-  if (s < lbracket.second + epsilon) // out-of-scope
-    return 0.0;
+  std::pair<double, double> lbracket, rbracket, guess{t, 0.0};
+  if (s < 0)
+  {
+    lbracket = {0.0, -s_t};
+    if (s < lbracket.second + _epsilon) // out-of-scope
+      return 0.0;
+    rbracket = guess;
+  }
+  else // s > 0
+  {
+    rbracket = {1.0, length() - s_t};
+    if (s > rbracket.second - _epsilon) // out-of-scope
+      return 1.0;
+    lbracket = guess;
+  }
 
-  std::pair<double, double> rbracket = {1.0, length() - s_t};
-  if (s > rbracket.second - epsilon) // out-of-scope
-    return 1.0;
-
-  std::pair<double, double> guess = {t, 0.0};
-
-  while (std::fabs(guess.second - s) > epsilon)
+  while (std::fabs(guess.second - s) > _epsilon)
   {
     // Halley's method
     double f = guess.second - s;
@@ -217,8 +227,7 @@ double Curve::iterateByLength(double t, double s, double epsilon) const
     if (guess.first <= lbracket.first || guess.first >= rbracket.first)
       guess.first = (lbracket.first + rbracket.first) / 2;
 
-    // check for when brackets approach numerical limits
-    if (guess.first <= lbracket.first || guess.first >= rbracket.first)
+    if (rbracket.first - lbracket.first < _epsilon)
       break;
 
     guess.second = length(guess.first) - s_t;
@@ -339,20 +348,17 @@ const Curve& Curve::derivative() const
 {
   if (!cached_derivative_)
   {
-    cached_derivative_ =
-        N_ == 1 ? std::make_unique<const Curve>(PointVector{Point(0, 0)})
-                : std::make_unique<const Curve>(
-                      ((N_ - 1) * (control_points_.bottomRows(N_ - 1) - control_points_.topRows(N_ - 1))).eval());
+    cached_derivative_ = N_ == 1 ? std::make_unique<const Curve>(PointVector{Point(0, 0)})
+                                 : std::make_unique<const Curve>((N_ - 1) * (control_points_.bottomRows(N_ - 1) -
+                                                                             control_points_.topRows(N_ - 1)));
   }
   return *cached_derivative_;
 }
 
 const Curve& Curve::derivative(unsigned n) const
 {
-  if (n == 0)
-    return *this;
-  auto nth_derivative = &derivative();
-  for (unsigned k = 1; k < n; k++)
+  auto nth_derivative = this;
+  for (unsigned k = 0; k < n; k++)
     nth_derivative = &nth_derivative->derivative();
   return *nth_derivative;
 }
@@ -415,47 +421,38 @@ std::pair<Curve, Curve> Curve::splitCurve(double z) const
   return {Curve(splittingCoeffsLeft(N_, z) * control_points_), Curve(splittingCoeffsRight(N_, z) * control_points_)};
 }
 
-PointVector Curve::intersections(const Curve& curve, double epsilon) const
+PointVector Curve::intersections(const Curve& curve) const
 {
-  PointVector points_of_intersection;
-  auto insertNewRoot = [&points_of_intersection, epsilon](Point new_point) {
+  PointVector intersections;
+  auto addIntersection = [&intersections](Point new_point) {
     // check if not already found, and add new point
-    if (std::none_of(points_of_intersection.begin(), points_of_intersection.end(),
-                     [&new_point, epsilon](const Point& point) { return (point - new_point).norm() < epsilon; }))
-      points_of_intersection.emplace_back(std::move(new_point));
+    if (std::none_of(intersections.begin(), intersections.end(),
+                     [&new_point](const Point& point) { return (point - new_point).norm() < _epsilon; }))
+      intersections.emplace_back(std::move(new_point));
   };
 
   std::vector<std::pair<Eigen::MatrixX2d, Eigen::MatrixX2d>> subcurve_pairs;
 
   if (this != &curve)
-  {
     subcurve_pairs.emplace_back(control_points_, curve.control_points_);
-  }
   else
   {
     // for self intersections divide curve into subcurves at extrema
     auto t = extrema();
     std::sort(t.begin(), t.end());
     std::vector<Eigen::MatrixX2d> subcurves;
+    subcurves.emplace_back(control_points_);
     for (unsigned k = 0; k < t.size(); k++)
     {
-      if (subcurves.empty())
-      {
-        subcurves.emplace_back(splittingCoeffsLeft(N_, t[k] - epsilon / 2) * control_points_);
-        subcurves.emplace_back(splittingCoeffsRight(N_, t[k] + epsilon / 2) * control_points_);
-      }
-      else
-      {
-        Eigen::MatrixX2d new_cp = std::move(subcurves.back());
-        subcurves.pop_back();
-        subcurves.emplace_back(splittingCoeffsLeft(N_, t[k] - epsilon / 2) * new_cp);
-        subcurves.emplace_back(splittingCoeffsRight(N_, t[k] + epsilon / 2) * new_cp);
-      }
+      Eigen::MatrixX2d new_cp = std::move(subcurves.back());
+      subcurves.pop_back();
+      subcurves.emplace_back(splittingCoeffsLeft(N_, t[k] - _epsilon / 2) * new_cp);
+      subcurves.emplace_back(splittingCoeffsRight(N_, t[k] + _epsilon / 2) * new_cp);
 
 #if __cpp_init_captures
       std::for_each(t.begin() + k + 1, t.end(), [t = t[k]](double& x) { x = (x - t) / (1 - t); });
 #else
-      std::for_each(t.begin() + k + 1, t.end(), [t, k](double& x) { x = (x - t[k]) / (1 - t[k]); });
+      std::for_each(t.begin() + k + 1, t.end(), [&t, k](double& x) { x = (x - t[k]) / (1 - t[k]); });
 #endif
     }
 
@@ -482,10 +479,10 @@ PointVector Curve::intersections(const Curve& curve, double epsilon) const
 
     if (!bbox1.intersects(bbox2))
       ; // no intersection
-    else if (bbox1.diagonal().norm() < epsilon)
-      insertNewRoot(bbox1.center());
-    else if (bbox2.diagonal().norm() < epsilon)
-      insertNewRoot(bbox2.center());
+    else if (bbox1.diagonal().norm() < _epsilon)
+      addIntersection(bbox1.center());
+    else if (bbox2.diagonal().norm() < _epsilon)
+      addIntersection(bbox2.center());
     else
     {
       // intersection exists, but segments are still too large
@@ -503,7 +500,7 @@ PointVector Curve::intersections(const Curve& curve, double epsilon) const
     }
   }
 
-  return points_of_intersection;
+  return intersections;
 }
 
 double Curve::projectPoint(const Point& point) const
@@ -537,16 +534,14 @@ double Curve::projectPoint(const Point& point) const
   double min_t = (point - valueAt(0.0)).norm() < (point - valueAt(1.0)).norm() ? 0.0 : 1.0;
   double min_dist = (point - valueAt(min_t)).norm();
 
-  for (auto t : candidates)
-  {
-    if (t < 0 || t > 1)
-      continue;
-
-    double dist = (point - valueAt(t)).norm();
-    if (dist < min_dist)
-      std::tie(min_t, min_dist) = std::make_pair(t, dist);
-  }
-  return min_t;
+  return std::accumulate(candidates.begin(), candidates.end(), std::make_pair(min_t, min_dist),
+                         [this, &point](std::pair<double, double> min, double t) {
+                           if (t < 0 || t > 1)
+                             return min;
+                           double dist = (point - valueAt(t)).norm();
+                           return dist < min.second ? std::make_pair(t, dist) : min;
+                         })
+      .first;
 }
 
 double Curve::distance(const Point& point) const { return (point - valueAt(projectPoint(point))).norm(); }
