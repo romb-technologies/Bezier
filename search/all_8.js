@@ -1,4 +1,4 @@
 var searchData=
 [
-  ['normalat',['normalAt',['../class_bezier_1_1_curve.html#a59430177114c549d9f858dc70852967c',1,'Bezier::Curve::normalAt()'],['../class_bezier_1_1_poly_curve.html#a59430177114c549d9f858dc70852967c',1,'Bezier::PolyCurve::normalAt()']]]
+  ['manipulatecurvature_26',['manipulateCurvature',['../class_bezier_1_1_curve.html#aa9157d06db9e8928ac27ed12d687d0e3',1,'Bezier::Curve']]]
 ];

@@ -1,6 +1,6 @@
 var searchData=
 [
-  ['elevateorder',['elevateOrder',['../class_bezier_1_1_curve.html#a7f6ecdafee3b5deea7db55ef858ee6bb',1,'Bezier::Curve']]],
-  ['endpoints',['endPoints',['../class_bezier_1_1_curve.html#a6897ff8cf896b0a58b4f7c96ae399f71',1,'Bezier::Curve::endPoints()'],['../class_bezier_1_1_poly_curve.html#a6897ff8cf896b0a58b4f7c96ae399f71',1,'Bezier::PolyCurve::endPoints()']]],
-  ['extrema',['extrema',['../class_bezier_1_1_curve.html#a2686b03d7d4e6b2b473c0bb175ab788c',1,'Bezier::Curve']]]
+  ['derivative_13',['derivative',['../class_bezier_1_1_curve.html#a1d0478acbb4e935fb6c9face47e794a3',1,'Bezier::Curve::derivative() const'],['../class_bezier_1_1_curve.html#ac22e85864ce73e6a4f236c56e7cb56a3',1,'Bezier::Curve::derivative(unsigned n) const']]],
+  ['derivativeat_14',['derivativeAt',['../class_bezier_1_1_curve.html#a73ec2676d50977cdaa7f6c029f7b440b',1,'Bezier::Curve::derivativeAt(double t) const'],['../class_bezier_1_1_curve.html#aae241a4fb84c9bb3d6b4286210912597',1,'Bezier::Curve::derivativeAt(unsigned n, double t) const'],['../class_bezier_1_1_poly_curve.html#a73ec2676d50977cdaa7f6c029f7b440b',1,'Bezier::PolyCurve::derivativeAt(double t) const'],['../class_bezier_1_1_poly_curve.html#aae241a4fb84c9bb3d6b4286210912597',1,'Bezier::PolyCurve::derivativeAt(unsigned n, double t) const']]],
+  ['distance_15',['distance',['../class_bezier_1_1_curve.html#a24338fe79cd02f1049c3163159552555',1,'Bezier::Curve::distance()'],['../class_bezier_1_1_poly_curve.html#a24338fe79cd02f1049c3163159552555',1,'Bezier::PolyCurve::distance(const Point &amp;point) const'],['../class_bezier_1_1_poly_curve.html#a535b90670a04ffce784a53354d5d2ad4',1,'Bezier::PolyCurve::distance(const PointVector &amp;point_vector) const']]]
 ];

@@ -1,4 +1,4 @@
 var searchData=
 [
-  ['order',['order',['../class_bezier_1_1_curve.html#af595a6c5c7faac22e3e81f14622e5caa',1,'Bezier::Curve']]]
+  ['normalat_27',['normalAt',['../class_bezier_1_1_curve.html#a59430177114c549d9f858dc70852967c',1,'Bezier::Curve::normalAt()'],['../class_bezier_1_1_poly_curve.html#a59430177114c549d9f858dc70852967c',1,'Bezier::PolyCurve::normalAt()']]]
 ];

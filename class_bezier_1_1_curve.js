@@ -19,8 +19,8 @@ var class_bezier_1_1_curve =
     [ "elevateOrder", "class_bezier_1_1_curve.html#a7f6ecdafee3b5deea7db55ef858ee6bb", null ],
     [ "endPoints", "class_bezier_1_1_curve.html#a6897ff8cf896b0a58b4f7c96ae399f71", null ],
     [ "extrema", "class_bezier_1_1_curve.html#a2686b03d7d4e6b2b473c0bb175ab788c", null ],
-    [ "intersections", "class_bezier_1_1_curve.html#afe96d463a608977df6c1a3fb9bc7915b", null ],
-    [ "iterateByLength", "class_bezier_1_1_curve.html#aec2002e4e5ed3ee23831b661451f6636", null ],
+    [ "intersections", "class_bezier_1_1_curve.html#a2c73d88ff621bfb7bd5314a2c48db433", null ],
+    [ "iterateByLength", "class_bezier_1_1_curve.html#a3f245a71944f8320da2ffefb4c97fcce", null ],
     [ "length", "class_bezier_1_1_curve.html#a80401d480f15e1418a3274a2b2b51649", null ],
     [ "length", "class_bezier_1_1_curve.html#ac4a42d3a8c5edbf322613c2147e4bae9", null ],
     [ "length", "class_bezier_1_1_curve.html#ab67099bbba4655eb694dbc9939c3ac38", null ],
@@ -38,7 +38,7 @@ var class_bezier_1_1_curve =
     [ "setControlPoint", "class_bezier_1_1_curve.html#a4d680ad378117c2ebfd42e86cd886cb5", null ],
     [ "splitCurve", "class_bezier_1_1_curve.html#a9e1a6312e19b9fe0a88298030f660dcc", null ],
     [ "tangentAt", "class_bezier_1_1_curve.html#a9a55171cdfac435901bf8527cfc41c7f", null ],
-    [ "valueAt", "class_bezier_1_1_curve.html#a1cec15ef5ef59fe184d0218c0991b1fa", null ],
     [ "valueAt", "class_bezier_1_1_curve.html#a3d293f073b425f8bc5e1d7acfaa4f4f4", null ],
+    [ "valueAt", "class_bezier_1_1_curve.html#a1cec15ef5ef59fe184d0218c0991b1fa", null ],
     [ "control_points_", "class_bezier_1_1_curve.html#a0b85b57762a6275bfe4acc7ea626e6ec", null ]
 ];

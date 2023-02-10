@@ -1,4 +1,4 @@
 var searchData=
 [
-  ['applycontinuity',['applyContinuity',['../class_bezier_1_1_curve.html#a6ca81da9bba4cd600d9e42c8ee9ffd55',1,'Bezier::Curve']]]
+  ['_5fepsilon_0',['_epsilon',['../namespace_bezier.html#a136ffa4072f235ec6198f9b85fe92705',1,'Bezier']]]
 ];

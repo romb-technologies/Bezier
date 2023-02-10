@@ -1,9 +1,8 @@
 var searchData=
 [
-  ['removeat',['removeAt',['../class_bezier_1_1_poly_curve.html#ae0798f8c22bb1ccc1a9243d0e6b2ed72',1,'Bezier::PolyCurve']]],
-  ['removeback',['removeBack',['../class_bezier_1_1_poly_curve.html#a56a3c9c5509ecfd10d09885958a16b05',1,'Bezier::PolyCurve']]],
-  ['removefirst',['removeFirst',['../class_bezier_1_1_poly_curve.html#a40949096ca6ba4c891ea9aba75be5df6',1,'Bezier::PolyCurve']]],
-  ['resetcache',['resetCache',['../class_bezier_1_1_curve.html#a704f1fd1e1cd13a1e5415a75e2a2791d',1,'Bezier::Curve']]],
-  ['reverse',['reverse',['../class_bezier_1_1_curve.html#a310c0bebc002158f5646a91d60e4dc89',1,'Bezier::Curve']]],
-  ['roots',['roots',['../class_bezier_1_1_curve.html#a2549592357402ab519adf54877dceb25',1,'Bezier::Curve']]]
+  ['point_29',['Point',['../namespace_bezier.html#a53f37c87daed827f188c61975122801a',1,'Bezier']]],
+  ['pointvector_30',['PointVector',['../namespace_bezier.html#aa933f468c66df481a7fc0b958b171145',1,'Bezier']]],
+  ['polycurve_31',['PolyCurve',['../class_bezier_1_1_poly_curve.html',1,'PolyCurve'],['../class_bezier_1_1_poly_curve.html#a5b3f749c397d64427c9ec96e0201373b',1,'Bezier::PolyCurve::PolyCurve()']]],
+  ['polyline_32',['polyline',['../class_bezier_1_1_curve.html#a578377a634420c2ae6238813f89d180d',1,'Bezier::Curve::polyline()'],['../class_bezier_1_1_poly_curve.html#a578377a634420c2ae6238813f89d180d',1,'Bezier::PolyCurve::polyline()']]],
+  ['projectpoint_33',['projectPoint',['../class_bezier_1_1_curve.html#aa414f9ea90ef673e9c7455f55592f74c',1,'Bezier::Curve::projectPoint()'],['../class_bezier_1_1_poly_curve.html#aa414f9ea90ef673e9c7455f55592f74c',1,'Bezier::PolyCurve::projectPoint(const Point &amp;point) const'],['../class_bezier_1_1_poly_curve.html#a73a62095563bc85d5395d931c60a6044',1,'Bezier::PolyCurve::projectPoint(const PointVector &amp;point_vector) const']]]
 ];

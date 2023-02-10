@@ -1,5 +1,4 @@
 var searchData=
 [
-  ['bezier',['Bezier',['../namespace_bezier.html',1,'']]],
-  ['boundingbox',['boundingBox',['../class_bezier_1_1_curve.html#a9b4f03acf5997064faff760a85536276',1,'Bezier::Curve::boundingBox()'],['../class_bezier_1_1_poly_curve.html#a9b4f03acf5997064faff760a85536276',1,'Bezier::PolyCurve::boundingBox()'],['../namespace_bezier.html#ac2148d27f497ca35a84efea28ac0df19',1,'Bezier::BoundingBox()']]]
+  ['applycontinuity_1',['applyContinuity',['../class_bezier_1_1_curve.html#a6ca81da9bba4cd600d9e42c8ee9ffd55',1,'Bezier::Curve']]]
 ];

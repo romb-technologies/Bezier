@@ -22,8 +22,8 @@ var class_bezier_1_1_poly_curve =
     [ "insertAt", "class_bezier_1_1_poly_curve.html#aa4122cea9059cc951615332dfb6fbc25", null ],
     [ "insertBack", "class_bezier_1_1_poly_curve.html#a48aa9c0649a67777ea56342cdf694bb3", null ],
     [ "insertFront", "class_bezier_1_1_poly_curve.html#a3bcc6e0d14192003773f6dbb18b1d809", null ],
-    [ "intersections", "class_bezier_1_1_poly_curve.html#a87b4bd208b35958028b29efe6f55a2cd", null ],
-    [ "iterateByLength", "class_bezier_1_1_poly_curve.html#aec2002e4e5ed3ee23831b661451f6636", null ],
+    [ "intersections", "class_bezier_1_1_poly_curve.html#ae6d82b49ebb62cd8ca247f32dbe1a0c8", null ],
+    [ "iterateByLength", "class_bezier_1_1_poly_curve.html#a3f245a71944f8320da2ffefb4c97fcce", null ],
     [ "length", "class_bezier_1_1_poly_curve.html#a80401d480f15e1418a3274a2b2b51649", null ],
     [ "length", "class_bezier_1_1_poly_curve.html#ac4a42d3a8c5edbf322613c2147e4bae9", null ],
     [ "length", "class_bezier_1_1_poly_curve.html#ab67099bbba4655eb694dbc9939c3ac38", null ],
@@ -39,7 +39,7 @@ var class_bezier_1_1_poly_curve =
     [ "setControlPoint", "class_bezier_1_1_poly_curve.html#a4d680ad378117c2ebfd42e86cd886cb5", null ],
     [ "size", "class_bezier_1_1_poly_curve.html#a126a73e6d140f9e2a7b795c20fa42f70", null ],
     [ "tangentAt", "class_bezier_1_1_poly_curve.html#a9a55171cdfac435901bf8527cfc41c7f", null ],
-    [ "valueAt", "class_bezier_1_1_poly_curve.html#a1cec15ef5ef59fe184d0218c0991b1fa", null ],
     [ "valueAt", "class_bezier_1_1_poly_curve.html#ab17204b7075be28d3268f751afb9e12a", null ],
+    [ "valueAt", "class_bezier_1_1_poly_curve.html#a1cec15ef5ef59fe184d0218c0991b1fa", null ],
     [ "curves_", "class_bezier_1_1_poly_curve.html#a0b02ce3e9539412f4bbdda69c59679f3", null ]
 ];
