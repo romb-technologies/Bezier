@@ -8,6 +8,16 @@
 
 using namespace Bezier;
 
+#ifndef __cpp_lib_make_unique
+namespace std
+{
+template <typename T, typename... Args> inline std::unique_ptr<T> make_unique(Args&&... args)
+{
+  return std::unique_ptr<T>(new T(std::forward<Args>(args)...));
+}
+} // namespace std
+#endif
+
 Eigen::VectorXd trimZeroes(const Eigen::VectorXd& vec)
 {
   auto idx = vec.size();
@@ -442,7 +452,7 @@ PointVector Curve::intersections(const Curve& curve) const
 #if __cpp_init_captures
       std::for_each(t.begin() + k + 1, t.end(), [t = t[k]](double& x) { x = (x - t) / (1 - t); });
 #else
-      std::for_each(t.begin() + k + 1, t.end(), [t, k](double& x) { x = (x - t[k]) / (1 - t[k]); });
+      std::for_each(t.begin() + k + 1, t.end(), [&t, k](double& x) { x = (x - t[k]) / (1 - t[k]); });
 #endif
     }
 
