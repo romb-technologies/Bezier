@@ -247,10 +247,10 @@ public:
 
   /*!
    * \brief Split the curve into two subcurves
-   * \param z double t at which to split the curve
+   * \param t Curve parameter at which to split the curve
    * \return Pair of two subcurves
    */
-  std::pair<Curve, Curve> splitCurve(double z = 0.5) const;
+  std::pair<Curve, Curve> splitCurve(double t = 0.5) const;
 
   /*!
    * \brief Get the points of intersection with another curve
@@ -298,6 +298,7 @@ private:
    * \brief Coefficients for matrix operations
    */
   using Coeffs = Eigen::MatrixXd;
+
   /*!
    * \brief Map of different coefficient matrices, depending on the order of the curve
    */
@@ -313,7 +314,8 @@ private:
       cached_projection_polynomial_part_; /*! Constant part of point projection polynomial */
   mutable Eigen::MatrixXd
       cached_projection_polynomial_derivative_; /*! Polynomial representation of the curve derivative */
-  mutable std::unique_ptr<Eigen::VectorXd> cached_chebyshev_coeffs_;  /*!  If generated, stores chebyshev coefficients for calculating the length of the curve */
+  mutable std::unique_ptr<Eigen::VectorXd> cached_chebyshev_coeffs_; /*!  If generated, stores chebyshev coefficients
+                                                                        for calculating the length of the curve */
 
   // static caching
   static CoeffsMap bernstein_coeffs_;       /*! Map of Bernstein coefficients */
@@ -324,10 +326,10 @@ private:
 
   /// Static getter function for Bernstein coefficients
   static Coeffs bernsteinCoeffs(unsigned n);
-  /// Static getter function for coefficients to get a subcurve t = [0, z];
-  static Coeffs splittingCoeffsLeft(unsigned n, double z = 0.5);
-  /// Static getter function for coefficients to get a subcurve t = [z, 1];
-  static Coeffs splittingCoeffsRight(unsigned n, double z = 0.5);
+  /// Static getter function for coefficients to get a subcurve [0, z];
+  static Coeffs splittingCoeffsLeft(unsigned n, double t = 0.5);
+  /// Static getter function for coefficients to get a subcurve [z, 1];
+  static Coeffs splittingCoeffsRight(unsigned n, double t = 0.5);
   /// Static getter function for coefficients to elevate order of curve
   static Coeffs elevateOrderCoeffs(unsigned n);
   /// Static getter function for coefficients to lower order of curve
