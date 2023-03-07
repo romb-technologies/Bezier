@@ -169,10 +169,13 @@ double Curve::length(double t) const
         auto lin_spaced = Eigen::ArrayXd::LinSpaced(std::exp2(k - 1), 0, std::exp2(k - 1) - 1);
         auto index_c = std::exp2(log_n + 1 - (k + 1)) + lin_spaced * std::exp2(log_n + 1 - k);
         auto index_dc = std::exp2(k - 1) + 1 + lin_spaced;
-        // TODO: make use of slicing & indexing in Eigen3.4
-        // coeff(index_c) = coeff(N - index_c) = derivative_cache(index_dc) / n;
+
+#if EIGEN_VERSION_AT_LEAST(3, 4, 0)
+        coeff(index_c) = coeff(N - index_c) = derivative_cache(index_dc) / n;
+#else
         for (unsigned i = 0; i < lin_spaced.size(); i++)
           coeff(index_c(i)) = coeff(N - index_c(i)) = derivative_cache(index_dc(i)) / n;
+#endif
       }
 
       fft.fwd(fft_out, coeff);
