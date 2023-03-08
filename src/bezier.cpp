@@ -22,7 +22,7 @@ template <typename T, typename... Args> inline std::unique_ptr<T> make_unique(Ar
 
 struct _PolynomialRoots : public std::vector<double>
 {
-  _PolynomialRoots(unsigned reserve) { std::vector<double>::reserve(reserve); }
+  explicit _PolynomialRoots(unsigned reserve) { std::vector<double>::reserve(reserve); }
   void clear(){};          // no-op so that PolynomialSolver::RealRoots() doesn't clear it
   void push_back(double t) // only allow valid roots
   {
@@ -31,7 +31,7 @@ struct _PolynomialRoots : public std::vector<double>
   }
 };
 
-inline double _exp2(unsigned exp)
+inline unsigned _exp2(unsigned exp)
 {
   return 1 << exp;
 }
@@ -207,7 +207,7 @@ double Curve::length(double t) const
 
       for (unsigned k = 1; k <= log_n; k++)
       {
-        auto lin_spaced = Eigen::ArrayXd::LinSpaced(_exp2(k - 1), 0, _exp2(k - 1) - 1);
+        auto lin_spaced = Eigen::ArrayXi::LinSpaced(_exp2(k - 1), 0, _exp2(k - 1) - 1);
         auto index_c = _exp2(log_n + 1 - (k + 1)) + lin_spaced * _exp2(log_n + 1 - k);
         auto index_dc = _exp2(k - 1) + 1 + lin_spaced;
         // TODO: make use of slicing & indexing in Eigen3.4
