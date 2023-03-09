@@ -636,7 +636,7 @@ Curve::Coeffs Curve::bernsteinCoeffs(unsigned n)
   if (!bernstein_coeffs_.count(n))
   {
     auto binomial = [](unsigned n, unsigned k) {
-      // n! / ((n-k)!k!) = e^(ln(n!) - ln(n-k)! - k!)
+      // n! / ((n-k)!k!) = e^(ln(n!) - ln(n-k)! - ln(k!))
       return std::exp(std::lgamma(n + 1) - std::lgamma(n - k + 1) - std::lgamma(k + 1));
     };
     bernstein_coeffs_.insert({n, Coeffs::Zero(n, n)});
