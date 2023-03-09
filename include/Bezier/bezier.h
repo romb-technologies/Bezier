@@ -326,9 +326,9 @@ private:
 
   /// Static getter function for Bernstein coefficients
   static Coeffs bernsteinCoeffs(unsigned n);
-  /// Static getter function for coefficients to get a subcurve [0, z];
+  /// Static getter function for coefficients to get a subcurve [0, t];
   static Coeffs splittingCoeffsLeft(unsigned n, double t = 0.5);
-  /// Static getter function for coefficients to get a subcurve [z, 1];
+  /// Static getter function for coefficients to get a subcurve [t, 1];
   static Coeffs splittingCoeffsRight(unsigned n, double t = 0.5);
   /// Static getter function for coefficients to elevate order of curve
   static Coeffs elevateOrderCoeffs(unsigned n);
