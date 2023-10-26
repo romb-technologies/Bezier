@@ -31,10 +31,7 @@ struct _PolynomialRoots : public std::vector<double>
   }
 };
 
-inline unsigned _exp2(unsigned exp)
-{
-  return 1 << exp;
-}
+inline unsigned _exp2(unsigned exp) { return 1 << exp; }
 
 inline double _pow(double base, unsigned exp)
 {
@@ -578,39 +575,45 @@ double Curve::projectPoint(const Point& point) const
 
 double Curve::distance(const Point& point) const { return (point - valueAt(projectPoint(point))).norm(); }
 
-void Curve::applyContinuity(const Curve& source_curve, const std::vector<double>& beta_coeffs)
+void Curve::applyContinuity(const Curve& curve, const std::vector<double>& beta_coeffs)
 {
   unsigned c_order = beta_coeffs.size();
 
+  // pascal triangle matrix (binomial coefficients) - rowwise
   Eigen::MatrixXd pascal_matrix(Eigen::MatrixXd::Zero(c_order + 1, c_order + 1));
-  Eigen::MatrixXd pascal_alterating_matrix(Eigen::MatrixXd::Zero(c_order + 1, c_order + 1));
-  pascal_alterating_matrix.diagonal(-1).setLinSpaced(-1, -static_cast<int>(c_order));
-  pascal_alterating_matrix = pascal_alterating_matrix.exp();
-  pascal_matrix = pascal_alterating_matrix.cwiseAbs().transpose();
+  pascal_matrix.row(0).setOnes();
+  for (unsigned k = 1; k <= c_order; k++)
+    for (unsigned i = 1; i <= k; i++)
+      pascal_matrix(i, k) = pascal_matrix(i - 1, k - 1) + pascal_matrix(i, k - 1);
 
+  // inverse of pascal matrix, i.e., pascal matrix with alternating signs - colwise
+  Eigen::MatrixXd pascal_alternating_matrix = pascal_matrix.transpose().inverse();
+
+  // https://en.wikipedia.org/wiki/Bell_polynomials -> equivalent to equations of geometric continuity
   Eigen::MatrixXd bell_matrix(Eigen::MatrixXd::Zero(c_order + 1, c_order + 1));
   bell_matrix(0, c_order) = 1;
-
   for (unsigned k = 0; k < c_order; k++)
     bell_matrix.block(1, c_order - k - 1, k + 1, 1) =
         bell_matrix.block(0, c_order - k, k + 1, k + 1) *
         pascal_matrix.block(0, k, k + 1, 1)
             .cwiseProduct(Eigen::Map<const Eigen::MatrixXd>(beta_coeffs.data(), k + 1, 1));
 
+  // diagonal: (N-1)! / (N-k-1)!
   Eigen::MatrixXd factorial_matrix(Eigen::MatrixXd::Zero(c_order + 1, c_order + 1));
+  factorial_matrix(0, 0) = 1;
+  for (unsigned k = 1; k <= c_order; k++)
+    factorial_matrix(k, k) = factorial_matrix(k - 1, k - 1) * (N_ - k);
 
-  factorial_matrix.diagonal() = Eigen::ArrayXd::LinSpaced(c_order + 1, 0, c_order).unaryExpr([this](unsigned k) {
-    // (N-1)! / (N-k-1)! = e^(ln(N-1)! - ln(N-k-1)!)
-    return std::exp(std::lgamma(N_) - std::lgamma(N_ - k));
-  });
-
+  // derivatives of given curve
   Eigen::Matrix2Xd derivatives(Eigen::Index(2), Eigen::Index(c_order + 1));
   for (unsigned k = 0; k < c_order + 1; k++)
-    derivatives.col(k) = source_curve.derivative(k).control_points_.bottomRows(1).transpose();
+    derivatives.col(k) = curve.derivative(k).control_points_.bottomRows(1).transpose();
 
-  Eigen::MatrixXd derivatives_wanted = (derivatives * bell_matrix).rowwise().reverse().transpose();
+  // based on the beta coefficients and geometric continuity equations, calculate new derivatives
+  Eigen::MatrixXd new_derivatives = (derivatives * bell_matrix).rowwise().reverse().transpose();
 
-  control_points_.topRows(c_order + 1) = (factorial_matrix * pascal_alterating_matrix).inverse() * derivatives_wanted;
+  // calculate new control points
+  control_points_.topRows(c_order + 1) = (factorial_matrix * pascal_alternating_matrix).inverse() * new_derivatives;
   resetCache();
 }
 
@@ -635,15 +638,11 @@ Curve::Coeffs Curve::bernsteinCoeffs(unsigned n)
 {
   if (!bernstein_coeffs_.count(n))
   {
-    auto binomial = [](unsigned n, unsigned k) {
-      // n! / ((n-k)!k!) = e^(ln(n!) - ln(n-k)! - ln(k!))
-      return std::exp(std::lgamma(n + 1) - std::lgamma(n - k + 1) - std::lgamma(k + 1));
-    };
     bernstein_coeffs_.insert({n, Coeffs::Zero(n, n)});
     bernstein_coeffs_[n].diagonal(-1).setLinSpaced(-1, -static_cast<int>(n - 1));
     bernstein_coeffs_[n] = bernstein_coeffs_[n].exp();
-    for (unsigned k = 0; k < n; k++)
-      bernstein_coeffs_[n].row(k) *= binomial(n - 1, k);
+    for (unsigned k = 0, binomial = 1; k < n; binomial = binomial * (n - k - 1) / (k + 1), k++)
+      bernstein_coeffs_[n].row(k) *= binomial;
   }
   return bernstein_coeffs_[n];
 }

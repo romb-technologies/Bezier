@@ -278,7 +278,7 @@ public:
    * \param locked_curve Curve on which calculation are based.
    * \param beta_coeffs Beta-constraints used to calculate continuity. Size defines continuity order.
    */
-  void applyContinuity(const Curve& source_curve, const std::vector<double>& beta_coeffs);
+  void applyContinuity(const Curve& curve, const std::vector<double>& beta_coeffs);
 
 protected:
   /*!
