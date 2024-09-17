@@ -1,68 +1,14 @@
 #include "Bezier/bezier.h"
+#include "Bezier/utils.h"
 
 #include <numeric>
+#include <random>
 
 #include <unsupported/Eigen/FFT>
 #include <unsupported/Eigen/MatrixFunctions>
 #include <unsupported/Eigen/Polynomials>
 
 using namespace Bezier;
-
-///// Additional declarations
-
-#ifndef __cpp_lib_make_unique
-namespace std
-{
-template <typename T, typename... Args> inline std::unique_ptr<T> make_unique(Args&&... args)
-{
-  return std::unique_ptr<T>(new T(std::forward<Args>(args)...));
-}
-} // namespace std
-#endif
-
-struct _PolynomialRoots : public std::vector<double>
-{
-  explicit _PolynomialRoots(unsigned reserve) { std::vector<double>::reserve(reserve); }
-  void clear(){};          // no-op so that PolynomialSolver::RealRoots() doesn't clear it
-  void push_back(double t) // only allow valid roots
-  {
-    if (t >= 0 && t <= 1)
-      std::vector<double>::push_back(t);
-  }
-};
-
-inline unsigned _exp2(unsigned exp) { return 1 << exp; }
-
-inline double _pow(double base, unsigned exp)
-{
-  double result = exp & 1 ? base : 1;
-  while (exp >>= 1)
-  {
-    base *= base;
-    if (exp & 1)
-      result *= base;
-  }
-  return result;
-}
-
-inline Eigen::RowVectorXd _powSeries(double base, unsigned exp)
-{
-  Eigen::RowVectorXd power_series(exp);
-  power_series(0) = 1;
-  for (unsigned k = 1; k < exp; k++)
-    power_series(k) = power_series(k - 1) * base;
-  return power_series;
-}
-
-inline Eigen::VectorXd _trimZeroes(const Eigen::VectorXd& vec)
-{
-  auto idx = vec.size();
-  while (idx && std::abs(vec(idx - 1)) < _epsilon)
-    --idx;
-  return vec.head(idx);
-}
-
-///// Curve::Curve
 
 Curve::Curve(Eigen::MatrixX2d points) : control_points_(std::move(points)), N_(control_points_.rows()) {}
 
@@ -615,6 +561,95 @@ void Curve::applyContinuity(const Curve& curve, const std::vector<double>& beta_
   // calculate new control points
   control_points_.topRows(c_order + 1) = (factorial_matrix * pascal_alternating_matrix).inverse() * new_derivatives;
   resetCache();
+}
+
+Curve Curve::fromPolyline(const PointVector& polyline, unsigned order)
+{
+  // Select N points that most influence the shape of the polyline,
+  // either based on a specified order or using the full polyline.
+  const unsigned N = std::min(order ? order + 1 : polyline.size(), polyline.size());
+  auto simplified = _polylineSimplify(polyline, N);
+
+  // Initialize vector t where each element represents a normalized cumulative
+  // distance between consecutive simplified points along the simplified polyline.
+  Eigen::VectorXd t(N);
+  Eigen::MatrixXd P(N, 2), M = bernsteinCoeffs(N);
+  for (unsigned k = 0; k < N; k++)
+  {
+   P.row(k) = simplified[k];
+   t(k) = k == 0 ? 0 : t(k - 1) + (P.row(k) - P.row(k - 1)).norm();
+  }
+  t /= t(N - 1);
+
+  // Compute the control points for a Bezier curve such that C(t_i) = P_i for all i,
+  // by solving the matrix form of the Bezier curve equation.
+  auto getCurve = [&M, &P](const Eigen::VectorXd& t) {
+   Eigen::MatrixXd T(t.size(), t.size());
+   for (unsigned k = 0; k < t.size(); k++)
+     T.row(k) = _powSeries(t(k), t.size());
+   return Curve(M.inverse() * (T.transpose() * T).inverse() * T.transpose() * P);
+  };
+
+  // Calculate the root mean square distance (RMSD) between the polyline
+  // representation of the curve and the original polyline points.
+  auto rmsd = [&polyline](const Curve& c)
+  {
+    double rmsd{};
+    auto polyline_c = c.polyline();
+    for (const auto& p : polyline_c)
+      rmsd += _pow(_polylineDist(polyline, p), 2);
+    return std::sqrt(rmsd / polyline_c.size());
+  };
+
+  // Calculate the absolute difference in length between the polyline representation
+  // of the curve and the original polyline points.
+  const double polyline_length = _polylineLength(polyline);
+  auto length_diff = [&polyline_length](const Curve& c)
+  {
+    return std::fabs(_polylineLength(c.polyline()) - polyline_length);
+  };
+
+  // Define a cost function for optimization, combining the RMSD and length difference,
+  // with a +1 offset to handle cases where either is zero.
+  auto costFun = [&rmsd, &length_diff](const Curve& c)
+  {
+    return (1 + rmsd(c)) * (1 + length_diff(c)); // +1 is for cases when either is zero
+  };
+
+  // Initialize random number generator for random mutations in the t vector.
+  std::random_device rd;
+  std::mt19937 gen(rd());
+  std::uniform_int_distribution<> idx_randomizer(1, N - 2);
+
+  // Initialize optimization variables and best_guess
+  double mutation_std_dev{0.5};
+  unsigned no_improvement_counter = 0, no_improvement_threshold = _pow(N, 2);
+  std::pair<double, Eigen::VectorXd> best_guess{costFun(getCurve(t)), t};
+
+  int iter{};
+  while (mutation_std_dev > _epsilon)
+  {
+    iter++;
+    do {
+      t = best_guess.second;
+      t(idx_randomizer(gen)) += std::normal_distribution<>(0.0, mutation_std_dev)(gen);
+    } while (t.minCoeff() < 0.0 || t.maxCoeff() > 1.0 || (t.array().head(N-1) >= t.array().tail(N-1)).any());
+
+    double new_cost = costFun(getCurve(t));
+    if (new_cost < best_guess.first)
+    {
+      best_guess = std::make_pair(new_cost, t);
+      no_improvement_counter = 0;
+    }
+    else if (++no_improvement_counter > no_improvement_threshold)
+    {
+      mutation_std_dev /= 2;
+      no_improvement_counter = 0;
+      no_improvement_threshold = std::max(10u, no_improvement_threshold / 2);
+    }
+  }
+
+  return getCurve(best_guess.second);
 }
 
 void Curve::resetCache()

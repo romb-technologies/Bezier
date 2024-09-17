@@ -280,6 +280,8 @@ public:
    */
   void applyContinuity(const Curve& curve, const std::vector<double>& beta_coeffs);
 
+  static Curve fromPolyline(const PointVector& polyline, unsigned order = 0);
+
 protected:
   /*!
    * \brief N x 2 matrix where each row corresponds to control Point
