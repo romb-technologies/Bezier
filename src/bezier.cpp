@@ -49,9 +49,11 @@ PointVector Curve::polyline(double flatness) const
     cached_polyline_flatness_ = flatness;
     cached_polyline_ = std::make_unique<PointVector>();
     cached_polyline_->emplace_back(control_points_.row(0));
+    cached_polyline_t_ = std::make_unique<std::vector<double>>();
+    cached_polyline_t_->emplace_back(0.0);
 
-    std::vector<Eigen::MatrixX2d> subcurves;
-    subcurves.emplace_back(control_points_);
+    std::vector<std::tuple<Eigen::MatrixX2d, double, double>> subcurves;
+    subcurves.emplace_back(control_points_, 0.0, 1.0);
 
     // we calculate in squared distances
     flatness *= flatness;
@@ -66,7 +68,7 @@ PointVector Curve::polyline(double flatness) const
 
     while (!subcurves.empty())
     {
-      Eigen::MatrixX2d cp(std::move(subcurves.back()));
+      auto [cp, t1, t2] = std::move(subcurves.back());
       subcurves.pop_back();
       const Point& p1 = cp.row(0);
       const Point& p2 = cp.row(N_ - 1);
@@ -84,11 +86,14 @@ PointVector Curve::polyline(double flatness) const
       };
 
       if (coeff * cp.rowwise().redux(deviation).maxCoeff() <= flatness)
+      {
         cached_polyline_->emplace_back(cp.row(N_ - 1));
+        cached_polyline_t_->emplace_back(t2);
+      }
       else
       {
-        subcurves.emplace_back(splittingCoeffsRight(N_) * cp);
-        subcurves.emplace_back(splittingCoeffsLeft(N_) * cp);
+        subcurves.emplace_back(splittingCoeffsRight(N_) * cp, (t1 + t2) / 2, t2);
+        subcurves.emplace_back(splittingCoeffsLeft(N_) * cp, t1, (t1 + t2) / 2);
       }
     }
   }
@@ -563,6 +568,18 @@ void Curve::applyContinuity(const Curve& curve, const std::vector<double>& beta_
   resetCache();
 }
 
+Curve Curve::offsetCurve(const Curve& curve, double offset)
+{
+  PointVector offset_polyline;
+  if (!curve.cached_polyline_)
+    curve.polyline();
+  offset_polyline.reserve(curve.cached_polyline_->size());
+  for (size_t k{}; k < curve.cached_polyline_->size(); k++)
+    offset_polyline.emplace_back((*curve.cached_polyline_)[k] +
+                                 offset * curve.normalAt((*curve.cached_polyline_t_)[k]));
+  return fromPolyline(offset_polyline, curve.order() + 1);
+}
+
 Curve Curve::joinCurves(const Curve& curve1, const Curve& curve2, unsigned int order)
 {
   if (order == 1)
@@ -578,6 +595,11 @@ Curve Curve::joinCurves(const Curve& curve1, const Curve& curve2, unsigned int o
 
 Curve Curve::fromPolyline(const PointVector& polyline, unsigned order)
 {
+  if (polyline.size() < 2)
+    throw std::logic_error{"Polyline must have at least two points."};
+  if (order == 1)
+    return Curve(PointVector{polyline.front(), polyline.back()});
+
   // Select N points that most influence the shape of the polyline,
   // either based on a specified order or using the full polyline.
   const unsigned N = std::min(order ? order + 1 : polyline.size(), polyline.size());
@@ -633,7 +655,7 @@ Curve Curve::fromPolyline(const PointVector& polyline, unsigned order)
 
   // Initialize optimization variables and best_guess
   double mutation_std_dev{0.5};
-  unsigned no_improvement_counter = 0, no_improvement_threshold = _pow(N, 2);
+  unsigned no_improvement_counter = 0, no_improvement_threshold = _pow(N, 3);
   std::pair<double, Eigen::VectorXd> best_guess{costFun(getCurve(t)), t};
 
   int iter{};
@@ -656,7 +678,7 @@ Curve Curve::fromPolyline(const PointVector& polyline, unsigned order)
     {
       mutation_std_dev /= 2;
       no_improvement_counter = 0;
-      no_improvement_threshold = std::max(10u, no_improvement_threshold / 2);
+      no_improvement_threshold = std::max(_pow(N, 2), no_improvement_threshold / 2);
     }
   }
 

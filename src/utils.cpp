@@ -1,6 +1,5 @@
 #include "Bezier/utils.h"
 
-#include <iostream>
 #include <numeric>
 
 using namespace Bezier;
@@ -53,7 +52,6 @@ PointVector Bezier::_polylineSimplify(const PointVector& polyline, unsigned int 
     std::pop_heap(by_contribution.begin(), by_contribution.end(), cmp);
     auto curr = by_contribution.back();
     by_contribution.pop_back();
-    std::cout << vertices[curr].contribution << " ";
 
     // Update previous and next Vertex:
     // - update neighbours neighbours
@@ -65,7 +63,7 @@ PointVector Bezier::_polylineSimplify(const PointVector& polyline, unsigned int 
     vertices[prev].contribution = area(vertices[prev].prev, prev, vertices[prev].next);
     vertices[next].contribution = area(vertices[next].prev, next, vertices[next].next);
   }
-  std::cout << std::endl;
+
   // Reconstruct simplified polyline
   PointVector simplified;
   simplified.reserve(N);

@@ -280,6 +280,8 @@ public:
    */
   void applyContinuity(const Curve& curve, const std::vector<double>& beta_coeffs);
 
+  static Curve offsetCurve(const Curve& curve, double offset);
+
   static Curve joinCurves(const Curve& curve1, const Curve& curve2, unsigned order = 0);
 
   static Curve fromPolyline(const PointVector& polyline, unsigned order = 0);
@@ -313,7 +315,8 @@ private:
   mutable std::unique_ptr<std::vector<double>> cached_roots_; /*! If generated, stores roots for later use */
   mutable std::unique_ptr<BoundingBox> cached_bounding_box_;  /*! If generated, stores bounding box for later use */
   mutable std::unique_ptr<PointVector> cached_polyline_;      /*! If generated, stores polyline for later use */
-  mutable double cached_polyline_flatness_{};                 /*! Flatness of cached polyline */
+  mutable std::unique_ptr<std::vector<double>> cached_polyline_t_; /*! If generated, stores polyline t for later use */
+  mutable double cached_polyline_flatness_{};                      /*! Flatness of cached polyline */
   mutable std::unique_ptr<Eigen::VectorXd>
       cached_projection_polynomial_part_; /*! Constant part of point projection polynomial */
   mutable Eigen::MatrixXd
