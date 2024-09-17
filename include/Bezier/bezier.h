@@ -280,6 +280,8 @@ public:
    */
   void applyContinuity(const Curve& curve, const std::vector<double>& beta_coeffs);
 
+  static Curve joinCurves(const Curve& curve1, const Curve& curve2, unsigned order = 0);
+
   static Curve fromPolyline(const PointVector& polyline, unsigned order = 0);
 
 protected:

@@ -563,6 +563,19 @@ void Curve::applyContinuity(const Curve& curve, const std::vector<double>& beta_
   resetCache();
 }
 
+Curve Curve::joinCurves(const Curve &curve1, const Curve &curve2, unsigned int order)
+{
+  if (order == 1)
+    return Curve(PointVector{curve1.control_points_.row(0), curve2.control_points_.row(curve2.N_ - 1)});
+
+  auto polyline = curve1.polyline();
+  auto polyline2 = curve2.polyline();
+  polyline.reserve(polyline.size() + polyline2.size());
+  polyline.insert(polyline.end(), std::make_move_iterator(polyline2.begin()), std::make_move_iterator(polyline2.end()));
+
+  return fromPolyline(polyline, order ? order : curve1.order() + curve2.order());
+}
+
 Curve Curve::fromPolyline(const PointVector& polyline, unsigned order)
 {
   // Select N points that most influence the shape of the polyline,
