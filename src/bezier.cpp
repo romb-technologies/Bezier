@@ -563,7 +563,7 @@ void Curve::applyContinuity(const Curve& curve, const std::vector<double>& beta_
   resetCache();
 }
 
-Curve Curve::joinCurves(const Curve &curve1, const Curve &curve2, unsigned int order)
+Curve Curve::joinCurves(const Curve& curve1, const Curve& curve2, unsigned int order)
 {
   if (order == 1)
     return Curve(PointVector{curve1.control_points_.row(0), curve2.control_points_.row(curve2.N_ - 1)});
@@ -589,24 +589,23 @@ Curve Curve::fromPolyline(const PointVector& polyline, unsigned order)
   Eigen::MatrixXd P(N, 2), M = bernsteinCoeffs(N);
   for (unsigned k = 0; k < N; k++)
   {
-   P.row(k) = simplified[k];
-   t(k) = k == 0 ? 0 : t(k - 1) + (P.row(k) - P.row(k - 1)).norm();
+    P.row(k) = simplified[k];
+    t(k) = k == 0 ? 0 : t(k - 1) + (P.row(k) - P.row(k - 1)).norm();
   }
   t /= t(N - 1);
 
   // Compute the control points for a Bezier curve such that C(t_i) = P_i for all i,
   // by solving the matrix form of the Bezier curve equation.
   auto getCurve = [&M, &P](const Eigen::VectorXd& t) {
-   Eigen::MatrixXd T(t.size(), t.size());
-   for (unsigned k = 0; k < t.size(); k++)
-     T.row(k) = _powSeries(t(k), t.size());
-   return Curve(M.inverse() * (T.transpose() * T).inverse() * T.transpose() * P);
+    Eigen::MatrixXd T(t.size(), t.size());
+    for (unsigned k = 0; k < t.size(); k++)
+      T.row(k) = _powSeries(t(k), t.size());
+    return Curve(M.inverse() * (T.transpose() * T).inverse() * T.transpose() * P);
   };
 
   // Calculate the root mean square distance (RMSD) between the polyline
   // representation of the curve and the original polyline points.
-  auto rmsd = [&polyline](const Curve& c)
-  {
+  auto rmsd = [&polyline](const Curve& c) {
     double rmsd{};
     auto polyline_c = c.polyline();
     for (const auto& p : polyline_c)
@@ -617,15 +616,13 @@ Curve Curve::fromPolyline(const PointVector& polyline, unsigned order)
   // Calculate the absolute difference in length between the polyline representation
   // of the curve and the original polyline points.
   const double polyline_length = _polylineLength(polyline);
-  auto length_diff = [&polyline_length](const Curve& c)
-  {
+  auto length_diff = [&polyline_length](const Curve& c) {
     return std::fabs(_polylineLength(c.polyline()) - polyline_length);
   };
 
   // Define a cost function for optimization, combining the RMSD and length difference,
   // with a +1 offset to handle cases where either is zero.
-  auto costFun = [&rmsd, &length_diff](const Curve& c)
-  {
+  auto costFun = [&rmsd, &length_diff](const Curve& c) {
     return (1 + rmsd(c)) * (1 + length_diff(c)); // +1 is for cases when either is zero
   };
 
@@ -643,10 +640,11 @@ Curve Curve::fromPolyline(const PointVector& polyline, unsigned order)
   while (mutation_std_dev > _epsilon)
   {
     iter++;
-    do {
+    do
+    {
       t = best_guess.second;
       t(idx_randomizer(gen)) += std::normal_distribution<>(0.0, mutation_std_dev)(gen);
-    } while (t.minCoeff() < 0.0 || t.maxCoeff() > 1.0 || (t.array().head(N-1) >= t.array().tail(N-1)).any());
+    } while (t.minCoeff() < 0.0 || t.maxCoeff() > 1.0 || (t.array().head(N - 1) >= t.array().tail(N - 1)).any());
 
     double new_cost = costFun(getCurve(t));
     if (new_cost < best_guess.first)

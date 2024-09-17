@@ -3,11 +3,11 @@
 
 #include <Eigen/Dense>
 #include <vector>
-#include <memory>
 
 #include "declarations.h"
 
 #ifndef __cpp_lib_make_unique
+#include <memory>
 namespace std
 {
 template <typename T, typename... Args> inline std::unique_ptr<T> make_unique(Args&&... args)
@@ -23,7 +23,7 @@ namespace Bezier
 struct _PolynomialRoots : public std::vector<double>
 {
   explicit _PolynomialRoots(unsigned reserve) { std::vector<double>::reserve(reserve); }
-  void clear(){}           // no-op so that PolynomialSolver::RealRoots() doesn't clear it
+  void clear() {}          // no-op so that PolynomialSolver::RealRoots() doesn't clear it
   void push_back(double t) // only allow valid roots
   {
     if (t >= 0 && t <= 1)
@@ -33,8 +33,7 @@ struct _PolynomialRoots : public std::vector<double>
 
 inline unsigned _exp2(unsigned exp) { return 1 << exp; }
 
-template<typename T>
-inline T _pow(T base, unsigned exp)
+template <typename T> inline T _pow(T base, unsigned exp)
 {
   T result = exp & 1 ? base : 1;
   while (exp >>= 1)
@@ -67,7 +66,7 @@ inline double _polylineLength(const PointVector& polyline)
 {
   double length{};
   for (size_t k{1}; k < polyline.size(); k++)
-    length += (polyline[k] - polyline[k-1]).norm();
+    length += (polyline[k] - polyline[k - 1]).norm();
   return length;
 }
 
@@ -86,12 +85,12 @@ inline double _polylineDist(const PointVector& polyline, const Point& point)
 
   double dist = std::numeric_limits<double>::max();
   for (size_t k{1}; k < polyline.size(); k++)
-    dist = std::min(dist, distSeg(polyline[k-1], polyline[k]));
+    dist = std::min(dist, distSeg(polyline[k - 1], polyline[k]));
   return dist;
 }
 
 PointVector _polylineSimplify(const PointVector& polyline, unsigned N);
 
-}
+} // namespace Bezier
 
 #endif // UTILS_H
