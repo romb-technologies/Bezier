@@ -3,8 +3,9 @@
 #include <numeric>
 
 using namespace Bezier;
+using namespace Bezier::Utils;
 
-PointVector Bezier::_polylineSimplify(const PointVector& polyline, unsigned int N)
+PointVector Bezier::Utils::_polylineSimplify(const PointVector& polyline, unsigned int N)
 {
   if (polyline.size() < 2)
     throw std::logic_error{"Polyline must have at least two points."};

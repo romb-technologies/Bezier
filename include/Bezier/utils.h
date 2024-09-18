@@ -19,6 +19,12 @@ template <typename T, typename... Args> inline std::unique_ptr<T> make_unique(Ar
 
 namespace Bezier
 {
+namespace Utils
+{
+/*!
+ * \brief Precision for numerical methods
+ */
+const double _epsilon = std::sqrt(std::numeric_limits<double>::epsilon());
 
 struct _PolynomialRoots : public std::vector<double>
 {
@@ -91,6 +97,7 @@ inline double _polylineDist(const PointVector& polyline, const Point& point)
 
 PointVector _polylineSimplify(const PointVector& polyline, unsigned N);
 
+} // namespace Utils
 } // namespace Bezier
 
 #endif // UTILS_H

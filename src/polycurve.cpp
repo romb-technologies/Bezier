@@ -1,8 +1,10 @@
 #include "Bezier/polycurve.h"
+#include "Bezier/utils.h"
 
 #include <numeric>
 
 using namespace Bezier;
+using namespace Bezier::Utils;
 
 PolyCurve::PolyCurve(std::deque<Curve> curves) : curves_(std::move(curves)) {}
 
