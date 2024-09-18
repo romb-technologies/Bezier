@@ -2,10 +2,11 @@
 #include "Bezier/utils.h"
 
 #include <numeric>
-#include <random>
 
 #include <unsupported/Eigen/FFT>
+#include <unsupported/Eigen/LevenbergMarquardt>
 #include <unsupported/Eigen/MatrixFunctions>
+#include <unsupported/Eigen/NumericalDiff>
 #include <unsupported/Eigen/Polynomials>
 
 using namespace Bezier;
@@ -568,7 +569,7 @@ void Curve::applyContinuity(const Curve& curve, const std::vector<double>& beta_
   resetCache();
 }
 
-Curve Curve::offsetCurve(const Curve& curve, double offset)
+Curve Curve::offsetCurve(const Curve& curve, double offset, unsigned order)
 {
   PointVector offset_polyline;
   if (!curve.cached_polyline_)
@@ -577,7 +578,7 @@ Curve Curve::offsetCurve(const Curve& curve, double offset)
   for (size_t k{}; k < curve.cached_polyline_->size(); k++)
     offset_polyline.emplace_back((*curve.cached_polyline_)[k] +
                                  offset * curve.normalAt((*curve.cached_polyline_t_)[k]));
-  return fromPolyline(offset_polyline, curve.order() + 1);
+  return fromPolyline(offset_polyline, order ? order : curve.order() + 1);
 }
 
 Curve Curve::joinCurves(const Curve& curve1, const Curve& curve2, unsigned int order)
@@ -593,16 +594,17 @@ Curve Curve::joinCurves(const Curve& curve1, const Curve& curve2, unsigned int o
   return fromPolyline(polyline, order ? order : curve1.order() + curve2.order());
 }
 
-Curve Curve::fromPolyline(const PointVector& polyline, unsigned order)
+Curve Curve::fromPolyline(const PointVector& polyline, unsigned int order)
 {
+  const unsigned N = std::min(order ? order + 1 : polyline.size(), polyline.size());
+
   if (polyline.size() < 2)
     throw std::logic_error{"Polyline must have at least two points."};
-  if (order == 1)
+  if (N == 2)
     return Curve(PointVector{polyline.front(), polyline.back()});
 
   // Select N points that most influence the shape of the polyline,
   // either based on a specified order or using the full polyline.
-  const unsigned N = std::min(order ? order + 1 : polyline.size(), polyline.size());
   auto simplified = _polylineSimplify(polyline, N);
 
   // Initialize vector t where each element represents a normalized cumulative
@@ -642,47 +644,87 @@ Curve Curve::fromPolyline(const PointVector& polyline, unsigned order)
     return std::fabs(_polylineLength(c.polyline()) - polyline_length);
   };
 
-  // Define a cost function for optimization, combining the RMSD and length difference,
-  // with a +1 offset to handle cases where either is zero.
-  auto costFun = [&rmsd, &length_diff](const Curve& c) {
-    return (1 + rmsd(c)) * (1 + length_diff(c)); // +1 is for cases when either is zero
+  struct CostFunctor : public Eigen::DenseFunctor<double>
+  {
+    using GetCurveFun = std::function<Curve(Eigen::VectorXd)>;
+    using CostFun = std::function<double(Curve)>;
+    GetCurveFun getCurve;
+    CostFun f1, f2;
+
+    CostFunctor(int N, GetCurveFun getCurve, CostFun f1, CostFun f2)
+        : DenseFunctor<double>(N - 2, 2), getCurve(getCurve), f1(f1), f2(f2)
+    {
+    }
+
+    int operator()(const Eigen::VectorXd& x, Eigen::VectorXd& fvec) const
+    {
+      auto c = getCurve((Eigen::VectorXd(inputs() + 2) << 0, x, 1).finished());
+      fvec(0) = f1(c);
+      fvec(1) = f2(c);
+      return 0;
+    }
   };
 
-  // Initialize random number generator for random mutations in the t vector.
-  std::random_device rd;
-  std::mt19937 gen(rd());
-  std::uniform_int_distribution<> idx_randomizer(1, N - 2);
+  CostFunctor costFun(N, getCurve, rmsd, length_diff);
+  Eigen::NumericalDiff<CostFunctor> num_diff(costFun);
 
-  // Initialize optimization variables and best_guess
-  double mutation_std_dev{0.5};
-  unsigned no_improvement_counter = 0, no_improvement_threshold = _pow(N, 3);
-  std::pair<double, Eigen::VectorXd> best_guess{costFun(getCurve(t)), t};
+  Eigen::MatrixXd J(2, N - 2);
+  Eigen::VectorXd fvec(2), x = t.segment(1, N - 2);
+  costFun(x, fvec);
+  num_diff.df(x, J);
 
-  int iter{};
-  while (mutation_std_dev > _epsilon)
+  struct ParetoData
   {
-    iter++;
-    do
-    {
-      t = best_guess.second;
-      t(idx_randomizer(gen)) += std::normal_distribution<>(0.0, mutation_std_dev)(gen);
-    } while (t.minCoeff() < 0.0 || t.maxCoeff() > 1.0 || (t.array().head(N - 1) >= t.array().tail(N - 1)).any());
+    Eigen::VectorXd f, x;
+    Eigen::MatrixXd J;
+    double alpha;
+  };
 
-    double new_cost = costFun(getCurve(t));
-    if (new_cost < best_guess.first)
+  constexpr double alpha_init = 0.1;
+  constexpr size_t pareto_max_size = 10;
+  std::vector<ParetoData> pareto_front{{fvec, x, J, alpha_init}};
+  pareto_front.reserve(2 * pareto_max_size);
+
+  for (bool finished{false}; !finished;)
+  {
+    finished = true;
+
+    for (auto& sample : pareto_front)
     {
-      best_guess = std::make_pair(new_cost, t);
-      no_improvement_counter = 0;
+      if (sample.alpha < std::sqrt(_epsilon))
+        continue;
+      finished = false;
+
+      do
+      {
+        x = sample.x - sample.alpha * (sample.J.row(0) + sample.J.row(1)).transpose().normalized();
+        sample.alpha /= 2;
+      } while (x.minCoeff() < 0.0 || x.maxCoeff() > 1.0 || (x.array().head(N - 3) >= x.array().tail(N - 3)).any());
+
+      costFun(x, fvec);
+      if (std::any_of(pareto_front.begin(), pareto_front.end(),
+                      [&fvec](const auto& p) { return (p.f.array() <= fvec.array()).all(); }))
+        continue;
+
+      num_diff.df(x, J);
+      pareto_front.push_back({fvec, x, J, 2 * sample.alpha});
     }
-    else if (++no_improvement_counter > no_improvement_threshold)
-    {
-      mutation_std_dev /= 2;
-      no_improvement_counter = 0;
-      no_improvement_threshold = std::max(_pow(N, 2), no_improvement_threshold / 2);
-    }
+
+    std::sort(pareto_front.begin(), pareto_front.end(), [](const auto& p1, const auto& p2) {
+      return p1.f(0) == p2.f(0) ? p1.f(1) < p2.f(1) : p1.f(0) < p2.f(0);
+    });
+
+    double best_f1 = std::numeric_limits<double>::max();
+    auto erase_it = std::remove_if(pareto_front.begin(), pareto_front.end(), [&best_f1](const auto& p) {
+      return p.f(1) <= best_f1 ? (best_f1 = p.f(1), false) : true;
+    });
+
+    if (std::distance(erase_it, pareto_front.begin() + pareto_max_size) < 0)
+      erase_it = pareto_front.begin() + pareto_max_size;
+    pareto_front.erase(erase_it, pareto_front.end());
   }
 
-  return getCurve(best_guess.second);
+  return getCurve((Eigen::VectorXd(N) << 0, pareto_front.front().x, 1).finished());
 }
 
 void Curve::resetCache()

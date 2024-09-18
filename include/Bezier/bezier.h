@@ -280,7 +280,7 @@ public:
    */
   void applyContinuity(const Curve& curve, const std::vector<double>& beta_coeffs);
 
-  static Curve offsetCurve(const Curve& curve, double offset);
+  static Curve offsetCurve(const Curve& curve, double offset, unsigned order = 0);
 
   static Curve joinCurves(const Curve& curve1, const Curve& curve2, unsigned order = 0);
 
