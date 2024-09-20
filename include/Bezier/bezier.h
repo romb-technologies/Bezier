@@ -111,10 +111,9 @@ public:
    * \brief Compute parameter t which is S distance from given t
    * \param t Curve parameter
    * \param s Distance to iterate
-   * \param epsilon Precision of resulting t
    * \return New parameter t
    */
-  double iterateByLength(double t, double s, double epsilon = 0.001) const;
+  double iterateByLength(double t, double s) const;
 
   /*!
    * \brief Reverse order of control points
@@ -248,18 +247,17 @@ public:
 
   /*!
    * \brief Split the curve into two subcurves
-   * \param z double t at which to split the curve
+   * \param t Curve parameter at which to split the curve
    * \return Pair of two subcurves
    */
-  std::pair<Curve, Curve> splitCurve(double z = 0.5) const;
+  std::pair<Curve, Curve> splitCurve(double t = 0.5) const;
 
   /*!
    * \brief Get the points of intersection with another curve
    * \param curve Curve to intersect with
-   * \param epsilon Precision of resulting intersection
    * \return A vector af points of intersection between curves
    */
-  PointVector intersections(const Curve& curve, double epsilon = 0.001) const;
+  PointVector intersections(const Curve& curve) const;
 
   /*!
    * \brief Get the parameter t where curve is closest to given point
@@ -280,7 +278,7 @@ public:
    * \param locked_curve Curve on which calculation are based.
    * \param beta_coeffs Beta-constraints used to calculate continuity. Size defines continuity order.
    */
-  void applyContinuity(const Curve& source_curve, const std::vector<double>& beta_coeffs);
+  void applyContinuity(const Curve& curve, const std::vector<double>& beta_coeffs);
 
 protected:
   /*!
@@ -300,6 +298,7 @@ private:
    * \brief Coefficients for matrix operations
    */
   using Coeffs = Eigen::MatrixXd;
+
   /*!
    * \brief Map of different coefficient matrices, depending on the order of the curve
    */
@@ -315,7 +314,8 @@ private:
       cached_projection_polynomial_part_; /*! Constant part of point projection polynomial */
   mutable Eigen::MatrixXd
       cached_projection_polynomial_derivative_; /*! Polynomial representation of the curve derivative */
-  mutable std::unique_ptr<Eigen::VectorXd> cached_chebyshev_coeffs_;  /*!  If generated, stores chebyshev coefficients for calculating the length of the curve */
+  mutable std::unique_ptr<Eigen::VectorXd> cached_chebyshev_coeffs_; /*!  If generated, stores chebyshev coefficients
+                                                                        for calculating the length of the curve */
 
   // static caching
   static CoeffsMap bernstein_coeffs_;       /*! Map of Bernstein coefficients */
@@ -326,10 +326,10 @@ private:
 
   /// Static getter function for Bernstein coefficients
   static Coeffs bernsteinCoeffs(unsigned n);
-  /// Static getter function for coefficients to get a subcurve t = [0, z];
-  static Coeffs splittingCoeffsLeft(unsigned n, double z = 0.5);
-  /// Static getter function for coefficients to get a subcurve t = [z, 1];
-  static Coeffs splittingCoeffsRight(unsigned n, double z = 0.5);
+  /// Static getter function for coefficients to get a subcurve [0, t];
+  static Coeffs splittingCoeffsLeft(unsigned n, double t = 0.5);
+  /// Static getter function for coefficients to get a subcurve [t, 1];
+  static Coeffs splittingCoeffsRight(unsigned n, double t = 0.5);
   /// Static getter function for coefficients to elevate order of curve
   static Coeffs elevateOrderCoeffs(unsigned n);
   /// Static getter function for coefficients to lower order of curve
