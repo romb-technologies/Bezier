@@ -1,0 +1,28 @@
+name: Build Test
+
+on:
+  pull_request:
+    branches:
+      - readme-travis-codacy
+  push:
+    branches:
+      - '**'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
+    - name: Install Dependencies
+      run: sudo apt-get install -y libeigen3-dev
+
+    - name: Build Project
+      run: |
+        mkdir build
+        cd build
+        cmake ..
+        make
+
