@@ -1,4 +1,5 @@
 # Bezier
+![Build Test](https://github.com/romb-technologies/Bezier/actions/workflows/build.yml/badge.svg?branch=master)
 ![v0.3.2](https://img.shields.io/badge/version-0.3.2-blue.svg)
 
 Fast and lightweight class for using the Bezier curves of any order in C++
