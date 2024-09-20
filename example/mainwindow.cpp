@@ -13,16 +13,9 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent), ui(new Ui::MainWi
   Eigen::MatrixX2d cp1, cp2;
   cp1.resize(4, 2);
   cp2.resize(5, 2);
-  cp1 << 84, 162,
-      246, 30,
-      48, 236,
-      180, 110;
+  cp1 << 84, 162, 246, 30, 48, 236, 180, 110;
 
-  cp2 << 180, 110,
-      175, 160,
-      60, 48,
-      164, 165,
-      124, 134;
+  cp2 << 180, 110, 175, 160, 60, 48, 164, 165, 124, 134;
 
   scene->addItem(new qCurve(cp1 * 5));
   scene->addItem(new qCurve(cp2 * 5));

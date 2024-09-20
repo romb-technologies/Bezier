@@ -4,8 +4,8 @@
 #include <QGraphicsScene>
 
 #include "qcurve.h"
-#include "qpolycurve.h"
 #include "qgraphicsviewzoom.h"
+#include "qpolycurve.h"
 
 namespace Ui
 {
@@ -28,8 +28,6 @@ private:
   bool draw_box_ = false;
   bool draw_inter_ = false;
   bool show_projection = false;
-  bool update_curvature = false;
-  std::pair<qCurve*, double> t_to_update;
   bool update_cp = false;
   std::pair<QGraphicsItem*, uint> cp_to_update;
 

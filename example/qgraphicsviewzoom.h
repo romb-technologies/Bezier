@@ -1,9 +1,9 @@
 #ifndef QGRAPHICSVIEWZOOM_H
 #define QGRAPHICSVIEWZOOM_H
 
-#include <QObject>
 #include <QDebug>
 #include <QGraphicsView>
+#include <QObject>
 
 /*!
  * \brief This class adds ability to zoom QGraphicsView using mouse wheel. The point under cursor
