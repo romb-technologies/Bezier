@@ -237,11 +237,18 @@ public:
   BoundingBox boundingBox() const;
 
   /*!
+   * \brief Split the curve into multiple subcurves
+   * \param t A vector of curve parameters at which to split the curve
+   * \return A vector of subcurves
+   */
+  std::vector<Curve> splitCurve(const std::vector<double>& t) const;
+
+  /*!
    * \brief Split the curve into two subcurves
    * \param t Curve parameter at which to split the curve
-   * \return Pair of two subcurves
+   * \return A vector of two subcurves
    */
-  std::pair<Curve, Curve> splitCurve(double t = 0.5) const;
+  std::vector<Curve> splitCurve(double t = 0.5) const;
 
   /*!
    * \brief Get the points of intersection with another curve

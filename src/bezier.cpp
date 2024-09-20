@@ -342,7 +342,25 @@ BoundingBox Curve::boundingBox() const
   return cached_bounding_box_.value();
 }
 
-std::pair<Curve, Curve> Curve::splitCurve(double t) const
+std::vector<Curve> Curve::splitCurve(const std::vector<double>& t) const
+{
+  auto sorted_t = t;
+  std::sort(sorted_t.begin(), sorted_t.end());
+  std::vector<Curve> subcurves;
+  subcurves.reserve(sorted_t.size() + 1);
+  auto leftover_cp = control_points_;
+  for (unsigned k{}; k < sorted_t.size(); k++)
+  {
+    subcurves.emplace_back(splittingCoeffsLeft(N_, sorted_t[k] - bu::epsilon / 2) * leftover_cp);
+    leftover_cp = splittingCoeffsRight(N_, sorted_t[k] + bu::epsilon / 2) * leftover_cp;
+    std::for_each(sorted_t.begin() + k + 1, sorted_t.end(), [t = sorted_t[k]](double& x) { x = (x - t) / (1 - t); });
+  }
+  subcurves.emplace_back(std::move(leftover_cp));
+  return subcurves;
+}
+
+
+std::vector<Curve> Curve::splitCurve(double t) const
 {
   return {Curve(splittingCoeffsLeft(N_, t) * control_points_), Curve(splittingCoeffsRight(N_, t) * control_points_)};
 }
@@ -363,25 +381,13 @@ PointVector Curve::intersections(const Curve& curve) const
     subcurve_pairs.emplace_back(control_points_, curve.control_points_);
   else
   {
-    // for self intersections divide curve into subcurves at extrema
+    // for self intersections divide curve into subcurves at extrema and create all pairs of subcurves
     auto t = extrema();
     std::sort(t.begin(), t.end());
-    std::vector<Eigen::MatrixX2d> subcurves;
-    subcurves.emplace_back(control_points_);
-    for (unsigned k{}; k < t.size(); k++)
-    {
-      Eigen::MatrixX2d new_cp = std::move(subcurves.back());
-      subcurves.pop_back();
-      subcurves.emplace_back(splittingCoeffsLeft(N_, t[k] - bu::epsilon / 2) * new_cp);
-      subcurves.emplace_back(splittingCoeffsRight(N_, t[k] + bu::epsilon / 2) * new_cp);
-
-      std::for_each(t.begin() + k + 1, t.end(), [t = t[k]](double& x) { x = (x - t) / (1 - t); });
-    }
-
-    // create all pairs of subcurves
+    auto subcurves = splitCurve(t);
     for (unsigned k{}; k < subcurves.size(); k++)
       for (unsigned i{k + 1}; i < subcurves.size(); i++)
-        subcurve_pairs.emplace_back(subcurves[k], subcurves[i]);
+        subcurve_pairs.emplace_back(subcurves[k].control_points_, subcurves[i].control_points_);
   }
 
   while (!subcurve_pairs.empty())
