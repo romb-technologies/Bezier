@@ -1,7 +1,6 @@
 # Bezier
-[![Build Status](https://api.travis-ci.com/romb-technologies/Bezier.svg?branch=master)](https://api.travis-ci.com/romb-technologies/Bezier)
+![Build Test](https://github.com/romb-technologies/Bezier/actions/workflows/build.yml/badge.svg?branch=master)
 ![v0.3.2](https://img.shields.io/badge/version-0.3.2-blue.svg)
-[![Codacy Badge](https://app.codacy.com/project/badge/Grade/47864506cafa49f2a3628638642dd4e8)](https://www.codacy.com/gh/romb-technologies/Bezier/dashboard?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=romb-technologies/Bezier&amp;utm_campaign=Badge_Grade)
 
 Fast and lightweight class for using the Bezier curves of any order in C++
 
