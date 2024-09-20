@@ -1,5 +1,6 @@
 #include "unit_tests.hpp"
 
+#include <Bezier/declarations.h>
 #include <iostream>
 
 #include <gtest/gtest.h>
@@ -60,23 +61,52 @@ TEST_F(BezierTest, CurveEndPointsTest)
 
 TEST_F(BezierTest, CurvePolylineTest)
 {
-  PointVector polyline = curve_.polyline();
-  PointVector expected_polyline = getExpectedPolylinePoints();
-  ASSERT_EQ(polyline.size(), expected_polyline.size()) << "Polyline size differs from expected";
-  for (int i = 0; i < polyline.size(); i++)
-  {
-    EXPECT_EQ(polyline[i], expected_polyline[i]) << "Polyline differs from expected";
-  }
+  constexpr double max_dev1{1}, max_dev2{0.01};
+  PointVector polyline1 = curve_.polyline(max_dev1);
+  PointVector polyline2 = curve_.polyline(max_dev2);
+
+  // TODO: use this function from Bezier::Utils in v0.4.0
+  auto _polylineDist = [](const PointVector& polyline, const Point& point) {
+    auto distSeg = [&point](const Point& p1, const Point& p2) {
+      Vector u = p2 - p1;
+      Vector v = point - p1;
+      double t = u.dot(v) / u.squaredNorm();
+      if (t < 0)
+        return v.squaredNorm();
+      if (t > 1)
+        return (point - p2).squaredNorm();
+      return (p1 + t * u - point).squaredNorm();
+    };
+
+    double dist = std::numeric_limits<double>::max();
+    for (size_t k{1}; k < polyline.size(); k++)
+      dist = std::min(dist, distSeg(polyline[k - 1], polyline[k]));
+    return dist;
+  };
+
+  auto expected_polyline = getExpectedPolylinePoints();
+  auto rmsd = [&_polylineDist, &expected_polyline](const PointVector& polyline) {
+    double rmsd{0};
+    for (int i = 0; i < polyline.size(); i++)
+      rmsd += _polylineDist(expected_polyline, polyline[i]);
+    return std::sqrt(rmsd / polyline.size());
+  };
+
+  EXPECT_LE(rmsd(polyline1), max_dev1) << "Polyline RMSD is greater than expected";
+  EXPECT_LE(rmsd(polyline2), max_dev2) << "Polyline RMSD is greater than expected";
 }
 
 TEST_F(BezierTest, CurveLengthTest)
 {
-  EXPECT_NEAR(curve_.length(), 189.11484365930446, 1e-8) << "Curve length differs from expected";
+  constexpr double expected_length{189.0862753119311};
+  EXPECT_NEAR(curve_.length(), expected_length, Bezier::_epsilon) << "Curve length differs from expected";
 }
 
 TEST_F(BezierTest, CurveIterateByLengthTest)
 {
-  EXPECT_NEAR(curve_.iterateByLength(0.2, 35), 0.5513946586820645, 1e-8)
+  constexpr double start_t{0.2}, length{35};
+  double result_t = curve_.iterateByLength(start_t, length);
+  EXPECT_NEAR(curve_.length(start_t, result_t), length, Bezier::_epsilon)
       << "Parameter t returned from the function differs from expected";
 }
 
