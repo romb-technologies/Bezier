@@ -128,16 +128,6 @@ public:
   void setControlPoint(unsigned idx, const Point& point);
 
   /*!
-   * \brief Manipulate the curve so that it passes through wanted point for given 't'
-   * \param t Curve parameter
-   * \param point Point where curve should pass for a given t
-   *
-   * \warning CAN THROW: Only works for quadratic and cubic curves
-   * \warning Resets cached data
-   */
-  void manipulateCurvature(double t, const Point& point);
-
-  /*!
    * \brief Raise the curve order by 1
    *
    * Curve will always retain its shape
