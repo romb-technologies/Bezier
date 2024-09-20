@@ -395,11 +395,7 @@ PointVector Curve::intersections(const Curve& curve) const
       subcurves.emplace_back(splittingCoeffsLeft(N_, t[k] - _epsilon / 2) * new_cp);
       subcurves.emplace_back(splittingCoeffsRight(N_, t[k] + _epsilon / 2) * new_cp);
 
-#if __cpp_init_captures
       std::for_each(t.begin() + k + 1, t.end(), [t = t[k]](double& x) { x = (x - t) / (1 - t); });
-#else
-      std::for_each(t.begin() + k + 1, t.end(), [&t, k](double& x) { x = (x - t[k]) / (1 - t[k]); });
-#endif
     }
 
     // create all pairs of subcurves
@@ -410,12 +406,7 @@ PointVector Curve::intersections(const Curve& curve) const
 
   while (!subcurve_pairs.empty())
   {
-#if __cpp_structured_bindings
     auto [cp_a, cp_b] = std::move(subcurve_pairs.back());
-#else
-    Eigen::MatrixX2d cp_a, cp_b;
-    std::tie(cp_a, cp_b) = std::move(subcurve_pairs.back());
-#endif
     subcurve_pairs.pop_back();
 
     BoundingBox bbox1(Point(cp_a.col(0).minCoeff(), cp_a.col(1).minCoeff()),
