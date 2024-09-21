@@ -44,6 +44,11 @@ Point Curve::controlPoint(unsigned idx) const { return control_points_.row(idx);
 
 std::pair<Point, Point> Curve::endPoints() const { return {control_points_.row(0), control_points_.row(N_ - 1)}; }
 
+PointVector Curve::polyline() const
+{
+  return polyline(boundingBox().diagonal().norm() / 1000);
+}
+
 PointVector Curve::polyline(double flatness) const
 {
   if (!cached_polyline_ || cached_polyline_flatness_ != flatness)

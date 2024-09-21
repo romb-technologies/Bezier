@@ -81,10 +81,17 @@ public:
 
   /*!
    * \brief Get a polyline representation of the curve as a vector of points on curve
+   * \return A vector of polyline vertices
+   * \note Default flatness parameter is calculated as 0.1% for bounding box diagonal
+   */
+  PointVector polyline() const;
+
+  /*!
+   * \brief Get a polyline representation of the curve as a vector of points on curve
    * \param flatness Error tolerance of approximation
    * \return A vector of polyline vertices
    */
-  PointVector polyline(double flatness = 0.5) const;
+  PointVector polyline(double flatness) const;
 
   /*!
    * \brief Compute exact arc length using Chebyshev polynomials
