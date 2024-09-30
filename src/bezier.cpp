@@ -360,7 +360,6 @@ std::vector<Curve> Curve::splitCurve(const std::vector<double>& t) const
   return subcurves;
 }
 
-
 std::vector<Curve> Curve::splitCurve(double t) const
 {
   return {Curve(splittingCoeffsLeft(N_, t) * control_points_), Curve(splittingCoeffsRight(N_, t) * control_points_)};
@@ -541,7 +540,7 @@ Curve Curve::fromPolyline(const PointVector& polyline, unsigned order)
   std::vector<PointVector> subpolylines;
   subpolylines.reserve(N - 1);
   subpolylines.emplace_back(std::vector{polyline.front()});
-  for(unsigned k{1}; k + 1 < polyline.size(); k++)
+  for (unsigned k{1}; k + 1 < polyline.size(); k++)
   {
     subpolylines.back().emplace_back(polyline[k]);
     if (by_contribution.count(k))
@@ -578,7 +577,7 @@ Curve Curve::fromPolyline(const PointVector& polyline, unsigned order)
     std::vector<PointVector> subpolylines;
 
     CostFunctor(int N, GetCurveFun getCurve, const std::vector<PointVector>& subpolylines)
-      : DenseFunctor<double>(N - 2, 2 * N - 2), getCurve(getCurve), subpolylines(subpolylines)
+        : DenseFunctor<double>(N - 2, 2 * N - 2), getCurve(getCurve), subpolylines(subpolylines)
     {
     }
 
@@ -598,7 +597,7 @@ Curve Curve::fromPolyline(const PointVector& polyline, unsigned order)
 
       auto curve = getCurve((Eigen::VectorXd(inputs() + 2) << 0, x, 1).finished());
       auto subcurves = curve.splitCurve(std::vector<double>(x.data(), x.data() + inputs()));
-      for(unsigned  k = 0; k < subcurves.size(); k++)
+      for (unsigned k = 0; k < subcurves.size(); k++)
       {
         fvec(k) = rmsd(subcurves[k], subpolylines[k]);
         fvec(values() / 2 + k) = length_diff(subcurves[k], subpolylines[k]);
