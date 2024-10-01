@@ -317,11 +317,11 @@ Vector Curve::derivativeAt(unsigned n, double t) const { return derivative(n).va
 std::vector<double> Curve::roots() const
 {
   if (!cached_roots_)
-    cached_roots_ = N_ < 2 ? std::vector<double>{} : [this] {
-      Eigen::MatrixXd bezier_polynomial = bernsteinCoeffs(N_) * control_points_;
-      return bu::concatenate(bu::solvePolynomial(bezier_polynomial.col(0)),
-                             bu::solvePolynomial(bezier_polynomial.col(1)));
-    }();
+  {
+    Eigen::MatrixXd bezier_polynomial = bernsteinCoeffs(N_) * control_points_;
+    cached_roots_.emplace(bu::concatenate(bu::solvePolynomial(bezier_polynomial.col(0)), //
+                                          bu::solvePolynomial(bezier_polynomial.col(1))));
+  }
 
   return cached_roots_.value();
 }
@@ -336,7 +336,6 @@ BoundingBox Curve::boundingBox() const
     extremes.conservativeResize(extremes.rows() + 2, Eigen::NoChange);
     extremes.row(extremes.rows() - 1) = control_points_.row(0);
     extremes.row(extremes.rows() - 2) = control_points_.row(N_ - 1);
-
     cached_bounding_box_.emplace(Point(extremes.col(0).minCoeff(), extremes.col(1).minCoeff()),
                                  Point(extremes.col(0).maxCoeff(), extremes.col(1).maxCoeff()));
   }
