@@ -41,11 +41,11 @@ inline Eigen::RowVectorXd powSeries(double base, unsigned exp)
 }
 
 /// Concatenate two vectors
-template <typename T> inline std::vector<T> concatenate(std::vector<T>&& v1, std::vector<T>&& v2)
+template <typename T> inline std::vector<T> concatenate(std::vector<T> v1, std::vector<T> v2)
 {
   v1.reserve(v1.size() + v2.size());
   v1.insert(v1.end(), std::make_move_iterator(v2.begin()), std::make_move_iterator(v2.end()));
-  return std::move(v1);
+  return v1;
 }
 
 /// Length of a polyline
@@ -81,22 +81,7 @@ inline double polylineDist(const PointVector& polyline, const Point& point)
 std::vector<unsigned> visvalingamWyatt(const PointVector& polyline);
 
 /// Simplify polyline to N points
-inline PointVector polylineSimplify(const PointVector& polyline, unsigned N)
-{
-  if (polyline.size() < 2)
-    throw std::logic_error{"Polyline must have at least two points."};
-  if (polyline.size() < N)
-    return PointVector(polyline);
-  if (N == 2)
-    return PointVector{polyline.front(), polyline.back()};
-
-  auto by_contribution = visvalingamWyatt(polyline);
-  std::sort(by_contribution.begin(), by_contribution.begin() + N);
-  PointVector simplified(N);
-  for (size_t k{0}; k < N; k++)
-    simplified[k] = polyline[by_contribution[k]];
-  return simplified;
-}
+PointVector polylineSimplify(const PointVector& polyline, unsigned N);
 
 /// Find solutions to polynomial equation (limited to [0, 1])
 std::vector<double> solvePolynomial(const Eigen::VectorXd& polynomial);

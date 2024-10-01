@@ -37,7 +37,7 @@ std::vector<unsigned> Bezier::Utils::visvalingamWyatt(const PointVector& polylin
     vertices[k] = {k - 1, k + 1, area(k - 1, k, k + 1)};
   vertices.back() = {polyline.size() - 2, polyline.size(), 0.0};
 
-  // Smallest contribution willl be at the end of the vector
+  // Smallest contribution will be at the end of the vector
   for (auto it = by_contribution.rbegin(); it != by_contribution.rend() - 2; ++it)
   {
     // Select and move a Point with smallest current contribution
@@ -55,6 +55,23 @@ std::vector<unsigned> Bezier::Utils::visvalingamWyatt(const PointVector& polylin
   }
 
   return by_contribution;
+}
+
+PointVector Bezier::Utils::polylineSimplify(const PointVector &polyline, unsigned int N)
+{
+  if (polyline.size() < 2)
+    throw std::logic_error{"Polyline must have at least two points."};
+  if (polyline.size() < N)
+    return PointVector(polyline);
+  if (N == 2)
+    return PointVector{polyline.front(), polyline.back()};
+
+  auto by_contribution = visvalingamWyatt(polyline);
+  std::sort(by_contribution.begin(), by_contribution.begin() + N);
+  PointVector simplified(N);
+  for (size_t k{0}; k < N; k++)
+    simplified[k] = polyline[by_contribution[k]];
+  return simplified;
 }
 
 std::vector<double> Bezier::Utils::solvePolynomial(const Eigen::VectorXd& polynomial)
