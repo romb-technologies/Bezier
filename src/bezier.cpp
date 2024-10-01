@@ -7,7 +7,6 @@
 #include <unsupported/Eigen/LevenbergMarquardt>
 #include <unsupported/Eigen/MatrixFunctions>
 #include <unsupported/Eigen/NumericalDiff>
-#include <unsupported/Eigen/Polynomials>
 
 using namespace Bezier;
 using namespace Bezier::Utils;
@@ -320,14 +319,7 @@ std::vector<double> Curve::roots() const
   if (!cached_roots_)
     cached_roots_ = N_ < 2 ? std::vector<double>{} : [this] {
       Eigen::MatrixXd bezier_polynomial = bernsteinCoeffs(N_) * control_points_;
-      auto trimmed_x = _trimZeroes(bezier_polynomial.col(0));
-      auto trimmed_y = _trimZeroes(bezier_polynomial.col(1));
-      _PolynomialRoots roots(trimmed_x.size() + trimmed_y.size());
-      if (trimmed_x.size() > 1)
-        Eigen::PolynomialSolver<double, Eigen::Dynamic>(trimmed_x).realRoots(roots);
-      if (trimmed_y.size() > 1)
-        Eigen::PolynomialSolver<double, Eigen::Dynamic>(trimmed_y).realRoots(roots);
-      return roots;
+      return _concatenate(_solvePolynomial(bezier_polynomial.col(0)), _solvePolynomial(bezier_polynomial.col(1)));
     }();
 
   return cached_roots_.value();
@@ -448,14 +440,10 @@ double Curve::projectPoint(const Point& point) const
   polynomial.topRows(cached_projection_polynomial_derivative_->rows()) -=
       cached_projection_polynomial_derivative_.value() * point;
 
-  auto trimmed = _trimZeroes(polynomial);
-  _PolynomialRoots candidates(trimmed.size());
-  if (trimmed.size() > 1)
-    Eigen::PolynomialSolver<double, Eigen::Dynamic>(trimmed).realRoots(candidates);
-
   double min_t = (point - valueAt(0.0)).norm() < (point - valueAt(1.0)).norm() ? 0.0 : 1.0;
   double min_dist = (point - valueAt(min_t)).norm();
 
+  auto candidates = _solvePolynomial(polynomial);
   return std::accumulate(candidates.begin(), candidates.end(), std::make_pair(min_t, min_dist),
                          [this, &point](std::pair<double, double> min, double t) {
                            double dist = (point - valueAt(t)).norm();
@@ -524,13 +512,8 @@ Curve Curve::joinCurves(const Curve& curve1, const Curve& curve2, unsigned int o
 {
   if (order == 1)
     return Curve(PointVector{curve1.control_points_.row(0), curve2.control_points_.row(curve2.N_ - 1)});
-
-  auto polyline = curve1.polyline();
-  auto polyline2 = curve2.polyline();
-  polyline.reserve(polyline.size() + polyline2.size());
-  polyline.insert(polyline.end(), std::make_move_iterator(polyline2.begin()), std::make_move_iterator(polyline2.end()));
-
-  return fromPolyline(polyline, order ? order : curve1.order() + curve2.order());
+  return fromPolyline(_concatenate(curve1.polyline(), curve2.polyline()),
+                      order ? order : curve1.order() + curve2.order());
 }
 
 Curve Curve::fromPolyline(const PointVector& polyline, unsigned int order)

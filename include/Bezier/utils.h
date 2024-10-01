@@ -15,17 +15,6 @@ namespace Utils
  */
 const double _epsilon = std::sqrt(std::numeric_limits<double>::epsilon());
 
-struct _PolynomialRoots : public std::vector<double>
-{
-  explicit _PolynomialRoots(unsigned reserve) { std::vector<double>::reserve(reserve); }
-  void clear() {}          // no-op so that PolynomialSolver::RealRoots() doesn't clear it
-  void push_back(double t) // only allow valid roots
-  {
-    if (t >= 0 && t <= 1)
-      std::vector<double>::push_back(t);
-  }
-};
-
 inline unsigned _exp2(unsigned exp) { return 1 << exp; }
 
 template <typename T> inline T _pow(T base, unsigned exp)
@@ -49,12 +38,11 @@ inline Eigen::RowVectorXd _powSeries(double base, unsigned exp)
   return power_series;
 }
 
-inline Eigen::VectorXd _trimZeroes(const Eigen::VectorXd& vec)
+template <typename T> inline std::vector<T> _concatenate(std::vector<T>&& v1, std::vector<T>&& v2)
 {
-  auto idx = vec.size();
-  while (idx && std::abs(vec(idx - 1)) < _epsilon)
-    --idx;
-  return vec.head(idx);
+  v1.reserve(v1.size() + v2.size());
+  v1.insert(v1.end(), std::make_move_iterator(v2.begin()), std::make_move_iterator(v2.end()));
+  return std::move(v1);
 }
 
 inline double _polylineLength(const PointVector& polyline)
@@ -85,6 +73,8 @@ inline double _polylineDist(const PointVector& polyline, const Point& point)
 }
 
 PointVector _polylineSimplify(const PointVector& polyline, unsigned N);
+
+std::vector<double> _solvePolynomial(const Eigen::VectorXd& polynomial);
 
 } // namespace Utils
 } // namespace Bezier
