@@ -49,10 +49,8 @@ PointVector Curve::polyline(double flatness) const
   if (!cached_polyline_ || cached_polyline_flatness_ != flatness)
   {
     cached_polyline_flatness_ = flatness;
-    cached_polyline_ = std::make_unique<PointVector>();
-    cached_polyline_->emplace_back(control_points_.row(0));
-    cached_polyline_t_ = std::make_unique<std::vector<double>>();
-    cached_polyline_t_->emplace_back(0.0);
+    cached_polyline_.emplace({Point(control_points_.row(0))});
+    cached_polyline_t_.emplace({0.0});
 
     std::vector<std::tuple<Eigen::MatrixX2d, double, double>> subcurves;
     subcurves.emplace_back(control_points_, 0.0, 1.0);
@@ -95,7 +93,7 @@ PointVector Curve::polyline(double flatness) const
     }
   }
 
-  return *cached_polyline_;
+  return cached_polyline_.value();
 }
 
 double Curve::length() const { return length(1.0); }
@@ -169,11 +167,11 @@ double Curve::length(double t) const
     unsigned cut = 0;
     while (std::fabs(chebyshev(cut)) > _epsilon * 1e-2)
       cut++;
-    cached_chebyshev_coeffs_ = std::make_unique<Eigen::VectorXd>(cut + 1);
-    (*cached_chebyshev_coeffs_) << 0, chebyshev.head(cut);
-    (*cached_chebyshev_coeffs_)(0) = -evaluate_chebyshev(0, *cached_chebyshev_coeffs_);
+    cached_chebyshev_coeffs_.emplace(cut + 1);
+    cached_chebyshev_coeffs_.value() << 0, chebyshev.head(cut);
+    cached_chebyshev_coeffs_.value()(0) = -evaluate_chebyshev(0, cached_chebyshev_coeffs_.value());
   }
-  return evaluate_chebyshev(t, *cached_chebyshev_coeffs_);
+  return evaluate_chebyshev(t, cached_chebyshev_coeffs_.value());
 }
 
 double Curve::length(double t1, double t2) const { return length(t2) - length(t1); }
@@ -320,29 +318,19 @@ Vector Curve::derivativeAt(unsigned n, double t) const { return derivative(n).va
 std::vector<double> Curve::roots() const
 {
   if (!cached_roots_)
-  {
-    cached_roots_ = std::make_unique<std::vector<double>>();
-    if (N_ > 1)
-    {
+    cached_roots_ = N_ < 2 ? std::vector<double>{} : [this] {
       Eigen::MatrixXd bezier_polynomial = bernsteinCoeffs(N_) * control_points_;
-      Eigen::PolynomialSolver<double, Eigen::Dynamic> poly_solver;
       auto trimmed_x = _trimZeroes(bezier_polynomial.col(0));
       auto trimmed_y = _trimZeroes(bezier_polynomial.col(1));
       _PolynomialRoots roots(trimmed_x.size() + trimmed_y.size());
       if (trimmed_x.size() > 1)
-      {
-        poly_solver.compute(trimmed_x);
-        poly_solver.realRoots(roots);
-      }
+        Eigen::PolynomialSolver<double, Eigen::Dynamic>(trimmed_x).realRoots(roots);
       if (trimmed_y.size() > 1)
-      {
-        poly_solver.compute(trimmed_y);
-        poly_solver.realRoots(roots);
-      }
-      std::swap(roots, *cached_roots_);
-    }
-  }
-  return *cached_roots_;
+        Eigen::PolynomialSolver<double, Eigen::Dynamic>(trimmed_y).realRoots(roots);
+      return roots;
+    }();
+
+  return cached_roots_.value();
 }
 
 std::vector<double> Curve::extrema() const { return derivative().roots(); }
@@ -356,10 +344,10 @@ BoundingBox Curve::boundingBox() const
     extremes.row(extremes.rows() - 1) = control_points_.row(0);
     extremes.row(extremes.rows() - 2) = control_points_.row(N_ - 1);
 
-    cached_bounding_box_ = std::make_unique<BoundingBox>(Point(extremes.col(0).minCoeff(), extremes.col(1).minCoeff()),
-                                                         Point(extremes.col(0).maxCoeff(), extremes.col(1).maxCoeff()));
+    cached_bounding_box_.emplace(Point(extremes.col(0).minCoeff(), extremes.col(1).minCoeff()),
+                                 Point(extremes.col(0).maxCoeff(), extremes.col(1).maxCoeff()));
   }
-  return *cached_bounding_box_;
+  return cached_bounding_box_.value();
 }
 
 std::pair<Curve, Curve> Curve::splitCurve(double t) const
@@ -442,7 +430,7 @@ PointVector Curve::intersections(const Curve& curve) const
 
 double Curve::projectPoint(const Point& point) const
 {
-  if (!cached_projection_polynomial_part_)
+  if (!cached_projection_polynomial_part_ || !cached_projection_polynomial_derivative_)
   {
     Eigen::MatrixXd curve_polynomial = (bernsteinCoeffs(N_) * control_points_);
     Eigen::MatrixXd derivate_polynomial = (bernsteinCoeffs(N_ - 1) * derivative().control_points_);
@@ -452,13 +440,13 @@ double Curve::projectPoint(const Point& point) const
       polynomial_part.middleRows(k, derivate_polynomial.rows()) +=
           derivate_polynomial * curve_polynomial.row(k).transpose();
 
-    cached_projection_polynomial_part_ = std::make_unique<Eigen::VectorXd>(std::move(polynomial_part));
-    cached_projection_polynomial_derivative_ = std::move(derivate_polynomial);
+    cached_projection_polynomial_part_.emplace(std::move(polynomial_part));
+    cached_projection_polynomial_derivative_.emplace(std::move(derivate_polynomial));
   }
 
-  Eigen::VectorXd polynomial = *cached_projection_polynomial_part_;
-  polynomial.topRows(cached_projection_polynomial_derivative_.rows()) -=
-      cached_projection_polynomial_derivative_ * point;
+  Eigen::VectorXd polynomial = cached_projection_polynomial_part_.value();
+  polynomial.topRows(cached_projection_polynomial_derivative_->rows()) -=
+      cached_projection_polynomial_derivative_.value() * point;
 
   auto trimmed = _trimZeroes(polynomial);
   _PolynomialRoots candidates(trimmed.size());
