@@ -656,7 +656,9 @@ void Curve::resetCache()
   cached_roots_.reset();
   cached_bounding_box_.reset();
   cached_polyline_.reset();
+  cached_polyline_t_.reset();
   cached_projection_polynomial_part_.reset();
+  cached_projection_polynomial_derivative_.reset();
   cached_chebyshev_coeffs_.reset();
 }
 
