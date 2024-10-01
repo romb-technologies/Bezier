@@ -4,7 +4,7 @@
 #include <numeric>
 
 using namespace Bezier;
-using namespace Bezier::Utils;
+namespace bu = Bezier::Utils;
 
 PolyCurve::PolyCurve(std::deque<Curve> curves) : curves_(std::move(curves)) {}
 
@@ -77,15 +77,15 @@ double PolyCurve::length(double t1, double t2) const
 
 double PolyCurve::iterateByLength(double t, double s) const
 {
-  if (std::fabs(s) < _epsilon) // no-op
+  if (std::fabs(s) < bu::epsilon) // no-op
     return t;
 
   double s_t = length(t);
 
-  if (s < -s_t + _epsilon) // out-of-scope
+  if (s < -s_t + bu::epsilon) // out-of-scope
     return 0.0;
 
-  if (s > length() - s_t - _epsilon) // out-of-scope
+  if (s > length() - s_t - bu::epsilon) // out-of-scope
     return size();
 
   unsigned idx = curveIdx(t);
@@ -93,13 +93,13 @@ double PolyCurve::iterateByLength(double t, double s) const
 
   s_t = s < 0 ? s_t - length(idx) : length(idx + 1) - s_t;
 
-  while (-s_t > s + _epsilon)
+  while (-s_t > s + bu::epsilon)
   {
     s += s_t;
     s_t = curves_[--idx].length();
     t = 1.0;
   }
-  while (s_t < s - _epsilon)
+  while (s_t < s - bu::epsilon)
   {
     s -= s_t;
     s_t = curves_[++idx].length();

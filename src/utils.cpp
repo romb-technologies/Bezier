@@ -5,9 +5,9 @@
 #include <unsupported/Eigen/Polynomials>
 
 using namespace Bezier;
-using namespace Bezier::Utils;
+namespace bu = Bezier::Utils;
 
-PointVector Bezier::Utils::_polylineSimplify(const PointVector& polyline, unsigned int N)
+PointVector Bezier::Utils::polylineSimplify(const PointVector& polyline, unsigned N)
 {
   if (polyline.size() < 2)
     throw std::logic_error{"Polyline must have at least two points."};
@@ -75,11 +75,15 @@ PointVector Bezier::Utils::_polylineSimplify(const PointVector& polyline, unsign
   return simplified;
 }
 
-std::vector<double> Bezier::Utils::_solvePolynomial(const Eigen::VectorXd& polynomial)
+std::vector<double> Bezier::Utils::solvePolynomial(const Eigen::VectorXd& polynomial)
 {
+  // Trim leading zeros from the polynomial
   auto idx = polynomial.size();
-  while (idx && std::abs(polynomial(idx - 1)) < _epsilon)
+  while (idx && std::abs(polynomial(idx - 1)) < bu::epsilon)
     --idx;
+  // Polynomial is constant
+  if (idx < 2)
+    return {};
 
   struct PolynomialRoots : public std::vector<double>
   {
@@ -90,8 +94,6 @@ std::vector<double> Bezier::Utils::_solvePolynomial(const Eigen::VectorXd& polyn
     }
   } roots;
   roots.reserve(idx);
-
-  if (idx > 1)
-    Eigen::PolynomialSolver<double, Eigen::Dynamic>(polynomial.head(idx)).realRoots(roots);
+  Eigen::PolynomialSolver<double, Eigen::Dynamic>(polynomial.head(idx)).realRoots(roots);
   return roots;
 }
