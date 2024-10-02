@@ -24,10 +24,7 @@ std::vector<unsigned> Bezier::Utils::visvalingamWyatt(const PointVector& polylin
 
   // Visvalingam-Whyatt measures contribution as an area between 3 consecutive Points
   auto area = [&polyline](unsigned id1, unsigned id2, unsigned id3) {
-    const auto& A = polyline[id1];
-    const auto& B = polyline[id2];
-    const auto& C = polyline[id3];
-    return std::fabs((B.x() - A.x()) * (C.y() - A.y()) - (C.x() - A.x()) * (B.y() - A.y()));
+    return std::fabs(bu::cross(polyline[id2] - polyline[id1], polyline[id3] - polyline[id1])) / 2;
   };
 
   // Initialize vertices
@@ -57,7 +54,7 @@ std::vector<unsigned> Bezier::Utils::visvalingamWyatt(const PointVector& polylin
   return by_contribution;
 }
 
-PointVector Bezier::Utils::polylineSimplify(const PointVector &polyline, unsigned int N)
+PointVector Bezier::Utils::polylineSimplify(const PointVector& polyline, unsigned int N)
 {
   if (polyline.size() < 2)
     throw std::logic_error{"Polyline must have at least two points."};
