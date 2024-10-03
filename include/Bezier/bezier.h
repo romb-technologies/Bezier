@@ -17,9 +17,9 @@
 #ifndef BEZIER_H
 #define BEZIER_H
 
-#include <map>
 #include <memory>
 #include <optional>
+#include <unordered_map>
 
 #include "declarations.h"
 
@@ -284,31 +284,17 @@ public:
 
   static Curve fromPolyline(const PointVector& polyline, unsigned order = 0);
 
-protected:
-  /*!
-   * \brief N x 2 matrix where each row corresponds to control Point
-   * \warning Any changes made to control_points_ require a call to resetCache() funtion!
-   */
-  Eigen::MatrixX2d control_points_;
-
-  /// Reset all privately cached data
-  inline void resetCache();
-
 private:
+  /// N x 2 matrix where each row corresponds to control Point
+  Eigen::MatrixX2d control_points_;
   /// Number of control points (order + 1)
   unsigned N_{};
 
-  /*!
-   * \brief Coefficients for matrix operations
-   */
-  using Coeffs = Eigen::MatrixXd;
-
-  /*!
-   * \brief Map of different coefficient matrices, depending on the order of the curve
-   */
-  using CoeffsMap = std::map<unsigned, Coeffs>;
-
+  //////////////////////
   // private caching
+  //////////////////////
+  /// Reset all privately cached data
+  inline void resetCache();
   mutable std::unique_ptr<const Curve> cached_derivative_;       /*! If generated, stores derivative for later use */
   mutable std::optional<std::vector<double>> cached_roots_;      /*! If generated, stores roots for later use */
   mutable std::optional<BoundingBox> cached_bounding_box_;       /*! If generated, stores bounding box for later use */
@@ -322,7 +308,12 @@ private:
   mutable std::optional<Eigen::VectorXd> cached_chebyshev_coeffs_; /*!  If generated, stores chebyshev coefficients
                                                                         for calculating the length of the curve */
 
+  //////////////////////
   // static caching
+  //////////////////////
+  using Coeffs = Eigen::MatrixXd;
+  using CoeffsMap = std::unordered_map<unsigned, Coeffs>;
+
   static CoeffsMap bernstein_coeffs_;       /*! Map of Bernstein coefficients */
   static CoeffsMap splitting_coeffs_left_;  /*! Map of coefficients to get subcurve for t = [0, 0.5] */
   static CoeffsMap splitting_coeffs_right_; /*! Map of coefficients to get subcurve for t = [0.5, 1] */

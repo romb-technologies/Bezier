@@ -33,14 +33,24 @@ template <typename T> inline T pow(T base, unsigned exp)
   return result;
 }
 
-/// Compute binomial coefficient
-inline Eigen::RowVectorXd powSeries(double base, unsigned exp)
+/// A vector of powers of a given base
+inline Eigen::RowVectorXd powVector(double base, unsigned exp)
 {
-  Eigen::RowVectorXd power_series(exp);
-  power_series(0) = 1;
+  Eigen::RowVectorXd power_vector(exp);
+  power_vector(0) = 1;
   for (unsigned k = 1; k < exp; k++)
-    power_series(k) = power_series(k - 1) * base;
-  return power_series;
+    power_vector(k) = power_vector(k - 1) * base;
+  return power_vector;
+}
+
+/// A matrix of powers of given bases
+inline Eigen::MatrixXd powMatrix(const Eigen::VectorXd& base, unsigned exp)
+{
+  Eigen::MatrixXd power_matrix(base.size(), exp);
+  power_matrix.col(0).setOnes();
+  for (unsigned k = 1; k < exp; k++)
+    power_matrix.col(k) = power_matrix.col(k - 1).cwiseProduct(base);
+  return power_matrix;
 }
 
 /// Concatenate two vectors

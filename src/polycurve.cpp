@@ -39,13 +39,8 @@ const std::deque<Curve>& PolyCurve::curves() const { return curves_; }
 PointVector PolyCurve::polyline(double flatness) const
 {
   PointVector polyline;
-  for (unsigned idx = 0; idx < size(); idx++)
-  {
-    auto new_poly = curves_[idx].polyline(flatness);
-    polyline.reserve(polyline.size() + new_poly.size() - (idx ? 1 : 0));
-    polyline.insert(polyline.end(), std::make_move_iterator(new_poly.begin() + (idx ? 1 : 0)),
-                    std::make_move_iterator(new_poly.end()));
-  }
+  for (const auto& curve : curves_)
+    polyline = bu::concatenate(std::move(polyline), curve.polyline(flatness));
   return polyline;
 }
 
@@ -70,7 +65,7 @@ double PolyCurve::length(double t1, double t2) const
   if (idx1 + 1 == idx2)
     return sign * curves_[idx1].length(t1 - idx1, 1.0) + curves_[idx2].length(t2 - idx2);
 
-  return sign * std::accumulate(begin(curves_) + idx1 + 1, begin(curves_) + idx2,
+  return sign * std::accumulate(curves_.begin() + idx1 + 1, curves_.begin() + idx2,
                                 curves_[idx1].length(t1 - idx1, 1.0) + curves_[idx2].length(t2 - idx2),
                                 [](double sum, const Curve& curve) { return sum + curve.length(); });
 }
@@ -118,24 +113,18 @@ PointVector PolyCurve::controlPoints() const
 {
   PointVector cp;
   for (const auto& curve : curves_)
-  {
-    auto cp_c = curve.controlPoints();
-    cp.reserve(cp.size() + cp_c.size());
-    cp.insert(cp.end(), std::make_move_iterator(cp_c.begin()), std::make_move_iterator(cp_c.end()));
-  }
+    cp = bu::concatenate(std::move(cp), curve.controlPoints());
   return cp;
 }
 
 void PolyCurve::setControlPoint(unsigned idx, const Point& point)
 {
-  for (auto& curve : curves_)
-    if (idx <= curve.order())
+  for (auto it = curves_.begin(); it != curves_.end(); idx -= it++->order() + 1)
+    if (idx <= it->order())
     {
-      curve.setControlPoint(idx, point);
+      it->setControlPoint(idx, point);
       break;
     }
-    else
-      --idx -= curve.order();
 }
 
 Point PolyCurve::valueAt(double t) const
@@ -204,11 +193,7 @@ template <> PointVector PolyCurve::intersections<Curve>(const Curve& curve) cons
 {
   PointVector points;
   for (const auto& curve2 : curves_)
-  {
-    auto new_points = curve2.intersections(curve);
-    points.reserve(points.size() + new_points.size());
-    points.insert(points.end(), std::make_move_iterator(new_points.begin()), std::make_move_iterator(new_points.end()));
-  }
+    points = bu::concatenate(std::move(points), curve2.intersections(curve));
   return points;
 }
 
@@ -216,11 +201,7 @@ template <> PointVector PolyCurve::intersections<PolyCurve>(const PolyCurve& pol
 {
   PointVector points;
   for (const auto& curve : curves_)
-  {
-    auto new_points = poly_curve.intersections(curve);
-    points.reserve(points.size() + new_points.size());
-    points.insert(points.end(), std::make_move_iterator(new_points.begin()), std::make_move_iterator(new_points.end()));
-  }
+    points = bu::concatenate(std::move(points), poly_curve.intersections(curve));
   return points;
 }
 

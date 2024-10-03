@@ -21,14 +21,17 @@ std::vector<unsigned> Bezier::Utils::visvalingamWyatt(const PointVector& polylin
     size_t prev, next;
     double contribution;
   };
+  std::vector<Vertex> vertices(polyline.size());
 
   // Visvalingam-Whyatt measures contribution as an area between 3 consecutive Points
   auto area = [&polyline](unsigned id1, unsigned id2, unsigned id3) {
     return std::fabs(bu::cross(polyline[id2] - polyline[id1], polyline[id3] - polyline[id1])) / 2;
   };
+  auto cmp = [&vertices](unsigned idx1, unsigned idx2) {
+    return vertices[idx1].contribution < vertices[idx2].contribution;
+  };
 
   // Initialize vertices
-  std::vector<Vertex> vertices(polyline.size());
   vertices.front() = {0, 1, 0.0};
   for (unsigned k = 1; k + 1 < polyline.size(); k++)
     vertices[k] = {k - 1, k + 1, area(k - 1, k, k + 1)};
@@ -38,9 +41,7 @@ std::vector<unsigned> Bezier::Utils::visvalingamWyatt(const PointVector& polylin
   for (auto it = by_contribution.rbegin(); it != by_contribution.rend() - 2; ++it)
   {
     // Select and move a Point with smallest current contribution
-    std::iter_swap(it, std::min_element(it, by_contribution.rend() - 2, [&vertices](unsigned idx1, unsigned idx2) {
-                     return vertices[idx1].contribution < vertices[idx2].contribution;
-                   }));
+    std::iter_swap(it, std::min_element(it, by_contribution.rend() - 2, cmp));
 
     // Update previous and next Vertices (neighbours and contributions)
     auto prev = vertices[*it].prev;
@@ -56,18 +57,15 @@ std::vector<unsigned> Bezier::Utils::visvalingamWyatt(const PointVector& polylin
 
 PointVector Bezier::Utils::polylineSimplify(const PointVector& polyline, unsigned int N)
 {
-  if (polyline.size() < 2)
-    throw std::logic_error{"Polyline must have at least two points."};
   if (polyline.size() < N)
     return PointVector(polyline);
   if (N == 2)
     return PointVector{polyline.front(), polyline.back()};
 
-  auto by_contribution = visvalingamWyatt(polyline);
-  std::sort(by_contribution.begin(), by_contribution.begin() + N);
   PointVector simplified(N);
-  for (size_t k{0}; k < N; k++)
-    simplified[k] = polyline[by_contribution[k]];
+  auto vw = visvalingamWyatt(polyline);
+  std::sort(vw.begin(), vw.begin() + N);
+  std::transform(vw.begin(), vw.begin() + N, simplified.begin(), [&polyline](unsigned k) { return polyline[k]; });
   return simplified;
 }
 
@@ -77,19 +75,18 @@ std::vector<double> Bezier::Utils::solvePolynomial(const Eigen::VectorXd& polyno
   auto idx = polynomial.size();
   while (idx && std::abs(polynomial(idx - 1)) < bu::epsilon)
     --idx;
-  // Polynomial is constant
-  if (idx < 2)
+  if (idx < 2) // Polynomial is constant
     return {};
 
   struct PolynomialRoots : public std::vector<double>
   {
+    PolynomialRoots(unsigned size) : std::vector<double>() { reserve(size); }
     void push_back(double t) // only allow valid roots
     {
       if (t >= 0 && t <= 1)
         std::vector<double>::push_back(t);
     }
-  } roots;
-  roots.reserve(idx);
+  } roots(idx);
   Eigen::PolynomialSolver<double, Eigen::Dynamic>(polynomial.head(idx)).realRoots(roots);
   return roots;
 }

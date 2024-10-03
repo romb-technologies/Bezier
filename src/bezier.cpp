@@ -1,9 +1,6 @@
 #include "Bezier/bezier.h"
 #include "Bezier/utils.h"
 
-#include <numeric>
-#include <set>
-
 #include <unsupported/Eigen/FFT>
 #include <unsupported/Eigen/LevenbergMarquardt>
 #include <unsupported/Eigen/MatrixFunctions>
@@ -85,6 +82,7 @@ double Curve::length(double t) const
 
   if (cached_chebyshev_coeffs_)
     return bu::evaluateChebyshev(t, cached_chebyshev_coeffs_.value());
+  auto& chebyshev = cached_chebyshev_coeffs_.emplace();
 
   constexpr unsigned START_LOG_N = 10;
   unsigned log_n = START_LOG_N - 1;
@@ -93,18 +91,14 @@ double Curve::length(double t) const
   Eigen::VectorXd derivative_cache(2 * n + 1);
   auto updateDerivativeCache = [this, &derivative_cache](double n) {
     derivative_cache.conservativeResize(n + 1);
-    derivative_cache.tail(n / 2) = Eigen::VectorXd::NullaryExpr(n / 2, [n, this](int k) { //
-      return derivativeAt((1 + std::cos((2 * k + 1) * M_PI / n)) / 2).norm();
-    });
+    derivative_cache.tail(n / 2) = Eigen::VectorXd::NullaryExpr(
+        n / 2, [n, this](int k) { return derivativeAt((1 + std::cos((2 * k + 1) * M_PI / n)) / 2).norm(); });
   };
 
   derivative_cache.head(2) << derivativeAt(1.0).norm(), derivativeAt(0.0).norm();
   for (unsigned k{2}; k <= n; k *= 2)
     updateDerivativeCache(k);
 
-  Eigen::VectorXd chebyshev;
-  Eigen::FFT<double> fft;
-  Eigen::VectorXcd fft_out;
   do
   {
     n *= 2;
@@ -121,25 +115,22 @@ double Curve::length(double t) const
       auto lin_spaced = Eigen::ArrayXi::LinSpaced(bu::exp2(k - 1), 0, bu::exp2(k - 1) - 1);
       auto index_c = bu::exp2(log_n + 1 - (k + 1)) + lin_spaced * bu::exp2(log_n + 1 - k);
       auto index_dc = bu::exp2(k - 1) + 1 + lin_spaced;
-      // TODO: make use of slicing & indexing in Eigen3.4
-      // coeff(index_c) = coeff(N - index_c) = derivative_cache(index_dc) / n;
       for (unsigned i{}; i < lin_spaced.size(); i++)
         coeff(index_c(i)) = coeff(N - index_c(i)) = derivative_cache(index_dc(i)) / n;
     }
 
-    fft.fwd(fft_out, coeff);
-    chebyshev = (fft_out.real().head(n - 1) - fft_out.real().segment(2, n - 1)).array() /
-                Eigen::ArrayXd::LinSpaced(n - 1, 4, 4 * (n - 1));
-  } while (std::fabs(chebyshev.tail<1>()[0]) > bu::epsilon * 1e-2);
+    Eigen::VectorXcd fft_out;
+    Eigen::FFT<double>().fwd(fft_out, coeff);
+    chebyshev.resize(n);
+    chebyshev << 0, (fft_out.real().head(n - 1) - fft_out.real().segment(2, n - 1)).array() /
+                        Eigen::ArrayXd::LinSpaced(n - 1, 4, 4 * (n - 1));
+  } while (std::fabs(chebyshev.tail<1>()[0]) > bu::epsilon);
 
-  unsigned cut = 0;
-  while (std::fabs(chebyshev(cut)) > bu::epsilon * 1e-2)
-    cut++;
-  cached_chebyshev_coeffs_.emplace(cut + 1);
-  cached_chebyshev_coeffs_.value() << 0, chebyshev.head(cut);
-  cached_chebyshev_coeffs_.value()(0) = -bu::evaluateChebyshev(0, cached_chebyshev_coeffs_.value());
+  while (std::fabs(chebyshev.tail<1>()[0]) < bu::epsilon)
+    chebyshev.conservativeResize(chebyshev.size() - 1);
+  chebyshev(0) -= bu::evaluateChebyshev(0, chebyshev);
 
-  return bu::evaluateChebyshev(t, cached_chebyshev_coeffs_.value());
+  return bu::evaluateChebyshev(t, chebyshev);
 }
 
 double Curve::length(double t1, double t2) const { return length(t2) - length(t1); }
@@ -176,7 +167,6 @@ double Curve::iterateByLength(double t, double s) const
     guess.first -= (2 * f * f_d) / (2 * f_d * f_d - f * f_d2);
 
     // root bracketing, if not in bounds, use bisection method
-    // TODO: c++20 use std::in_range
     if (guess.first <= lbracket.first || guess.first >= rbracket.first)
       guess.first = (lbracket.first + rbracket.first) / 2;
 
@@ -218,15 +208,13 @@ void Curve::lowerOrder()
 
 Point Curve::valueAt(double t) const
 {
-  return N_ == 0 ? Point(0, 0) : (bu::powSeries(t, N_) * bernsteinCoeffs(N_) * control_points_).transpose();
+  return N_ == 0 ? Point(0, 0) : (bu::powVector(t, N_) * bernsteinCoeffs(N_) * control_points_).transpose();
 }
 
 Eigen::MatrixX2d Curve::valueAt(const std::vector<double>& t_vector) const
 {
-  Eigen::MatrixXd power_basis(t_vector.size(), N_);
-  for (unsigned k{}; k < t_vector.size(); k++)
-    power_basis.row(k) = bu::powSeries(t_vector[k], N_);
-  return power_basis * bernsteinCoeffs(N_) * control_points_;
+  auto t_map = Eigen::Map<const Eigen::VectorXd>(t_vector.data(), t_vector.size());
+  return bu::powMatrix(t_map, N_) * bernsteinCoeffs(N_) * control_points_;
 }
 
 double Curve::curvatureAt(double t) const
@@ -330,9 +318,9 @@ PointVector Curve::intersections(const Curve& curve) const
 {
   using CP = Eigen::MatrixX2d;
 
-  std::vector<std::pair<CP, CP>> subcurve_pairs;
+  std::vector<std::pair<CP, CP>> cp_pairs;
   if (this != &curve)
-    subcurve_pairs.emplace_back(control_points_, curve.control_points_);
+    cp_pairs.emplace_back(control_points_, curve.control_points_);
   else
   {
     // For self intersections divide curve into subcurves at extrema and create all pairs of subcurves
@@ -343,16 +331,15 @@ PointVector Curve::intersections(const Curve& curve) const
       t[k + t.size() / 2] = (t[k] -= bu::epsilon / 2) + bu::epsilon;
     std::sort(t.begin(), t.end());
     auto subcurves = splitCurve(t);
-    for (unsigned k{}; k < subcurves.size(); k += 2)
-      for (unsigned i{k + 2}; i < subcurves.size(); i += 2)
-        subcurve_pairs.emplace_back(subcurves[k].control_points_, subcurves[i].control_points_);
+    for (auto c1 = subcurves.begin(); c1 < subcurves.end(); c1 += 2)
+      for (auto c2 = c1 + 2; c2 < subcurves.end(); c2 += 2)
+        cp_pairs.emplace_back(c1->control_points_, c2->control_points_);
   }
 
-  // TODO: in c++23 use cartesian_product
-  auto insertPairs = [&subcurve_pairs](auto&& a, auto&& b) {
-    for (auto cp1 : a)
-      for (auto cp2 : b)
-        subcurve_pairs.emplace_back(cp1, cp2);
+  auto insertPairs = [&cp_pairs](auto&& scp1, auto&& scp2) {
+    for (auto cp1 : scp1)
+      for (auto cp2 : scp2)
+        cp_pairs.emplace_back(cp1, cp2);
   };
 
   auto splitCP = [](const CP& cp) -> std::array<CP, 2> {
@@ -374,10 +361,10 @@ PointVector Curve::intersections(const Curve& curve) const
       intersections.emplace_back((a1 * ob - a2 * oa) / (ob - oa));
   };
 
-  while (!subcurve_pairs.empty())
+  while (!cp_pairs.empty())
   {
-    auto [cp1, cp2] = std::move(subcurve_pairs.back());
-    subcurve_pairs.pop_back();
+    auto [cp1, cp2] = std::move(cp_pairs.back());
+    cp_pairs.pop_back();
 
     BoundingBox bbox1(cp1.colwise().minCoeff(), cp1.colwise().maxCoeff());
     BoundingBox bbox2(cp2.colwise().minCoeff(), cp2.colwise().maxCoeff());
@@ -504,7 +491,7 @@ Curve Curve::fromPolyline(const PointVector& polyline, unsigned order)
   // Sort the polyline points by their contribution to the Visvalingam-Whyatt
   // simplification algorithm, and keep the N most contributing points in original order.
   auto vw = bu::visvalingamWyatt(polyline);
-  std::set<unsigned> by_contribution(vw.begin(), vw.begin() + N);
+  std::sort(vw.begin(), vw.begin() + N);
 
   // Divide polyline into subparts where the simplified polyline points are located.
   std::vector<PointVector> subpolylines;
@@ -513,7 +500,7 @@ Curve Curve::fromPolyline(const PointVector& polyline, unsigned order)
   for (unsigned k{1}; k + 1 < polyline.size(); k++)
   {
     subpolylines.back().emplace_back(polyline[k]);
-    if (by_contribution.count(k))
+    if (std::binary_search(vw.begin(), vw.begin() + N, k))
       subpolylines.emplace_back(std::vector{polyline[k]});
   }
   subpolylines.back().emplace_back(polyline.back());
@@ -524,7 +511,7 @@ Curve Curve::fromPolyline(const PointVector& polyline, unsigned order)
   Eigen::MatrixXd P(N, 2), M = bernsteinCoeffs(N);
   for (unsigned k{}; k < N; k++)
   {
-    P.row(k) = polyline[*std::next(by_contribution.begin(), k)];
+    P.row(k) = polyline[vw[k]];
     t(k) = k == 0 ? 0 : t(k - 1) + bu::dist(P.row(k), P.row(k - 1));
   }
   t /= t(N - 1);
@@ -532,9 +519,7 @@ Curve Curve::fromPolyline(const PointVector& polyline, unsigned order)
   // Compute the control points for a Bezier curve such that it passes through
   // the simplified polyline points at parameter t.
   auto getCurve = [&M, &P](const Eigen::VectorXd& t) {
-    Eigen::MatrixXd T(t.size(), t.size());
-    for (unsigned k{}; k < t.size(); k++)
-      T.row(k) = bu::powSeries(t(k), t.size());
+    Eigen::MatrixXd T = bu::powMatrix(t, t.size());
     return Curve(M.inverse() * (T.transpose() * T).inverse() * T.transpose() * P);
   };
 
@@ -626,14 +611,14 @@ Curve::Coeffs Curve::splittingCoeffsLeft(unsigned n, double t)
     if (!splitting_coeffs_left_.count(n))
     {
       splitting_coeffs_left_.insert({n, Coeffs::Zero(n, n)});
-      splitting_coeffs_left_[n].diagonal() = bu::powSeries(0.5, n);
+      splitting_coeffs_left_[n].diagonal() = bu::powVector(0.5, n);
       splitting_coeffs_left_[n] = bernsteinCoeffs(n).inverse() * splitting_coeffs_left_[n] * bernsteinCoeffs(n);
     }
     return splitting_coeffs_left_[n];
   }
 
   Curve::Coeffs coeffs(Coeffs::Zero(n, n));
-  coeffs.diagonal() = bu::powSeries(t, n);
+  coeffs.diagonal() = bu::powVector(t, n);
   return bernsteinCoeffs(n).inverse() * coeffs * bernsteinCoeffs(n);
 }
 
