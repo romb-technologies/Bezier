@@ -127,6 +127,15 @@ inline double polylineLength(const PointVector& polyline)
 /// Find solutions to polynomial equation (limited to [0, 1])
 std::vector<double> solvePolynomial(const Eigen::VectorXd& polynomial);
 
+template <class Func, class... Args> struct lazyFunctor
+{
+  Func& fun_;
+  std::tuple<Args...> args_;
+  lazyFunctor(Func& fun, Args... args) : fun_(fun), args_(std::make_tuple(args...)) {}
+  template <class Out> operator Out() { return invoke(std::index_sequence_for<Args...>{}); }
+  template <std::size_t... I> auto invoke(std::index_sequence<I...>) { return fun_(std::get<I>(args_)...); }
+};
+
 } // namespace Utils
 } // namespace Bezier
 

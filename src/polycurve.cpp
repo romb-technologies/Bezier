@@ -184,11 +184,6 @@ BoundingBox PolyCurve::boundingBox() const
   return bbox;
 }
 
-// namespace is a workaround for a bug on old gcc versions:
-// https://stackoverflow.com/questions/25311512/specialization-of-template-in-different-namespace
-namespace Bezier
-{
-
 template <> PointVector PolyCurve::intersections<Curve>(const Curve& curve) const
 {
   PointVector points;
@@ -204,8 +199,6 @@ template <> PointVector PolyCurve::intersections<PolyCurve>(const PolyCurve& pol
     points = bu::concatenate(std::move(points), poly_curve.intersections(curve));
   return points;
 }
-
-} // namespace Bezier
 
 double PolyCurve::projectPoint(const Point& point) const
 {

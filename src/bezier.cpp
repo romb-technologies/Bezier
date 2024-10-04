@@ -11,8 +11,7 @@ namespace bu = Bezier::Utils;
 
 Curve::Curve(Eigen::MatrixX2d points) : control_points_(std::move(points)), N_(control_points_.rows()) {}
 
-Curve::Curve(const PointVector& points)
-    : control_points_(Eigen::Index(points.size()), Eigen::Index(2)), N_(points.size())
+Curve::Curve(const PointVector& points) : control_points_(points.size(), 2), N_(points.size())
 {
   for (unsigned k{}; k < N_; k++)
     control_points_.row(k) = points[k];
@@ -447,7 +446,7 @@ void Curve::applyContinuity(const Curve& curve, const std::vector<double>& beta_
     factorial_matrix(k, k) = factorial_matrix(k - 1, k - 1) * (N_ - k);
 
   // derivatives of given curve
-  Eigen::Matrix2Xd derivatives(Eigen::Index(2), Eigen::Index(c_order + 1));
+  Eigen::Matrix2Xd derivatives(2, c_order + 1);
   for (unsigned k{}; k < c_order + 1; k++)
     derivatives.col(k) = curve.derivative(k).control_points_.bottomRows(1).transpose();
 
@@ -508,7 +507,7 @@ Curve Curve::fromPolyline(const PointVector& polyline, unsigned order)
   // Initialize vector t where each element represents a normalized cumulative
   // distance between consecutive simplified points along the simplified polyline.
   Eigen::VectorXd t(N);
-  Eigen::MatrixXd P(N, 2), M = bernsteinCoeffs(N);
+  Eigen::MatrixX2d P(N, 2);
   for (unsigned k{}; k < N; k++)
   {
     P.row(k) = polyline[vw[k]];
@@ -518,7 +517,7 @@ Curve Curve::fromPolyline(const PointVector& polyline, unsigned order)
 
   // Compute the control points for a Bezier curve such that it passes through
   // the simplified polyline points at parameter t.
-  auto getCurve = [&M, &P](const Eigen::VectorXd& t) {
+  auto getCurve = [&P, M = bernsteinCoeffs(N)](const Eigen::VectorXd& t) {
     Eigen::MatrixXd T = bu::powMatrix(t, t.size());
     return Curve(M.inverse() * (T.transpose() * T).inverse() * T.transpose() * P);
   };
@@ -593,75 +592,48 @@ Curve::CoeffsMap Curve::lower_order_coeffs_ = CoeffsMap();
 
 Curve::Coeffs Curve::bernsteinCoeffs(unsigned n)
 {
-  if (!bernstein_coeffs_.count(n))
-  {
-    bernstein_coeffs_.insert({n, Coeffs::Zero(n, n)});
-    bernstein_coeffs_[n].diagonal(-1).setLinSpaced(-1, -static_cast<int>(n - 1));
-    bernstein_coeffs_[n] = bernstein_coeffs_[n].exp();
-    for (unsigned k{}, binomial = 1; k < n; binomial = binomial * (n - k - 1) / (k + 1), k++)
-      bernstein_coeffs_[n].row(k) *= binomial;
-  }
-  return bernstein_coeffs_[n];
+  auto coeffs = [n]() -> Coeffs {
+    Coeffs coeffs = Coeffs::Zero(n, n);
+    coeffs.diagonal(-1).setLinSpaced(-1, -static_cast<int>(n - 1));
+    coeffs = coeffs.exp();
+    coeffs.array().colwise() *= coeffs.row(n - 1).transpose().array().abs();
+    return coeffs;
+  };
+  return bernstein_coeffs_.try_emplace(n, bu::lazyFunctor(coeffs)).first->second;
 }
 
 Curve::Coeffs Curve::splittingCoeffsLeft(unsigned n, double t)
 {
-  if (t == 0.5)
-  {
-    if (!splitting_coeffs_left_.count(n))
-    {
-      splitting_coeffs_left_.insert({n, Coeffs::Zero(n, n)});
-      splitting_coeffs_left_[n].diagonal() = bu::powVector(0.5, n);
-      splitting_coeffs_left_[n] = bernsteinCoeffs(n).inverse() * splitting_coeffs_left_[n] * bernsteinCoeffs(n);
-    }
-    return splitting_coeffs_left_[n];
-  }
-
-  Curve::Coeffs coeffs(Coeffs::Zero(n, n));
-  coeffs.diagonal() = bu::powVector(t, n);
-  return bernsteinCoeffs(n).inverse() * coeffs * bernsteinCoeffs(n);
+  auto scl = [n](double t) -> Coeffs {
+    return bernsteinCoeffs(n).inverse() * bu::powVector(t, n).asDiagonal() * bernsteinCoeffs(n);
+  };
+  return t == 0.5 ? splitting_coeffs_left_.try_emplace(n, bu::lazyFunctor(scl, 0.5)).first->second : scl(t);
 }
 
 Curve::Coeffs Curve::splittingCoeffsRight(unsigned n, double t)
 {
-  if (t == 0.5)
-  {
-    if (!splitting_coeffs_right_.count(n))
-    {
-      splitting_coeffs_right_.insert({n, Coeffs::Zero(n, n)});
-      Curve::Coeffs temp_splitting_coeffs_left = splittingCoeffsLeft(n);
-      for (unsigned k{}; k < n; k++)
-        splitting_coeffs_right_[n].block(0, n - 1 - k, n - k, 1) =
-            temp_splitting_coeffs_left.diagonal(-static_cast<int>(k)).reverse();
-    }
-    return splitting_coeffs_right_[n];
-  }
-
-  Curve::Coeffs coeffs(Coeffs::Zero(n, n));
-  Curve::Coeffs temp_splitting_coeffs_left = splittingCoeffsLeft(n, t);
-  for (unsigned k{}; k < n; k++)
-    coeffs.block(0, n - 1 - k, n - k, 1) = temp_splitting_coeffs_left.diagonal(-static_cast<int>(k)).reverse();
-  return coeffs;
+  auto scr = [n](double t) -> Coeffs {
+    Coeffs coeffs = splittingCoeffsLeft(n, t);
+    for (unsigned k{}; k < n; k++)
+      coeffs.col(n - 1 - k).head(n - k) = coeffs.diagonal(-static_cast<int>(k)).reverse();
+    coeffs.triangularView<Eigen::StrictlyLower>().setZero();
+    return coeffs;
+  };
+  return t == 0.5 ? splitting_coeffs_right_.try_emplace(n, bu::lazyFunctor(scr, 0.5)).first->second : scr(t);
 }
 
 Curve::Coeffs Curve::elevateOrderCoeffs(unsigned n)
 {
-  if (!elevate_order_coeffs_.count(n))
-  {
-    elevate_order_coeffs_.insert({n, Coeffs::Zero(n + 1, n)});
-    elevate_order_coeffs_[n].diagonal().setLinSpaced(1, 1 - (n - 1.) / n);
-    elevate_order_coeffs_[n].diagonal(-1).setLinSpaced(1. / n, 1);
-  }
-  return elevate_order_coeffs_[n];
+  auto eoc = [n]() -> Coeffs {
+    Coeffs coeffs = Coeffs::Zero(n + 1, n);
+    coeffs.diagonal(-1) = coeffs.diagonal().setLinSpaced(1, 1. / n).reverse();
+    return coeffs;
+  };
+  return elevate_order_coeffs_.try_emplace(n, bu::lazyFunctor(eoc)).first->second;
 }
 
 Curve::Coeffs Curve::lowerOrderCoeffs(unsigned n)
 {
-  if (!lower_order_coeffs_.count(n))
-  {
-    lower_order_coeffs_.insert({n, Coeffs::Zero(n - 1, n)});
-    lower_order_coeffs_[n].noalias() = (elevateOrderCoeffs(n - 1).transpose() * elevateOrderCoeffs(n - 1)).inverse() *
-                                       elevateOrderCoeffs(n - 1).transpose();
-  }
-  return lower_order_coeffs_[n];
+  auto loc = [n]() -> Coeffs { return elevateOrderCoeffs(n - 1).completeOrthogonalDecomposition().pseudoInverse(); };
+  return lower_order_coeffs_.try_emplace(n, bu::lazyFunctor(loc)).first->second;
 }

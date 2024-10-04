@@ -1,5 +1,6 @@
 #include "Bezier/utils.h"
 
+#include <limits>
 #include <numeric>
 
 #include <unsupported/Eigen/Polynomials>
@@ -32,10 +33,11 @@ std::vector<unsigned> Bezier::Utils::visvalingamWyatt(const PointVector& polylin
   };
 
   // Initialize vertices
-  vertices.front() = {0, 1, 0.0};
+  constexpr size_t NaN = std::numeric_limits<size_t>::quiet_NaN();
+  vertices.front() = {NaN, 1, 0.0};
   for (unsigned k = 1; k + 1 < polyline.size(); k++)
     vertices[k] = {k - 1, k + 1, area(k - 1, k, k + 1)};
-  vertices.back() = {polyline.size() - 2, polyline.size(), 0.0};
+  vertices.back() = {polyline.size() - 2, NaN, 0.0};
 
   // Smallest contribution will be at the end of the vector
   for (auto it = by_contribution.rbegin(); it != by_contribution.rend() - 2; ++it)
@@ -75,7 +77,7 @@ std::vector<double> Bezier::Utils::solvePolynomial(const Eigen::VectorXd& polyno
   auto idx = polynomial.size();
   while (idx && std::abs(polynomial(idx - 1)) < bu::epsilon)
     --idx;
-  if (idx < 2) // Polynomial is constant
+  if (idx < 2) // Polynomial is a constant
     return {};
 
   struct PolynomialRoots : public std::vector<double>
