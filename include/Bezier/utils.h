@@ -25,22 +25,16 @@ template <typename T> inline T pow(T base, unsigned exp)
 {
   T result = exp & 1 ? base : 1;
   while (exp >>= 1)
-  {
-    base *= base;
-    if (exp & 1)
+    if (base *= base; exp & 1)
       result *= base;
-  }
   return result;
 }
 
 /// A vector of powers of a given base
 inline Eigen::RowVectorXd powVector(double base, unsigned exp)
 {
-  Eigen::RowVectorXd power_vector(exp);
-  power_vector(0) = 1;
-  for (unsigned k = 1; k < exp; k++)
-    power_vector(k) = power_vector(k - 1) * base;
-  return power_vector;
+  std::function<double(int)> powFunc = [x = 1., base](int k) mutable { return k ? x *= base : x; };
+  return Eigen::RowVectorXd::NullaryExpr(exp, powFunc);
 }
 
 /// A matrix of powers of given bases
@@ -92,7 +86,7 @@ inline double dist(const Point& p1, const Point& p2, const Point& point)
 }
 
 /// Distance between a point and a polyline
-inline double dist(const PointVector& polyline, const Point& point)
+inline double dist(const std::vector<Point>& polyline, const Point& point)
 {
   double min_dist = std::numeric_limits<double>::max();
   for (size_t k{1}; k < polyline.size(); k++)
@@ -110,13 +104,13 @@ inline double maxDeviation(const Eigen::MatrixX2d& cp)
 }
 
 /// Sort indices of polyline points by their contribution to the polyline shape
-std::vector<unsigned> visvalingamWyatt(const PointVector& polyline);
+std::vector<unsigned> visvalingamWyatt(const std::vector<Point>& polyline);
 
 /// Simplify polyline to N points
-PointVector polylineSimplify(const PointVector& polyline, unsigned N);
+std::vector<Point> polylineSimplify(const std::vector<Point>& polyline, unsigned N);
 
 /// Length of a polyline
-inline double polylineLength(const PointVector& polyline)
+inline double polylineLength(const std::vector<Point>& polyline)
 {
   double length{};
   for (size_t k{1}; k < polyline.size(); k++)
@@ -126,15 +120,6 @@ inline double polylineLength(const PointVector& polyline)
 
 /// Find solutions to polynomial equation (limited to [0, 1])
 std::vector<double> solvePolynomial(const Eigen::VectorXd& polynomial);
-
-template <class Func, class... Args> struct lazyFunctor
-{
-  Func& fun_;
-  std::tuple<Args...> args_;
-  lazyFunctor(Func& fun, Args... args) : fun_(fun), args_(std::make_tuple(args...)) {}
-  template <class Out> operator Out() { return invoke(std::index_sequence_for<Args...>{}); }
-  template <std::size_t... I> auto invoke(std::index_sequence<I...>) { return fun_(std::get<I>(args_)...); }
-};
 
 } // namespace Utils
 } // namespace Bezier

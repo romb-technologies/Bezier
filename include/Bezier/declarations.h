@@ -59,11 +59,6 @@ class PolyCurve;
 using Point = Eigen::Vector2d;
 
 /*!
- * \brief A vector of Points
- */
-using PointVector = std::vector<Point>;
-
-/*!
  * \brief A Vector in xy plane
  */
 using Vector = Eigen::Vector2d;

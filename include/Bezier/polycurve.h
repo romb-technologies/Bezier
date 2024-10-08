@@ -123,7 +123,7 @@ public:
    * \param flatness Error tolerance of approximation
    * \return A vector of polyline vertices
    */
-  PointVector polyline(double flatness = 0.5) const;
+  std::vector<Point> polyline(double flatness = 0.5) const;
 
   /*!
    * \brief Compute exact arc length using Chebyshev polynomials
@@ -164,7 +164,7 @@ public:
    * \brief Get the control points of all subcurves
    * \return A vector of control points
    */
-  PointVector controlPoints() const;
+  std::vector<Point> controlPoints() const;
 
   /*!
    * \brief Set the new coordinates to a control point
@@ -185,7 +185,7 @@ public:
    * \param t_vector Curve parameters
    * \return Vector of points on a polycurve for given parameters
    */
-  PointVector valueAt(const std::vector<double>& t_vector) const;
+  std::vector<Point> valueAt(const std::vector<double>& t_vector) const;
 
   /*!
    * \brief Get curvature of the polycurve for a given t
@@ -243,7 +243,7 @@ public:
    * \param curve Curve to intersect with
    * \return A vector af points of intersection between curves
    */
-  template <typename Curve_PolyCurve> PointVector intersections(const Curve_PolyCurve& curve) const;
+  template <typename Curve_PolyCurve> std::vector<Point> intersections(const Curve_PolyCurve& curve) const;
 
   /*!
    * \brief Get the parameter t where polycurve is closest to given point
@@ -257,7 +257,7 @@ public:
    * \param point_vector Points to project on polycurve
    * \return Vector of parameters t
    */
-  std::vector<double> projectPoint(const PointVector& point_vector) const;
+  std::vector<double> projectPoint(const std::vector<Point>& point_vector) const;
 
   /*!
    * \brief Get distance of the point to the polycurve
@@ -271,7 +271,7 @@ public:
    * \param point_vector Points to project on the polycurve
    * \return Vector of distances
    */
-  std::vector<double> distance(const PointVector& point_vector) const;
+  std::vector<double> distance(const std::vector<Point>& point_vector) const;
 
 protected:
   /// Structure for holding underlying Bezier curves

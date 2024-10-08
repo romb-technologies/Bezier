@@ -36,9 +36,9 @@ std::deque<Curve>& PolyCurve::curves() { return curves_; }
 
 const std::deque<Curve>& PolyCurve::curves() const { return curves_; }
 
-PointVector PolyCurve::polyline(double flatness) const
+std::vector<Point> PolyCurve::polyline(double flatness) const
 {
-  PointVector polyline;
+  std::vector<Point> polyline;
   for (const auto& curve : curves_)
     polyline = bu::concatenate(std::move(polyline), curve.polyline(flatness));
   return polyline;
@@ -109,9 +109,9 @@ std::pair<Point, Point> PolyCurve::endPoints() const
   return std::make_pair(curves_[0].endPoints().first, curves_[size() - 1].endPoints().second);
 }
 
-PointVector PolyCurve::controlPoints() const
+std::vector<Point> PolyCurve::controlPoints() const
 {
-  PointVector cp;
+  std::vector<Point> cp;
   for (const auto& curve : curves_)
     cp = bu::concatenate(std::move(cp), curve.controlPoints());
   return cp;
@@ -133,9 +133,9 @@ Point PolyCurve::valueAt(double t) const
   return curves_[idx].valueAt(t - idx);
 }
 
-PointVector PolyCurve::valueAt(const std::vector<double>& t_vector) const
+std::vector<Point> PolyCurve::valueAt(const std::vector<double>& t_vector) const
 {
-  PointVector points(t_vector.size());
+  std::vector<Point> points(t_vector.size());
   std::transform(t_vector.begin(), t_vector.end(), points.begin(), [this](double t) { return valueAt(t); });
   return points;
 }
@@ -184,17 +184,17 @@ BoundingBox PolyCurve::boundingBox() const
   return bbox;
 }
 
-template <> PointVector PolyCurve::intersections<Curve>(const Curve& curve) const
+template <> std::vector<Point> PolyCurve::intersections<Curve>(const Curve& curve) const
 {
-  PointVector points;
+  std::vector<Point> points;
   for (const auto& curve2 : curves_)
     points = bu::concatenate(std::move(points), curve2.intersections(curve));
   return points;
 }
 
-template <> PointVector PolyCurve::intersections<PolyCurve>(const PolyCurve& poly_curve) const
+template <> std::vector<Point> PolyCurve::intersections<PolyCurve>(const PolyCurve& poly_curve) const
 {
-  PointVector points;
+  std::vector<Point> points;
   for (const auto& curve : curves_)
     points = bu::concatenate(std::move(points), poly_curve.intersections(curve));
   return points;
@@ -213,7 +213,7 @@ double PolyCurve::projectPoint(const Point& point) const
   return min_t;
 }
 
-std::vector<double> PolyCurve::projectPoint(const PointVector& point_vector) const
+std::vector<double> PolyCurve::projectPoint(const std::vector<Point>& point_vector) const
 {
   std::vector<double> t_vector(point_vector.size());
   std::transform(point_vector.begin(), point_vector.end(), t_vector.begin(),
@@ -223,7 +223,7 @@ std::vector<double> PolyCurve::projectPoint(const PointVector& point_vector) con
 
 double PolyCurve::distance(const Point& point) const { return (point - valueAt(projectPoint(point))).norm(); }
 
-std::vector<double> PolyCurve::distance(const PointVector& point_vector) const
+std::vector<double> PolyCurve::distance(const std::vector<Point>& point_vector) const
 {
   std::vector<double> dist_vector(point_vector.size());
   std::transform(point_vector.begin(), point_vector.end(), dist_vector.begin(),

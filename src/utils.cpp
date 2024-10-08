@@ -8,7 +8,7 @@
 using namespace Bezier;
 namespace bu = Bezier::Utils;
 
-std::vector<unsigned> Bezier::Utils::visvalingamWyatt(const PointVector& polyline)
+std::vector<unsigned> Bezier::Utils::visvalingamWyatt(const std::vector<Point>& polyline)
 {
   // Vector of indices sorted by contribution to the polyline shape (first and last contribute the most by default)
   // Initialized with all indices, taking care to put the first and the last at the start
@@ -25,8 +25,8 @@ std::vector<unsigned> Bezier::Utils::visvalingamWyatt(const PointVector& polylin
   std::vector<Vertex> vertices(polyline.size());
 
   // Visvalingam-Whyatt measures contribution as an area between 3 consecutive Points
-  auto area = [&polyline](unsigned id1, unsigned id2, unsigned id3) {
-    return std::fabs(bu::cross(polyline[id2] - polyline[id1], polyline[id3] - polyline[id1])) / 2;
+  auto area = [&polyline](unsigned idx1, unsigned idx2, unsigned idx3) {
+    return std::fabs(bu::cross(polyline[idx2] - polyline[idx1], polyline[idx3] - polyline[idx1])) / 2;
   };
   auto cmp = [&vertices](unsigned idx1, unsigned idx2) {
     return vertices[idx1].contribution < vertices[idx2].contribution;
@@ -57,14 +57,14 @@ std::vector<unsigned> Bezier::Utils::visvalingamWyatt(const PointVector& polylin
   return by_contribution;
 }
 
-PointVector Bezier::Utils::polylineSimplify(const PointVector& polyline, unsigned int N)
+std::vector<Point> Bezier::Utils::polylineSimplify(const std::vector<Point>& polyline, unsigned int N)
 {
   if (polyline.size() < N)
-    return PointVector(polyline);
+    return polyline;
   if (N == 2)
-    return PointVector{polyline.front(), polyline.back()};
+    return std::vector{polyline.front(), polyline.back()};
 
-  PointVector simplified(N);
+  std::vector<Point> simplified(N);
   auto vw = visvalingamWyatt(polyline);
   std::sort(vw.begin(), vw.begin() + N);
   std::transform(vw.begin(), vw.begin() + N, simplified.begin(), [&polyline](unsigned k) { return polyline[k]; });
@@ -73,9 +73,9 @@ PointVector Bezier::Utils::polylineSimplify(const PointVector& polyline, unsigne
 
 std::vector<double> Bezier::Utils::solvePolynomial(const Eigen::VectorXd& polynomial)
 {
-  // Trim leading zeros from the polynomial
+  // Trim trailing zero coefficients from the polynomial
   auto idx = polynomial.size();
-  while (idx && std::abs(polynomial(idx - 1)) < bu::epsilon)
+  while (idx && std::fabs(polynomial(idx - 1)) < bu::epsilon)
     --idx;
   if (idx < 2) // Polynomial is a constant
     return {};

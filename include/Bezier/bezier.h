@@ -19,7 +19,6 @@
 
 #include <memory>
 #include <optional>
-#include <unordered_map>
 
 #include "declarations.h"
 
@@ -48,7 +47,7 @@ public:
    * \brief Create the Bezier curve
    * \param points A vector of control points that define the curve
    */
-  Curve(const PointVector& points);
+  Curve(const std::vector<Point>& points);
 
   Curve(const Curve& curve);
   Curve(Curve&&) = default;
@@ -65,7 +64,7 @@ public:
    * \brief Get a vector of control points
    * \return A vector of control points
    */
-  PointVector controlPoints() const;
+  std::vector<Point> controlPoints() const;
 
   /*!
    * \brief Get the control point at index idx
@@ -85,7 +84,7 @@ public:
    * \param flatness Error tolerance of approximation
    * \return A vector of polyline vertices
    */
-  PointVector polyline(double flatness = 0.5) const;
+  std::vector<Point> polyline(double flatness = 0.5) const;
 
   /*!
    * \brief Compute exact arc length using Chebyshev polynomials
@@ -255,7 +254,7 @@ public:
    * \param curve Curve to intersect with
    * \return A vector af points of intersection between curves
    */
-  PointVector intersections(const Curve& curve) const;
+  std::vector<Point> intersections(const Curve& curve) const;
 
   /*!
    * \brief Get the parameter t where curve is closest to given point
@@ -282,7 +281,7 @@ public:
 
   static Curve joinCurves(const Curve& curve1, const Curve& curve2, unsigned order = 0);
 
-  static Curve fromPolyline(const PointVector& polyline, unsigned order = 0);
+  static Curve fromPolyline(const std::vector<Point>& polyline, unsigned order = 0);
 
 private:
   /// N x 2 matrix where each row corresponds to control Point
@@ -293,12 +292,12 @@ private:
   //////////////////////
   // private caching
   //////////////////////
-  /// Clear all privately cached data
+  /// Clear all cached data
   inline void clearCache();
   mutable std::unique_ptr<const Curve> cached_derivative_;       /*! Stores derivative for later use */
   mutable std::optional<std::vector<double>> cached_roots_;      /*! Stores roots for later use */
   mutable std::optional<BoundingBox> cached_bounding_box_;       /*! Stores bounding box for later use */
-  mutable std::optional<PointVector> cached_polyline_;           /*! Stores polyline for later use */
+  mutable std::optional<std::vector<Point>> cached_polyline_;    /*! Stores polyline for later use */
   mutable std::optional<std::vector<double>> cached_polyline_t_; /*! Stores polyline t for later use */
   mutable double cached_polyline_flatness_{};                    /*! Flatness of cached polyline */
   mutable std::optional<Eigen::VectorXd>
@@ -307,28 +306,6 @@ private:
       cached_projection_polynomial_derivative_; /*! Polynomial representation of the curve derivative */
   mutable std::optional<Eigen::VectorXd>
       cached_chebyshev_polynomial_; /*!  Stores coefficients of Chebyshev polynomial for curve length */
-
-  //////////////////////
-  // static caching
-  //////////////////////
-  using CacheMap = std::unordered_map<unsigned, Eigen::MatrixXd>;
-
-  static CacheMap bernstein_coeffs_;   /*! Map of Bernstein coefficients */
-  static CacheMap left_split_coeffs_;  /*! Map of coefficients to get subcurve for t = [0, 0.5] */
-  static CacheMap right_split_coeffs_; /*! Map of coefficients to get subcurve for t = [0.5, 1] */
-  static CacheMap raise_order_coeffs_; /*! Map of coefficients for raising the order of the curve */
-  static CacheMap lower_order_coeffs_; /*! Map of coefficients for lowering the order of the curve */
-
-  /// Static getter function for Bernstein coefficients
-  static Eigen::MatrixXd bernsteinCoeffs(unsigned n);
-  /// Static getter function for coefficients to get a subcurve [0, t];
-  static Eigen::MatrixXd leftSplitCoeffs(unsigned n, double t = 0.5);
-  /// Static getter function for coefficients to get a subcurve [t, 1];
-  static Eigen::MatrixXd rightSplitCoeffs(unsigned n, double t = 0.5);
-  /// Static getter function for coefficients to raise order of curve
-  static Eigen::MatrixXd raiseOrderCoeffs(unsigned n);
-  /// Static getter function for coefficients to lower order of curve
-  static Eigen::MatrixXd lowerOrderCoeffs(unsigned n);
 };
 
 } // namespace Bezier
