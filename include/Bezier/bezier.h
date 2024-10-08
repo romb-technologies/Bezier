@@ -109,12 +109,12 @@ public:
   double length(double t1, double t2) const;
 
   /*!
-   * \brief Compute parameter t which is S distance from given t
+   * \brief Compute parameter t which is dS distance from given t
    * \param t Curve parameter
-   * \param s Distance to iterate
+   * \param dS Distance to move
    * \return New parameter t
    */
-  double iterateByLength(double t, double s) const;
+  double step(double t, double dS) const;
 
   /*!
    * \brief Reverse order of control points
@@ -134,7 +134,7 @@ public:
    * Curve will always retain its shape
    * \warning Resets cached data
    */
-  void elevateOrder();
+  void raiseOrder();
 
   /*!
    * \brief Lower the curve order by 1
@@ -293,43 +293,42 @@ private:
   //////////////////////
   // private caching
   //////////////////////
-  /// Reset all privately cached data
-  inline void resetCache();
-  mutable std::unique_ptr<const Curve> cached_derivative_;       /*! If generated, stores derivative for later use */
-  mutable std::optional<std::vector<double>> cached_roots_;      /*! If generated, stores roots for later use */
-  mutable std::optional<BoundingBox> cached_bounding_box_;       /*! If generated, stores bounding box for later use */
-  mutable std::optional<PointVector> cached_polyline_;           /*! If generated, stores polyline for later use */
-  mutable std::optional<std::vector<double>> cached_polyline_t_; /*! If generated, stores polyline t for later use */
+  /// Clear all privately cached data
+  inline void clearCache();
+  mutable std::unique_ptr<const Curve> cached_derivative_;       /*! Stores derivative for later use */
+  mutable std::optional<std::vector<double>> cached_roots_;      /*! Stores roots for later use */
+  mutable std::optional<BoundingBox> cached_bounding_box_;       /*! Stores bounding box for later use */
+  mutable std::optional<PointVector> cached_polyline_;           /*! Stores polyline for later use */
+  mutable std::optional<std::vector<double>> cached_polyline_t_; /*! Stores polyline t for later use */
   mutable double cached_polyline_flatness_{};                    /*! Flatness of cached polyline */
   mutable std::optional<Eigen::VectorXd>
-      cached_projection_polynomial_part_; /*! Constant part of point projection polynomial */
-  mutable std::optional<Eigen::MatrixXd>
+      cached_projection_polynomial_const_; /*! Constant part of point projection polynomial */
+  mutable std::optional<Eigen::MatrixX2d>
       cached_projection_polynomial_derivative_; /*! Polynomial representation of the curve derivative */
-  mutable std::optional<Eigen::VectorXd> cached_chebyshev_coeffs_; /*!  If generated, stores chebyshev coefficients
-                                                                        for calculating the length of the curve */
+  mutable std::optional<Eigen::VectorXd>
+      cached_chebyshev_polynomial_; /*!  Stores coefficients of Chebyshev polynomial for curve length */
 
   //////////////////////
   // static caching
   //////////////////////
-  using Coeffs = Eigen::MatrixXd;
-  using CoeffsMap = std::unordered_map<unsigned, Coeffs>;
+  using CacheMap = std::unordered_map<unsigned, Eigen::MatrixXd>;
 
-  static CoeffsMap bernstein_coeffs_;       /*! Map of Bernstein coefficients */
-  static CoeffsMap splitting_coeffs_left_;  /*! Map of coefficients to get subcurve for t = [0, 0.5] */
-  static CoeffsMap splitting_coeffs_right_; /*! Map of coefficients to get subcurve for t = [0.5, 1] */
-  static CoeffsMap elevate_order_coeffs_;   /*! Map of coefficients for elevating the order of the curve */
-  static CoeffsMap lower_order_coeffs_;     /*! Map of coefficients for lowering the order of the curve */
+  static CacheMap bernstein_coeffs_;   /*! Map of Bernstein coefficients */
+  static CacheMap left_split_coeffs_;  /*! Map of coefficients to get subcurve for t = [0, 0.5] */
+  static CacheMap right_split_coeffs_; /*! Map of coefficients to get subcurve for t = [0.5, 1] */
+  static CacheMap raise_order_coeffs_; /*! Map of coefficients for raising the order of the curve */
+  static CacheMap lower_order_coeffs_; /*! Map of coefficients for lowering the order of the curve */
 
   /// Static getter function for Bernstein coefficients
-  static Coeffs bernsteinCoeffs(unsigned n);
+  static Eigen::MatrixXd bernsteinCoeffs(unsigned n);
   /// Static getter function for coefficients to get a subcurve [0, t];
-  static Coeffs splittingCoeffsLeft(unsigned n, double t = 0.5);
+  static Eigen::MatrixXd leftSplitCoeffs(unsigned n, double t = 0.5);
   /// Static getter function for coefficients to get a subcurve [t, 1];
-  static Coeffs splittingCoeffsRight(unsigned n, double t = 0.5);
-  /// Static getter function for coefficients to elevate order of curve
-  static Coeffs elevateOrderCoeffs(unsigned n);
+  static Eigen::MatrixXd rightSplitCoeffs(unsigned n, double t = 0.5);
+  /// Static getter function for coefficients to raise order of curve
+  static Eigen::MatrixXd raiseOrderCoeffs(unsigned n);
   /// Static getter function for coefficients to lower order of curve
-  static Coeffs lowerOrderCoeffs(unsigned n);
+  static Eigen::MatrixXd lowerOrderCoeffs(unsigned n);
 };
 
 } // namespace Bezier

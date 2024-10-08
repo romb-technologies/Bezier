@@ -147,12 +147,12 @@ public:
   double length(double t1, double t2) const;
 
   /*!
-   * \brief Compute parameter t which is S distance from given t
+   * \brief Compute parameter t which is dS distance from given t
    * \param t Curve parameter
-   * \param s Distance to iterate
+   * \param dS Distance to move
    * \return New parameter t
    */
-  double iterateByLength(double t, double s) const;
+  double step(double t, double dS) const;
 
   /*!
    * \brief Get first and last control points
