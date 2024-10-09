@@ -19,6 +19,7 @@
 
 #include <map>
 #include <memory>
+#include <optional>
 
 #include "declarations.h"
 
@@ -133,16 +134,6 @@ public:
    * \param point New control point
    */
   void setControlPoint(unsigned idx, const Point& point);
-
-  /*!
-   * \brief Manipulate the curve so that it passes through wanted point for given 't'
-   * \param t Curve parameter
-   * \param point Point where curve should pass for a given t
-   *
-   * \warning CAN THROW: Only works for quadratic and cubic curves
-   * \warning Resets cached data
-   */
-  void manipulateCurvature(double t, const Point& point);
 
   /*!
    * \brief Raise the curve order by 1
@@ -318,17 +309,17 @@ private:
   using CoeffsMap = std::map<unsigned, Coeffs>;
 
   // private caching
-  mutable std::unique_ptr<const Curve> cached_derivative_;    /*! If generated, stores derivative for later use */
-  mutable std::unique_ptr<std::vector<double>> cached_roots_; /*! If generated, stores roots for later use */
-  mutable std::unique_ptr<BoundingBox> cached_bounding_box_;  /*! If generated, stores bounding box for later use */
-  mutable std::unique_ptr<PointVector> cached_polyline_;      /*! If generated, stores polyline for later use */
-  mutable std::unique_ptr<std::vector<double>> cached_polyline_t_; /*! If generated, stores polyline t for later use */
-  mutable double cached_polyline_flatness_{};                      /*! Flatness of cached polyline */
-  mutable std::unique_ptr<Eigen::VectorXd>
+  mutable std::unique_ptr<const Curve> cached_derivative_;       /*! If generated, stores derivative for later use */
+  mutable std::optional<std::vector<double>> cached_roots_;      /*! If generated, stores roots for later use */
+  mutable std::optional<BoundingBox> cached_bounding_box_;       /*! If generated, stores bounding box for later use */
+  mutable std::optional<PointVector> cached_polyline_;           /*! If generated, stores polyline for later use */
+  mutable std::optional<std::vector<double>> cached_polyline_t_; /*! If generated, stores polyline t for later use */
+  mutable double cached_polyline_flatness_{};                    /*! Flatness of cached polyline */
+  mutable std::optional<Eigen::VectorXd>
       cached_projection_polynomial_part_; /*! Constant part of point projection polynomial */
-  mutable Eigen::MatrixXd
+  mutable std::optional<Eigen::MatrixXd>
       cached_projection_polynomial_derivative_; /*! Polynomial representation of the curve derivative */
-  mutable std::unique_ptr<Eigen::VectorXd> cached_chebyshev_coeffs_; /*!  If generated, stores chebyshev coefficients
+  mutable std::optional<Eigen::VectorXd> cached_chebyshev_coeffs_; /*!  If generated, stores chebyshev coefficients
                                                                         for calculating the length of the curve */
 
   // static caching
