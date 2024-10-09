@@ -284,10 +284,10 @@ public:
   static Curve fromPolyline(const std::vector<Point>& polyline, unsigned order = 0);
 
 private:
-  /// N x 2 matrix where each row corresponds to control Point
-  Eigen::MatrixX2d control_points_;
   /// Number of control points (order + 1)
   unsigned N_{};
+  /// N x 2 matrix where each row corresponds to control Point
+  Eigen::MatrixX2d control_points_;
 
   //////////////////////
   // private caching

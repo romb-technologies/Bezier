@@ -18,7 +18,6 @@
 #define DECLARATIONS_H
 
 #include <Eigen/Dense>
-#include <vector>
 
 /*!
  * Nominal namespace containing class pre-definitions and typedefs
@@ -56,12 +55,12 @@ class PolyCurve;
 /*!
  * \brief Point in xy plane
  */
-using Point = Eigen::Vector2d;
+using Point = Eigen::RowVector2d;
 
 /*!
  * \brief A Vector in xy plane
  */
-using Vector = Eigen::Vector2d;
+using Vector = Eigen::RowVector2d;
 
 /*!
  * \brief Bounding box class

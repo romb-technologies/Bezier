@@ -5,7 +5,6 @@
 
 #include <unordered_map>
 
-#include <Eigen/Dense>
 #include <unsupported/Eigen/MatrixFunctions>
 
 namespace Bezier
@@ -18,8 +17,7 @@ template <class Func, class... Args> struct lazyFunctor
   Func& fun_;
   std::tuple<Args...> args_;
   lazyFunctor(Func& fun, Args... args) : fun_(fun), args_(std::make_tuple(args...)) {}
-  template <class Out> operator Out() { return invoke(std::index_sequence_for<Args...>{}); }
-  template <std::size_t... I> auto invoke(std::index_sequence<I...>) { return fun_(std::get<I>(args_)...); }
+  template <class Out> operator Out() { return std::apply(fun_, args_); }
 };
 
 inline Eigen::MatrixXd bernstein(unsigned n)

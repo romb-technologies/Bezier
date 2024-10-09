@@ -1,10 +1,9 @@
 #ifndef UTILS_H
 #define UTILS_H
 
-#include <Eigen/Dense>
-#include <vector>
+#include "Bezier/declarations.h"
 
-#include "declarations.h"
+#include <vector>
 
 namespace Bezier
 {
