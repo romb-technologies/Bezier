@@ -35,6 +35,7 @@ SOURCES += \
         customscene.cpp \
         qcurve.cpp \
         qpolycurve.cpp \
+        ../src/utils.cpp \
         ../src/bezier.cpp \
         ../src/polycurve.cpp \
 
@@ -44,6 +45,7 @@ HEADERS += \
         customscene.h \
         qcurve.h \
         qpolycurve.h \
+        ../include/Bezier/utils.h \
         ../include/Bezier/bezier.h \
         ../include/Bezier/polycurve.h \
         ../include/Bezier/declarations.h
