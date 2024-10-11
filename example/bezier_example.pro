@@ -23,7 +23,7 @@ DEFINES += QT_DEPRECATED_WARNINGS
 #DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs deprecated before Qt 6.0.0
 
 CONFIG += c++17
-QMAKE_CXXFLAGS += -O2
+QMAKE_CXXFLAGS += -O3 -DNDEBUG
 
 INCLUDEPATH += /usr/include/eigen3 \
                ../include
@@ -40,6 +40,7 @@ SOURCES += \
         ../src/polycurve.cpp \
 
 HEADERS += \
+        ../include/Bezier/coefficients.h \
         mainwindow.h \
         qgraphicsviewzoom.h \
         customscene.h \

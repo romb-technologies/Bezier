@@ -38,16 +38,17 @@ void CustomScene::drawForeground(QPainter* painter, const QRectF& rect)
     for (int k = 0; k < items().size(); k++)
       for (int i = k; i < items().size(); i++)
       {
-        Bezier::PointVector inter;
-        if (items()[k]->type() == QGraphicsItem::UserType + 1 && items()[i]->type() == QGraphicsItem::UserType + 1)
+        std::vector<Bezier::Point> inter;
+        auto type1 = items()[k]->type(), type2 = items()[i]->type();
+        if (type1 == QGraphicsItem::UserType + 1 && type2 == QGraphicsItem::UserType + 1)
           inter = static_cast<qCurve*>(items()[i])->intersections(*static_cast<qCurve*>(items()[k]));
-        if (items()[k]->type() == QGraphicsItem::UserType + 1 && items()[i]->type() == QGraphicsItem::UserType + 2)
+        if (type1 == QGraphicsItem::UserType + 1 && type2 == QGraphicsItem::UserType + 2)
           inter = static_cast<qPolyCurve*>(items()[i])
                       ->intersections(*static_cast<Bezier::Curve*>(static_cast<qCurve*>(items()[k])));
-        if (items()[k]->type() == QGraphicsItem::UserType + 2 && items()[i]->type() == QGraphicsItem::UserType + 1)
+        if (type1 == QGraphicsItem::UserType + 2 && type2 == QGraphicsItem::UserType + 1)
           inter = static_cast<qPolyCurve*>(items()[k])
                       ->intersections(*static_cast<Bezier::Curve*>(static_cast<qCurve*>(items()[i])));
-        if (items()[k]->type() == QGraphicsItem::UserType + 2 && items()[i]->type() == QGraphicsItem::UserType + 2)
+        if (type1 == QGraphicsItem::UserType + 2 && type2 == QGraphicsItem::UserType + 2)
           inter = static_cast<qPolyCurve*>(items()[i])
                       ->intersections(*static_cast<Bezier::PolyCurve*>(static_cast<qPolyCurve*>(items()[k])));
 
@@ -75,7 +76,7 @@ void CustomScene::mousePressEvent(QGraphicsSceneMouseEvent* mouseEvent)
         tan.insert(curve, addLine(QLineF(QPointF(p1.x(), p1.y()) - 150 * QPointF(tan1.x(), tan1.y()),
                                          QPointF(p1.x(), p1.y()) + 150 * QPointF(tan1.x(), tan1.y())),
                                   QPen(Qt::blue)));
-        auto t2 = c_curve->iterateByLength(t1, 50);
+        auto t2 = c_curve->step(t1, 50);
         auto a = c_curve->valueAt(t2);
         byLength.insert(curve, addEllipse(QRectF(QPointF(a.x() - 3, a.y() - 3), QSizeF(6, 6)), QPen(Qt::yellow),
                                           QBrush(Qt::red, Qt::SolidPattern)));
@@ -89,7 +90,7 @@ void CustomScene::mousePressEvent(QGraphicsSceneMouseEvent* mouseEvent)
         tan.insert(curve, addLine(QLineF(QPointF(p1.x(), p1.y()) - 150 * QPointF(tan1.x(), tan1.y()),
                                          QPointF(p1.x(), p1.y()) + 150 * QPointF(tan1.x(), tan1.y())),
                                   QPen(Qt::blue)));
-        auto t2 = c_poly->iterateByLength(t1, 50);
+        auto t2 = c_poly->step(t1, 50);
         auto a = c_poly->valueAt(t2);
         byLength.insert(curve, addEllipse(QRectF(QPointF(a.x() - 3, a.y() - 3), QSizeF(6, 6)), QPen(Qt::yellow),
                                           QBrush(Qt::red, Qt::SolidPattern)));
@@ -192,7 +193,7 @@ void CustomScene::mouseMoveEvent(QGraphicsSceneMouseEvent* mouseEvent)
         line[curve]->setLine(QLineF(QPointF(p.x(), p.y()), QPointF(p_c.x(), p_c.y())));
         tan[curve]->setLine(QLineF(QPointF(p1.x(), p1.y()) - 500 * QPointF(tan1.x(), tan1.y()),
                                    QPointF(p1.x(), p1.y()) + 500 * QPointF(tan1.x(), tan1.y())));
-        auto t2 = c_curve->iterateByLength(t1, 50);
+        auto t2 = c_curve->step(t1, 50);
         auto a = c_curve->valueAt(t2);
         byLength[curve]->setRect(QRectF(QPointF(a.x() - 3, a.y() - 3), QSizeF(6, 6)));
       }
@@ -204,7 +205,7 @@ void CustomScene::mouseMoveEvent(QGraphicsSceneMouseEvent* mouseEvent)
         line[curve]->setLine(QLineF(QPointF(p.x(), p.y()), QPointF(p1.x(), p1.y())));
         tan[curve]->setLine(QLineF(QPointF(p1.x(), p1.y()) - 500 * QPointF(tan1.x(), tan1.y()),
                                    QPointF(p1.x(), p1.y()) + 500 * QPointF(tan1.x(), tan1.y())));
-        auto t2 = c_poly->iterateByLength(t1, 50);
+        auto t2 = c_poly->step(t1, 50);
         auto a = c_poly->valueAt(t2);
         byLength[curve]->setRect(QRectF(QPointF(a.x() - 3, a.y() - 3), QSizeF(6, 6)));
       }
@@ -308,7 +309,7 @@ Delete - delete curve/polycurve");
   {
     for (auto&& curve : selectedItems())
       if (is_curve)
-        c_curve->elevateOrder();
+        c_curve->raiseOrder();
     update();
   }
   if (keyEvent->key() == 16777237) // key DOWN
@@ -385,11 +386,11 @@ Delete - delete curve/polycurve");
     {
       while (curve_locked->order() < 5)
       {
-        curve_locked->elevateOrder();
+        curve_locked->raiseOrder();
       }
       while (curve_unlocked->order() < 5)
       {
-        curve_unlocked->elevateOrder();
+        curve_unlocked->raiseOrder();
       }
 
       std::vector<double> beta_coeffs = {1, 0, 0};

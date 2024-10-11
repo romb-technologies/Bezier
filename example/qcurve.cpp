@@ -41,7 +41,7 @@ void qCurve::paint(QPainter* painter, const QStyleOptionGraphicsItem* option, QW
   {
     const int d = 6;
     painter->setBrush(QBrush(Qt::blue, Qt::SolidPattern));
-    Bezier::PointVector points = controlPoints();
+    auto points = controlPoints();
     for (uint k = 1; k < points.size(); k++)
     {
       painter->setPen(Qt::blue);

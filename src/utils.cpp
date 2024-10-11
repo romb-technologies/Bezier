@@ -74,7 +74,7 @@ std::vector<Point> Bezier::Utils::polylineSimplify(const std::vector<Point>& pol
 std::vector<double> Bezier::Utils::solvePolynomial(const Eigen::VectorXd& polynomial)
 {
   // Trim trailing zero coefficients from the polynomial
-  auto idx = polynomial.size();
+  unsigned idx = polynomial.size();
   while (idx && std::fabs(polynomial(idx - 1)) < bu::epsilon)
     --idx;
   if (idx < 2) // Polynomial is a constant
