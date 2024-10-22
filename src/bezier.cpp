@@ -238,8 +238,8 @@ double Curve::curvatureDerivativeAt(double t) const
 
 Vector Curve::tangentAt(double t, bool normalize) const
 {
-  Vector p(derivativeAt(t));
-  return normalize && p.norm() > 0 ? p.normalized() : p;
+  Vector d = derivativeAt(t);
+  return normalize && d.norm() > 0 ? d.normalized() : d;
 }
 
 Vector Curve::normalAt(double t, bool normalize) const
@@ -251,9 +251,8 @@ Vector Curve::normalAt(double t, bool normalize) const
 const Curve& Curve::derivative() const
 {
   if (!cached_derivative_)
-    cached_derivative_ = N_ == 1 ? std::make_unique<const Curve>(Point(0, 0))
-                                 : std::make_unique<const Curve>((N_ - 1) * (control_points_.bottomRows(N_ - 1) -
-                                                                             control_points_.topRows(N_ - 1)));
+    cached_derivative_ = std::make_unique<const Curve>(
+        (N_ - 1) * (control_points_.bottomRows(N_ - 1) - control_points_.topRows(N_ - 1)));
   return *cached_derivative_;
 }
 
@@ -347,7 +346,7 @@ std::vector<Point> Curve::intersections(const Curve& curve) const
 
   std::vector<Point> intersections;
   auto insertIntersection = [&intersections](const CP& cp1, const CP& cp2) {
-    /// Intersection of two line segments (Victor Lecomte - Handbook of geometry for competitive programmers)
+    // Intersection of two line segments (Victor Lecomte - Handbook of geometry for competitive programmers)
     auto a1 = cp1.row(0), a2 = cp1.bottomRows<1>();
     auto b1 = cp2.row(0), b2 = cp2.bottomRows<1>();
     double oa = bu::cross(b2 - b1, a1 - b1);
