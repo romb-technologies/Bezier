@@ -3,14 +3,7 @@ project(bezier
   LANGUAGES CXX
   VERSION 0.3.2)
 
-set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_CXX_EXTENSIONS OFF)
-
-add_compile_options(-fPIC -O2)
-
 find_package(Eigen3 REQUIRED)
-include_directories(SYSTEM ${EIGEN3_INCLUDE_DIR} include)
 
 set(Bezier_SRC
   ${PROJECT_SOURCE_DIR}/src/utils.cpp
@@ -37,15 +30,23 @@ else()
 endif()
 
 target_include_directories(bezier PUBLIC
-  $<BUILD_INTERFACE:${Bezier_SOURCE_DIR}/include>
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>
 )
+target_link_libraries(bezier PUBLIC Eigen3::Eigen)
 
-set_target_properties(bezier PROPERTIES VERSION ${PROJECT_VERSION})
-set_target_properties(bezier PROPERTIES PUBLIC_HEADER "${Bezier_INC}")
+set_target_properties(bezier PROPERTIES
+  VERSION ${PROJECT_VERSION}  
+  CXX_EXTENSIONS OFF  
+  POSITION_INDEPENDENT_CODE ON  
+  PUBLIC_HEADER "${Bezier_INC}"
+)
+target_compile_features(bezier PUBLIC cxx_std_17)
 
 # install rules
 install(TARGETS bezier
   EXPORT bezier-export DESTINATION "lib"
   PUBLIC_HEADER DESTINATION "include/Bezier")
 install(EXPORT bezier-export DESTINATION "lib/cmake/Bezier" FILE BezierConfig.cmake)
+
+add_library(bezier::bezier ALIAS bezier)
