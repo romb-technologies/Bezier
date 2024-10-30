@@ -2,6 +2,7 @@
 #include "Bezier/utils.h"
 
 #include <numeric>
+#include <set>
 
 #include <unsupported/Eigen/FFT>
 #include <unsupported/Eigen/LevenbergMarquardt>
@@ -347,7 +348,24 @@ BoundingBox Curve::boundingBox() const
   return cached_bounding_box_.value();
 }
 
-std::pair<Curve, Curve> Curve::splitCurve(double t) const
+std::vector<Curve> Curve::splitCurve(const std::vector<double>& t) const
+{
+  auto sorted_t = t;
+  std::sort(sorted_t.begin(), sorted_t.end());
+  std::vector<Curve> subcurves;
+  subcurves.reserve(sorted_t.size() + 1);
+  auto leftover_cp = control_points_;
+  for (unsigned k{}; k < sorted_t.size(); k++)
+  {
+    subcurves.emplace_back(splittingCoeffsLeft(N_, sorted_t[k] - bu::epsilon / 2) * leftover_cp);
+    leftover_cp = splittingCoeffsRight(N_, sorted_t[k] + bu::epsilon / 2) * leftover_cp;
+    std::for_each(sorted_t.begin() + k + 1, sorted_t.end(), [t = sorted_t[k]](double& x) { x = (x - t) / (1 - t); });
+  }
+  subcurves.emplace_back(std::move(leftover_cp));
+  return subcurves;
+}
+
+std::vector<Curve> Curve::splitCurve(double t) const
 {
   return {Curve(splittingCoeffsLeft(N_, t) * control_points_), Curve(splittingCoeffsRight(N_, t) * control_points_)};
 }
@@ -368,25 +386,13 @@ PointVector Curve::intersections(const Curve& curve) const
     subcurve_pairs.emplace_back(control_points_, curve.control_points_);
   else
   {
-    // for self intersections divide curve into subcurves at extrema
+    // for self intersections divide curve into subcurves at extrema and create all pairs of subcurves
     auto t = extrema();
     std::sort(t.begin(), t.end());
-    std::vector<Eigen::MatrixX2d> subcurves;
-    subcurves.emplace_back(control_points_);
-    for (unsigned k{}; k < t.size(); k++)
-    {
-      Eigen::MatrixX2d new_cp = std::move(subcurves.back());
-      subcurves.pop_back();
-      subcurves.emplace_back(splittingCoeffsLeft(N_, t[k] - bu::epsilon / 2) * new_cp);
-      subcurves.emplace_back(splittingCoeffsRight(N_, t[k] + bu::epsilon / 2) * new_cp);
-
-      std::for_each(t.begin() + k + 1, t.end(), [t = t[k]](double& x) { x = (x - t) / (1 - t); });
-    }
-
-    // create all pairs of subcurves
+    auto subcurves = splitCurve(t);
     for (unsigned k{}; k < subcurves.size(); k++)
       for (unsigned i{k + 1}; i < subcurves.size(); i++)
-        subcurve_pairs.emplace_back(subcurves[k], subcurves[i]);
+        subcurve_pairs.emplace_back(subcurves[k].control_points_, subcurves[i].control_points_);
   }
 
   while (!subcurve_pairs.empty())
@@ -530,9 +536,22 @@ Curve Curve::fromPolyline(const PointVector& polyline, unsigned order)
   if (N == 2)
     return Curve(PointVector{polyline.front(), polyline.back()});
 
-  // Select N points that most influence the shape of the polyline,
-  // either based on a specified order or using the full polyline.
-  auto simplified = bu::polylineSimplify(polyline, N);
+  // Sort the polyline points by their contribution to the Visvalingam-Whyatt
+  // simplification algorithm, and keep the N most contributing points in original order.
+  auto vw = bu::visvalingamWyatt(polyline);
+  std::set<unsigned> by_contribution(vw.begin(), vw.begin() + N);
+
+  // Divide polyline into subparts where the simplified polyline points are located.
+  std::vector<PointVector> subpolylines;
+  subpolylines.reserve(N - 1);
+  subpolylines.emplace_back(std::vector{polyline.front()});
+  for (unsigned k{1}; k + 1 < polyline.size(); k++)
+  {
+    subpolylines.back().emplace_back(polyline[k]);
+    if (by_contribution.count(k))
+      subpolylines.emplace_back(std::vector{polyline[k]});
+  }
+  subpolylines.back().emplace_back(polyline.back());
 
   // Initialize vector t where each element represents a normalized cumulative
   // distance between consecutive simplified points along the simplified polyline.
@@ -540,13 +559,13 @@ Curve Curve::fromPolyline(const PointVector& polyline, unsigned order)
   Eigen::MatrixXd P(N, 2), M = bernsteinCoeffs(N);
   for (unsigned k{}; k < N; k++)
   {
-    P.row(k) = simplified[k];
+    P.row(k) = polyline[*std::next(by_contribution.begin(), k)];
     t(k) = k == 0 ? 0 : t(k - 1) + (P.row(k) - P.row(k - 1)).norm();
   }
   t /= t(N - 1);
 
-  // Compute the control points for a Bezier curve such that C(t_i) = P_i for all i,
-  // by solving the matrix form of the Bezier curve equation.
+  // Compute the control points for a Bezier curve such that it passes through
+  // the simplified polyline points at parameter t.
   auto getCurve = [&M, &P](const Eigen::VectorXd& t) {
     Eigen::MatrixXd T(t.size(), t.size());
     for (unsigned k{}; k < t.size(); k++)
@@ -554,104 +573,53 @@ Curve Curve::fromPolyline(const PointVector& polyline, unsigned order)
     return Curve(M.inverse() * (T.transpose() * T).inverse() * T.transpose() * P);
   };
 
-  // Calculate the root mean square distance (RMSD) between the polyline
-  // representation of the curve and the original polyline points.
-  auto rmsd = [&polyline](const Curve& c) {
-    double rmsd{};
-    auto polyline_c = c.polyline();
-    for (const auto& p : polyline_c)
-      rmsd += bu::pow(bu::polylineDist(polyline, p), 2);
-    return std::sqrt(rmsd / polyline_c.size());
-  };
-
-  // Calculate the absolute difference in length between the polyline representation
-  // of the curve and the original polyline points.
-  const double polyline_length = bu::polylineLength(polyline);
-  auto length_diff = [&polyline_length](const Curve& c) {
-    return std::fabs(bu::polylineLength(c.polyline()) - polyline_length);
-  };
-
+  // Cost functor calculates RMSD and length difference for each subcurve/subpolyline
+  // divided at parameter t, where C(t_i) = P_i.
   struct CostFunctor : public Eigen::DenseFunctor<double>
   {
-    using GetCurveFun = std::function<Curve(Eigen::VectorXd)>;
-    using CostFun = std::function<double(Curve)>;
+    using GetCurveFun = std::function<Curve(const Eigen::VectorXd&)>;
     GetCurveFun getCurve;
-    CostFun f1, f2;
+    std::vector<PointVector> subpolylines;
 
-    CostFunctor(int N, GetCurveFun getCurve, CostFun f1, CostFun f2)
-        : DenseFunctor<double>(N - 2, 2), getCurve(getCurve), f1(f1), f2(f2)
+    CostFunctor(int N, GetCurveFun getCurve, const std::vector<PointVector>& subpolylines)
+        : DenseFunctor<double>(N - 2, 2 * N - 2), getCurve(getCurve), subpolylines(subpolylines)
     {
     }
 
     int operator()(const Eigen::VectorXd& x, Eigen::VectorXd& fvec) const
     {
-      auto c = getCurve((Eigen::VectorXd(inputs() + 2) << 0, x, 1).finished());
-      fvec(0) = f1(c);
-      fvec(1) = f2(c);
+      auto rmsd = [](const Curve& curve, const PointVector& polyline) {
+        double rmsd{};
+        auto polyline_c = curve.polyline();
+        for (const auto& p : polyline_c)
+          rmsd += bu::pow(bu::polylineDist(polyline, p), 2);
+        return std::sqrt(rmsd / polyline_c.size());
+      };
+
+      auto length_diff = [](const Curve& curve, const PointVector& polyline) {
+        return std::fabs(bu::polylineLength(curve.polyline()) - bu::polylineLength(polyline));
+      };
+
+      auto curve = getCurve((Eigen::VectorXd(inputs() + 2) << 0, x, 1).finished());
+      auto subcurves = curve.splitCurve(std::vector<double>(x.data(), x.data() + inputs()));
+      for (unsigned k = 0; k < subcurves.size(); k++)
+      {
+        fvec(k) = rmsd(subcurves[k], subpolylines[k]);
+        fvec(values() / 2 + k) = length_diff(subcurves[k], subpolylines[k]);
+      }
       return 0;
     }
   };
 
-  CostFunctor costFun(N, getCurve, rmsd, length_diff);
+  // Use Levenberg-Marquardt optimization to find the control points that minimize
+  // the RMSD and length difference of the Bezier curve and the simplified polyline.
+  CostFunctor costFun(N, getCurve, subpolylines);
   Eigen::NumericalDiff<CostFunctor> num_diff(costFun);
+  Eigen::LevenbergMarquardt<Eigen::NumericalDiff<CostFunctor>> lm(num_diff);
+  Eigen::VectorXd x = t.segment(1, N - 2);
+  lm.minimize(x);
 
-  Eigen::MatrixXd J(2, N - 2);
-  Eigen::VectorXd fvec(2), x = t.segment(1, N - 2);
-  costFun(x, fvec);
-  num_diff.df(x, J);
-
-  struct ParetoData
-  {
-    Eigen::VectorXd f, x;
-    Eigen::MatrixXd J;
-    double alpha;
-  };
-
-  constexpr double alpha_init = 0.1;
-  constexpr unsigned pareto_max_size = 10;
-  std::vector<ParetoData> pareto_front{{fvec, x, J, alpha_init}};
-  pareto_front.reserve(2 * pareto_max_size);
-
-  for (bool finished{false}; !finished;)
-  {
-    finished = true;
-
-    for (auto& sample : pareto_front)
-    {
-      if (sample.alpha < std::sqrt(bu::epsilon))
-        continue;
-      finished = false;
-
-      do
-      {
-        x = sample.x - sample.alpha * (sample.J.row(0) + sample.J.row(1)).transpose().normalized();
-        sample.alpha /= 2;
-      } while (x.minCoeff() < 0.0 || x.maxCoeff() > 1.0 || (x.array().head(N - 3) >= x.array().tail(N - 3)).any());
-
-      costFun(x, fvec);
-      if (std::any_of(pareto_front.begin(), pareto_front.end(),
-                      [&fvec](const auto& p) { return (p.f.array() <= fvec.array()).all(); }))
-        continue;
-
-      num_diff.df(x, J);
-      pareto_front.push_back({fvec, x, J, 2 * sample.alpha});
-    }
-
-    std::sort(pareto_front.begin(), pareto_front.end(), [](const auto& p1, const auto& p2) {
-      return p1.f(0) == p2.f(0) ? p1.f(1) < p2.f(1) : p1.f(0) < p2.f(0);
-    });
-
-    double best_f1 = std::numeric_limits<double>::max();
-    auto erase_it = std::remove_if(pareto_front.begin(), pareto_front.end(), [&best_f1](const auto& p) {
-      return p.f(1) <= best_f1 ? (best_f1 = p.f(1), false) : true;
-    });
-
-    if (std::distance(erase_it, pareto_front.begin() + pareto_max_size) < 0)
-      erase_it = pareto_front.begin() + pareto_max_size;
-    pareto_front.erase(erase_it, pareto_front.end());
-  }
-
-  return getCurve((Eigen::VectorXd(N) << 0, pareto_front.front().x, 1).finished());
+  return getCurve((Eigen::VectorXd(N) << 0, x, 1).finished());
 }
 
 void Curve::resetCache()

@@ -163,8 +163,8 @@ void CustomScene::mousePressEvent(QGraphicsSceneMouseEvent* mouseEvent)
           auto split = c_curve->splitCurve(t);
           delete curve;
           qCurve *c1, *c2;
-          c1 = new qCurve(split.first);
-          c2 = new qCurve(split.second);
+          c1 = new qCurve(split[0]);
+          c2 = new qCurve(split[1]);
           this->addItem(c1);
           this->addItem(c2);
           update();
