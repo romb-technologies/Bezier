@@ -119,11 +119,18 @@ public:
   ///@}
 
   /*!
-   * \brief Get a polyline representation of the polycurve as a vector of points on curve
+   * \brief Get a polyline representation of the polycurve as a vector of points on polycurve
+   * \return A vector of polyline vertices
+   * \note Default flatness parameter is calculated as 0.1% for smallest bounding box diagonal of all subcurves
+   */
+  std::vector<Point> polyline() const;
+
+  /*!
+   * \brief Get a polyline representation of the polycurve as a vector of points on polycurve
    * \param flatness Error tolerance of approximation
    * \return A vector of polyline vertices
    */
-  std::vector<Point> polyline(double flatness = 0.5) const;
+  std::vector<Point> polyline(double flatness) const;
 
   /*!
    * \brief Compute exact arc length using Chebyshev polynomials

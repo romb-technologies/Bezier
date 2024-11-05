@@ -36,6 +36,14 @@ std::deque<Curve>& PolyCurve::curves() { return curves_; }
 
 const std::deque<Curve>& PolyCurve::curves() const { return curves_; }
 
+std::vector<Point> PolyCurve::polyline() const
+{
+  double flatness = std::numeric_limits<double>::infinity();
+  for (const auto& curve : curves_)
+    flatness = std::min(flatness, curve.boundingBox().diagonal().norm());
+  return polyline(flatness);
+}
+
 std::vector<Point> PolyCurve::polyline(double flatness) const
 {
   std::vector<Point> polyline;
