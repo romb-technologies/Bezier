@@ -315,37 +315,30 @@ std::vector<Curve> Curve::splitCurve(double t) const
 
 std::vector<Point> Curve::intersections(const Curve& curve) const
 {
-  using CP = Eigen::MatrixX2d;
-
-  std::vector<std::pair<CP, CP>> cp_pairs;
-  if (this != &curve)
+  std::vector<std::pair<Eigen::MatrixX2d, Eigen::MatrixX2d>> cp_pairs;
+  if (!control_points_.isApprox(curve.control_points_))
     cp_pairs.emplace_back(control_points_, curve.control_points_);
   else
   {
-    // For self intersections divide curve into subcurves at extrema and create all pairs of subcurves
-    // - leave epsilon sized gap between subcurves to avoid false positives
-    auto t = extrema();
-    t.resize(t.size() * 2);
-    for (unsigned k{}; k < t.size() / 2; k++)
-      t[k + t.size() / 2] = (t[k] -= bu::epsilon / 2) + bu::epsilon;
-    auto subcurves = splitCurve(t);
-    for (auto c1 = subcurves.begin(); c1 < subcurves.end(); c1 += 2)
-      for (auto c2 = c1 + 2; c2 < subcurves.end(); c2 += 2)
-        cp_pairs.emplace_back(c1->control_points_, c2->control_points_);
+    // If self-similar, split curve into subcurves at extremas and compare each pair of distinct subcurves
+    auto subcurves = splitCurve(extrema());
+    for(unsigned k{}; k < subcurves.size(); k++)
+      for(unsigned i{k + 1}; i < subcurves.size(); i++)
+        cp_pairs.emplace_back(subcurves[k].control_points_, subcurves[i].control_points_);
   }
 
-  auto insertPairs = [&cp_pairs](auto&& scp1, auto&& scp2) {
+  auto insertPairs = [&cp_pairs](const auto& scp1, const auto& scp2) {
     for (const auto& cp1 : scp1)
       for (const auto& cp2 : scp2)
         cp_pairs.emplace_back(cp1, cp2);
   };
 
-  auto splitCP = [](const CP& cp) -> std::array<CP, 2> {
+  auto splitCP = [](const Eigen::MatrixX2d& cp) -> std::array<Eigen::MatrixX2d, 2> {
     return {bc::leftSplit(cp.rows()) * cp, bc::rightSplit(cp.rows()) * cp};
   };
 
   std::vector<Point> intersections;
-  auto insertIntersection = [&intersections](const CP& cp1, const CP& cp2) {
+  auto insertIntersection = [&intersections](const Eigen::MatrixX2d& cp1, const Eigen::MatrixX2d& cp2) {
     // Intersection of two line segments (Victor Lecomte - Handbook of geometry for competitive programmers)
     auto a1 = cp1.row(0), a2 = cp1.bottomRows<1>();
     auto b1 = cp2.row(0), b2 = cp2.bottomRows<1>();
