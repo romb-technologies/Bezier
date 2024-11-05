@@ -2,12 +2,12 @@
 #include "Bezier/coefficients.h"
 #include "Bezier/utils.h"
 
+#include <numeric>
+
 #include <unsupported/Eigen/FFT>
 #include <unsupported/Eigen/LevenbergMarquardt>
 #include <unsupported/Eigen/MatrixFunctions>
 #include <unsupported/Eigen/NumericalDiff>
-
-#include <numeric>
 
 using namespace Bezier;
 namespace bu = Bezier::Utils;
@@ -43,6 +43,11 @@ std::vector<Point> Curve::controlPoints() const
 Point Curve::controlPoint(unsigned idx) const { return control_points_.row(idx); }
 
 std::pair<Point, Point> Curve::endPoints() const { return {control_points_.row(0), control_points_.row(N_ - 1)}; }
+
+std::vector<Point> Curve::polyline() const
+{
+  return polyline(boundingBox().diagonal().norm() / 1000);
+}
 
 std::vector<Point> Curve::polyline(double flatness) const
 {

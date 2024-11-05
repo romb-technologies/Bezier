@@ -81,10 +81,17 @@ public:
 
   /*!
    * \brief Get a polyline representation of the curve as a vector of points on curve
+   * \return A vector of polyline vertices
+   * \note Default flatness parameter is calculated as 0.1% for bounding box diagonal
+   */
+  std::vector<Point> polyline() const;
+
+  /*!
+   * \brief Get a polyline representation of the curve as a vector of points on curve
    * \param flatness Error tolerance of approximation
    * \return A vector of polyline vertices
    */
-  std::vector<Point> polyline(double flatness = 0.5) const;
+  std::vector<Point> polyline(double flatness) const;
 
   /*!
    * \brief Compute exact arc length using Chebyshev polynomials
@@ -289,11 +296,9 @@ private:
   /// N x 2 matrix where each row corresponds to control Point
   Eigen::MatrixX2d control_points_;
 
-  //////////////////////
-  // private caching
-  //////////////////////
   /// Clear all cached data
   inline void clearCache();
+
   mutable std::unique_ptr<const Curve> cached_derivative_;       /*! Stores derivative for later use */
   mutable std::optional<std::vector<double>> cached_roots_;      /*! Stores roots for later use */
   mutable std::optional<BoundingBox> cached_bounding_box_;       /*! Stores bounding box for later use */
