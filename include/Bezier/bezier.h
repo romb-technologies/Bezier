@@ -17,7 +17,6 @@
 #ifndef BEZIER_H
 #define BEZIER_H
 
-#include <map>
 #include <memory>
 #include <optional>
 
@@ -48,7 +47,7 @@ public:
    * \brief Create the Bezier curve
    * \param points A vector of control points that define the curve
    */
-  Curve(const PointVector& points);
+  Curve(const std::vector<Point>& points);
 
   Curve(const Curve& curve);
   Curve(Curve&&) = default;
@@ -65,7 +64,7 @@ public:
    * \brief Get a vector of control points
    * \return A vector of control points
    */
-  PointVector controlPoints() const;
+  std::vector<Point> controlPoints() const;
 
   /*!
    * \brief Get the control point at index idx
@@ -85,14 +84,14 @@ public:
    * \return A vector of polyline vertices
    * \note Default flatness parameter is calculated as 0.1% for bounding box diagonal
    */
-  PointVector polyline() const;
+  std::vector<Point> polyline() const;
 
   /*!
    * \brief Get a polyline representation of the curve as a vector of points on curve
    * \param flatness Error tolerance of approximation
    * \return A vector of polyline vertices
    */
-  PointVector polyline(double flatness) const;
+  std::vector<Point> polyline(double flatness) const;
 
   /*!
    * \brief Compute exact arc length using Chebyshev polynomials
@@ -116,12 +115,12 @@ public:
   double length(double t1, double t2) const;
 
   /*!
-   * \brief Compute parameter t which is S distance from given t
+   * \brief Compute parameter t which is dS distance from given t
    * \param t Curve parameter
-   * \param s Distance to iterate
+   * \param dS Distance to move
    * \return New parameter t
    */
-  double iterateByLength(double t, double s) const;
+  double step(double t, double dS) const;
 
   /*!
    * \brief Reverse order of control points
@@ -141,7 +140,7 @@ public:
    * Curve will always retain its shape
    * \warning Resets cached data
    */
-  void elevateOrder();
+  void raiseOrder();
 
   /*!
    * \brief Lower the curve order by 1
@@ -262,7 +261,7 @@ public:
    * \param curve Curve to intersect with
    * \return A vector af points of intersection between curves
    */
-  PointVector intersections(const Curve& curve) const;
+  std::vector<Point> intersections(const Curve& curve) const;
 
   /*!
    * \brief Get the parameter t where curve is closest to given point
@@ -289,63 +288,29 @@ public:
 
   static Curve joinCurves(const Curve& curve1, const Curve& curve2, unsigned order = 0);
 
-  static Curve fromPolyline(const PointVector& polyline, unsigned order = 0);
-
-protected:
-  /*!
-   * \brief N x 2 matrix where each row corresponds to control Point
-   * \warning Any changes made to control_points_ require a call to resetCache() funtion!
-   */
-  Eigen::MatrixX2d control_points_;
-
-  /// Reset all privately cached data
-  inline void resetCache();
+  static Curve fromPolyline(const std::vector<Point>& polyline, unsigned order = 0);
 
 private:
   /// Number of control points (order + 1)
   unsigned N_{};
+  /// N x 2 matrix where each row corresponds to control Point
+  Eigen::MatrixX2d control_points_;
 
-  /*!
-   * \brief Coefficients for matrix operations
-   */
-  using Coeffs = Eigen::MatrixXd;
+  /// Clear all cached data
+  inline void clearCache();
 
-  /*!
-   * \brief Map of different coefficient matrices, depending on the order of the curve
-   */
-  using CoeffsMap = std::map<unsigned, Coeffs>;
-
-  // private caching
-  mutable std::unique_ptr<const Curve> cached_derivative_;       /*! If generated, stores derivative for later use */
-  mutable std::optional<std::vector<double>> cached_roots_;      /*! If generated, stores roots for later use */
-  mutable std::optional<BoundingBox> cached_bounding_box_;       /*! If generated, stores bounding box for later use */
-  mutable std::optional<PointVector> cached_polyline_;           /*! If generated, stores polyline for later use */
-  mutable std::optional<std::vector<double>> cached_polyline_t_; /*! If generated, stores polyline t for later use */
+  mutable std::unique_ptr<const Curve> cached_derivative_;       /*! Stores derivative for later use */
+  mutable std::optional<std::vector<double>> cached_roots_;      /*! Stores roots for later use */
+  mutable std::optional<BoundingBox> cached_bounding_box_;       /*! Stores bounding box for later use */
+  mutable std::optional<std::vector<Point>> cached_polyline_;    /*! Stores polyline for later use */
+  mutable std::optional<std::vector<double>> cached_polyline_t_; /*! Stores polyline t for later use */
   mutable double cached_polyline_flatness_{};                    /*! Flatness of cached polyline */
   mutable std::optional<Eigen::VectorXd>
-      cached_projection_polynomial_part_; /*! Constant part of point projection polynomial */
-  mutable std::optional<Eigen::MatrixXd>
+      cached_projection_polynomial_const_; /*! Constant part of point projection polynomial */
+  mutable std::optional<Eigen::MatrixX2d>
       cached_projection_polynomial_derivative_; /*! Polynomial representation of the curve derivative */
-  mutable std::optional<Eigen::VectorXd> cached_chebyshev_coeffs_; /*!  If generated, stores chebyshev coefficients
-                                                                        for calculating the length of the curve */
-
-  // static caching
-  static CoeffsMap bernstein_coeffs_;       /*! Map of Bernstein coefficients */
-  static CoeffsMap splitting_coeffs_left_;  /*! Map of coefficients to get subcurve for t = [0, 0.5] */
-  static CoeffsMap splitting_coeffs_right_; /*! Map of coefficients to get subcurve for t = [0.5, 1] */
-  static CoeffsMap elevate_order_coeffs_;   /*! Map of coefficients for elevating the order of the curve */
-  static CoeffsMap lower_order_coeffs_;     /*! Map of coefficients for lowering the order of the curve */
-
-  /// Static getter function for Bernstein coefficients
-  static Coeffs bernsteinCoeffs(unsigned n);
-  /// Static getter function for coefficients to get a subcurve [0, t];
-  static Coeffs splittingCoeffsLeft(unsigned n, double t = 0.5);
-  /// Static getter function for coefficients to get a subcurve [t, 1];
-  static Coeffs splittingCoeffsRight(unsigned n, double t = 0.5);
-  /// Static getter function for coefficients to elevate order of curve
-  static Coeffs elevateOrderCoeffs(unsigned n);
-  /// Static getter function for coefficients to lower order of curve
-  static Coeffs lowerOrderCoeffs(unsigned n);
+  mutable std::optional<Eigen::VectorXd>
+      cached_chebyshev_polynomial_; /*!  Stores coefficients of Chebyshev polynomial for curve length */
 };
 
 } // namespace Bezier
