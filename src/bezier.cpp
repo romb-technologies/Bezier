@@ -44,10 +44,7 @@ Point Curve::controlPoint(unsigned idx) const { return control_points_.row(idx);
 
 std::pair<Point, Point> Curve::endPoints() const { return {control_points_.row(0), control_points_.row(N_ - 1)}; }
 
-std::vector<Point> Curve::polyline() const
-{
-  return polyline(boundingBox().diagonal().norm() / 1000);
-}
+std::vector<Point> Curve::polyline() const { return polyline(boundingBox().diagonal().norm() / 1000); }
 
 std::vector<Point> Curve::polyline(double flatness) const
 {
@@ -215,7 +212,7 @@ void Curve::lowerOrder()
 
 Point Curve::valueAt(double t) const
 {
-  return N_ == 0 ? Point(0, 0) : (bu::powVector(t, N_) * bc::bernstein(N_) * control_points_).transpose();
+  return N_ ? (bu::powVector(t, N_) * bc::bernstein(N_) * control_points_).transpose() : Point(0, 0);
 }
 
 Eigen::MatrixX2d Curve::valueAt(const std::vector<double>& t_vector) const
@@ -263,7 +260,7 @@ const Curve& Curve::derivative() const
 
 const Curve& Curve::derivative(unsigned n) const
 {
-  auto* nth_derivative = this;
+  auto nth_derivative = this;
   for (unsigned k{}; k < n; k++)
     nth_derivative = &nth_derivative->derivative();
   return *nth_derivative;
@@ -327,8 +324,8 @@ std::vector<Point> Curve::intersections(const Curve& curve) const
   {
     // If self-similar, split curve into subcurves at extremas and compare each pair of distinct subcurves
     auto subcurves = splitCurve(extrema());
-    for(unsigned k{}; k < subcurves.size(); k++)
-      for(unsigned i{k + 1}; i < subcurves.size(); i++)
+    for (unsigned k{}; k < subcurves.size(); k++)
+      for (unsigned i{k + 1}; i < subcurves.size(); i++)
         cp_pairs.emplace_back(subcurves[k].control_points_, subcurves[i].control_points_);
   }
 

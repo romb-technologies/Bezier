@@ -92,11 +92,7 @@ inline double dist(const Point& p1, const Point& p2, const Point& point)
 {
   Vector u = p2 - p1;
   Vector v = point - p1;
-  double t = u.dot(v) / u.squaredNorm();
-  if (t < 0)
-    return v.norm();
-  if (t > 1)
-    return (point - p2).norm();
+  double t = std::clamp(u.dot(v) / u.squaredNorm(), 0., 1.);
   return (p1 + t * u - point).norm();
 }
 
