@@ -18,7 +18,6 @@
 #define DECLARATIONS_H
 
 #include <Eigen/Dense>
-#include <vector>
 
 /*!
  * Nominal namespace containing class pre-definitions and typedefs
@@ -36,15 +35,6 @@ namespace Bezier
 class Curve;
 
 /*!
- * \brief A polyline class
- *
- * A class for operations on polyline, mainly used for
- * polyline representation of curves. Underlying structure
- * is a vector of points.
- */
-class PolyLine;
-
-/*!
  * \brief A Bezier polycurve class
  *
  * A class for linking multiple Bezier curves with at least
@@ -59,11 +49,6 @@ class PolyCurve;
 using Point = Eigen::Vector2d;
 
 /*!
- * \brief A vector of Points
- */
-using PointVector = std::vector<Point>;
-
-/*!
  * \brief A Vector in xy plane
  */
 using Vector = Eigen::Vector2d;
@@ -72,10 +57,5 @@ using Vector = Eigen::Vector2d;
  * \brief Bounding box class
  */
 using BoundingBox = Eigen::AlignedBox2d;
-
-/*!
- * \brief Precision for numerical methods
- */
-const double _epsilon = std::sqrt(std::numeric_limits<double>::epsilon());
 } // namespace Bezier
 #endif // DECLARATIONS_H

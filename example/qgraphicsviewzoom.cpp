@@ -1,7 +1,7 @@
 #include "qgraphicsviewzoom.h"
 
-#include <QMouseEvent>
 #include <QApplication>
+#include <QMouseEvent>
 #include <QScrollBar>
 #include <qmath.h>
 

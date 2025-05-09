@@ -11,15 +11,9 @@ bool qCurve::getDraw_control_points() const { return draw_control_points; }
 
 bool qCurve::getDraw_curvature_radious() const { return draw_curvature_radious; }
 
-bool qCurve::getLocked() const
-{
-    return locked;
-}
+bool qCurve::getLocked() const { return locked; }
 
-void qCurve::setLocked(bool value)
-{
-    locked = value;
-}
+void qCurve::setLocked(bool value) { locked = value; }
 
 int qCurve::type() const { return QGraphicsItem::UserType + 1; }
 
@@ -47,7 +41,7 @@ void qCurve::paint(QPainter* painter, const QStyleOptionGraphicsItem* option, QW
   {
     const int d = 6;
     painter->setBrush(QBrush(Qt::blue, Qt::SolidPattern));
-    Bezier::PointVector points = controlPoints();
+    auto points = controlPoints();
     for (uint k = 1; k < points.size(); k++)
     {
       painter->setPen(Qt::blue);

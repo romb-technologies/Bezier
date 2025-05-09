@@ -38,7 +38,7 @@ void qPolyCurve::paint(QPainter* painter, const QStyleOptionGraphicsItem* option
   {
     const int d = 6;
     painter->setBrush(QBrush(Qt::blue, Qt::SolidPattern));
-    Bezier::PointVector points = controlPoints();
+    auto points = controlPoints();
     for (uint k = 1; k < points.size(); k++)
     {
       painter->setPen(Qt::blue);
@@ -55,8 +55,8 @@ void qPolyCurve::paint(QPainter* painter, const QStyleOptionGraphicsItem* option
     painter->setPen(Qt::green);
     for (double t = 0; t <= size(); t += 1.0 / 500)
     {
-      painter->setPen(QColor(static_cast<int>(std::fabs(255 * (0.5 - t / size()))),
-                             static_cast<int>(255 * t / size()), static_cast<int>(255 * (1 - t / size()))));
+      painter->setPen(QColor(static_cast<int>(std::fabs(255 * (0.5 - t / size()))), static_cast<int>(255 * t / size()),
+                             static_cast<int>(255 * (1 - t / size()))));
       auto p = valueAt(t);
       auto n1 = p + normalAt(t, false) * curvatureDerivativeAt(t);
       auto n2 = p - normalAt(t, false) * curvatureDerivativeAt(t);
