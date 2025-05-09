@@ -394,7 +394,7 @@ double Curve::projectPoint(const Point& point) const
   }
 
   Eigen::VectorXd polynomial = cached_projection_polynomial_const_.value();
-  polynomial.topRows(N_ - 1) -= cached_projection_polynomial_derivative_.value() * point.transpose();
+  polynomial.topRows(N_ - 1) -= cached_projection_polynomial_derivative_.value() * point;
 
   double min_t{0.0}, min_dist{bu::dist(point, valueAt(0.0))};
 

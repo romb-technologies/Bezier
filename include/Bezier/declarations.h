@@ -46,12 +46,12 @@ class PolyCurve;
 /*!
  * \brief Point in xy plane
  */
-using Point = Eigen::RowVector2d;
+using Point = Eigen::Vector2d;
 
 /*!
  * \brief A Vector in xy plane
  */
-using Vector = Eigen::RowVector2d;
+using Vector = Eigen::Vector2d;
 
 /*!
  * \brief Bounding box class

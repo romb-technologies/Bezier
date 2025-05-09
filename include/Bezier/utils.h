@@ -66,7 +66,7 @@ inline Eigen::MatrixXd powMatrix(const Eigen::VectorXd& base, unsigned exp)
 template <typename T> inline std::vector<T> concatenate(std::vector<T>&& v1, std::vector<T>&& v2)
 {
   v1.reserve(v1.size() + v2.size());
-  v1.insert(v1.end(), std::make_move_iterator(v2.begin()), std::make_move_iterator(v2.end()));
+  std::move(v2.begin(), v2.end(), std::back_inserter(v1));
   return std::move(v1);
 }
 
