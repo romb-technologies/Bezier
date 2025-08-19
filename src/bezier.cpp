@@ -230,49 +230,54 @@ double Curve::length(double t) const
 
 double Curve::length(double t1, double t2) const { return length(t2) - length(t1); }
 
-double Curve::iterateByLength(double t, double s) const
+double Curve::iterateByLength(double t, double ds) const
 {
-  if (std::fabs(s) < _epsilon) // no-op
+  if (std::fabs(ds) < _epsilon) // no-op
     return t;
 
   double s_t = length(t);
 
-  std::pair<double, double> lbracket, rbracket, guess{t, 0.0};
-  if (s < 0)
+  struct RootState
+  {
+    double t; // curve parameter
+    double s; // arc length offset
+  } lbracket, rbracket, guess{t, 0.0};
+
+  if (ds < 0)
   {
     lbracket = {0.0, -s_t};
-    if (s < lbracket.second + _epsilon) // out-of-scope
+    if (ds < lbracket.s + _epsilon) // out-of-scope
       return 0.0;
     rbracket = guess;
   }
-  else // s > 0
+  else // ds > 0
   {
     rbracket = {1.0, length() - s_t};
-    if (s > rbracket.second - _epsilon) // out-of-scope
+    if (ds > rbracket.s - _epsilon) // out-of-scope
       return 1.0;
     lbracket = guess;
   }
 
-  while (std::fabs(guess.second - s) > _epsilon)
+  while (std::fabs(guess.s - ds) > _epsilon)
   {
     // Halley's method
-    double f = guess.second - s;
-    double f_d = derivativeAt(guess.first).norm();
-    double f_d2 = derivativeAt(2, guess.first).norm();
-    guess.first -= (2 * f * f_d) / (2 * f_d * f_d - f * f_d2);
+    double f = guess.s - ds;
+    Vector dC = derivativeAt(guess.t), dC2 = derivativeAt(2, guess.t);
+    double df = dC.norm(), df2 = dC.dot(dC2) / df;
+    guess.t -= (2 * f * df) / (2 * df * df - f * df2);
 
     // root bracketing, if not in bounds, use bisection method
-    if (guess.first <= lbracket.first || guess.first >= rbracket.first)
-      guess.first = (lbracket.first + rbracket.first) / 2;
+    if (guess.t <= lbracket.t || guess.t >= rbracket.t)
+      guess.t = (lbracket.t + rbracket.t) / 2;
 
-    if (rbracket.first - lbracket.first < _epsilon)
+    if (rbracket.t - lbracket.t < _epsilon)
       break;
 
-    guess.second = length(guess.first) - s_t;
-    (guess.second < s ? lbracket : rbracket) = guess;
+    guess.s = length(guess.t) - s_t;
+    (guess.s < ds ? lbracket : rbracket) = guess;
   }
 
-  return guess.first;
+  return guess.t;
 }
 
 void Curve::reverse()
