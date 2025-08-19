@@ -239,7 +239,7 @@ double Curve::iterateByLength(double t, double ds) const
 
   struct RootState
   {
-    double t; // parameter
+    double t; // curve parameter
     double s; // arc length offset
   } lbracket, rbracket, guess{t, 0.0};
 
@@ -250,7 +250,7 @@ double Curve::iterateByLength(double t, double ds) const
       return 0.0;
     rbracket = guess;
   }
-  else // s > 0
+  else // ds > 0
   {
     rbracket = {1.0, length() - s_t};
     if (ds > rbracket.s - _epsilon) // out-of-scope
