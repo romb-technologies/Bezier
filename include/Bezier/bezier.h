@@ -113,7 +113,7 @@ public:
    * \param s Distance to iterate
    * \return New parameter t
    */
-  double iterateByLength(double t, double s) const;
+  double iterateByLength(double t, double ds) const;
 
   /*!
    * \brief Reverse order of control points
