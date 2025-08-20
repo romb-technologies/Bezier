@@ -25,9 +25,14 @@ set(Bezier_INC
 
 # Options
 option(BUILD_SHARED_LIBS "Build shared library (.so) instead of static one (.a)" OFF)
+option(BUILD_TESTS "Build tests" OFF)
+
+# Tests subdirectory
+if(BUILD_TESTS)
+ add_subdirectory(${PROJECT_SOURCE_DIR}/test)
+endif()
 
 # build rules
-
 if(BUILD_SHARED_LIBS)
   add_library(bezier SHARED ${Bezier_SRC})
 else()
