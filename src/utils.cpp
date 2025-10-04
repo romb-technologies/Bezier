@@ -8,7 +8,7 @@
 using namespace Bezier;
 namespace bu = Bezier::Utils;
 
-std::vector<unsigned> Bezier::Utils::visvalingamWyatt(const std::vector<Point>& polyline)
+std::vector<unsigned> Bezier::Utils::visvalingamWyatt(const PointVector& polyline)
 {
   // Vector of indices sorted by contribution to the polyline shape (first and last contribute the most by default)
   // Initialized with all indices, taking care to put the first and the last at the start
@@ -57,7 +57,7 @@ std::vector<unsigned> Bezier::Utils::visvalingamWyatt(const std::vector<Point>& 
   return by_contribution;
 }
 
-std::vector<Point> Bezier::Utils::polylineSimplify(const std::vector<Point>& polyline, unsigned int N)
+PointVector Bezier::Utils::polylineSimplify(const PointVector& polyline, unsigned int N)
 {
   if (polyline.size() < N)
     return polyline;

@@ -47,7 +47,7 @@ public:
    * \brief Create the Bezier curve
    * \param points A vector of control points that define the curve
    */
-  Curve(const std::vector<Point>& points);
+  Curve(const PointVector& points);
 
   Curve(const Curve& curve);
   Curve(Curve&&) = default;
@@ -64,7 +64,7 @@ public:
    * \brief Get a vector of control points
    * \return A vector of control points
    */
-  std::vector<Point> controlPoints() const;
+  PointVector controlPoints() const;
 
   /*!
    * \brief Get the control point at index idx
@@ -84,14 +84,14 @@ public:
    * \return A vector of polyline vertices
    * \note Default flatness parameter is calculated as 0.1% for bounding box diagonal
    */
-  std::vector<Point> polyline() const;
+  PointVector polyline() const;
 
   /*!
    * \brief Get a polyline representation of the curve as a vector of points on curve
    * \param flatness Error tolerance of approximation
    * \return A vector of polyline vertices
    */
-  std::vector<Point> polyline(double flatness) const;
+  PointVector polyline(double flatness) const;
 
   /*!
    * \brief Compute exact arc length using Chebyshev polynomials
@@ -163,7 +163,7 @@ public:
    * \param t_vector Curve parameters
    * \return Matrix of points on a curve for given parameters
    */
-  Eigen::MatrixX2d valueAt(const std::vector<double>& t_vector) const;
+  Eigen::MatrixX2d valueAt(const ParamVector& t_vector) const;
 
   /*!
    * \brief Get curvature of the curve for a given t
@@ -228,13 +228,13 @@ public:
    * \brief Get roots of the curve on both axes
    * \return A vector of parameters where curve passes through axes
    */
-  std::vector<double> roots() const;
+  ParamVector roots() const;
 
   /*!
    * \brief Get all extrema of the curve
    * \return A vector of parameters where extrema are
    */
-  std::vector<double> extrema() const;
+  ParamVector extrema() const;
 
   /*!
    * \brief Get the bounding box of curve
@@ -247,7 +247,7 @@ public:
    * \param t A vector of curve parameters at which to split the curve
    * \return A vector of subcurves
    */
-  std::vector<Curve> splitCurve(const std::vector<double>& t) const;
+  std::vector<Curve> splitCurve(const ParamVector& t) const;
 
   /*!
    * \brief Split the curve into two subcurves
@@ -261,7 +261,7 @@ public:
    * \param curve Curve to intersect with
    * \return A vector af points of intersection between curves
    */
-  std::vector<Point> intersections(const Curve& curve) const;
+  PointVector intersections(const Curve& curve) const;
 
   /*!
    * \brief Get the parameter t where curve is closest to given point
@@ -288,7 +288,7 @@ public:
 
   static Curve joinCurves(const Curve& curve1, const Curve& curve2, unsigned order = 0);
 
-  static Curve fromPolyline(const std::vector<Point>& polyline, unsigned order = 0);
+  static Curve fromPolyline(const PointVector& polyline, unsigned order = 0);
 
 private:
   /// Number of control points (order + 1)
@@ -299,12 +299,12 @@ private:
   /// Clear all cached data
   inline void clearCache();
 
-  mutable std::unique_ptr<const Curve> cached_derivative_;       /*! Stores derivative for later use */
-  mutable std::optional<std::vector<double>> cached_roots_;      /*! Stores roots for later use */
-  mutable std::optional<BoundingBox> cached_bounding_box_;       /*! Stores bounding box for later use */
-  mutable std::optional<std::vector<Point>> cached_polyline_;    /*! Stores polyline for later use */
-  mutable std::optional<std::vector<double>> cached_polyline_t_; /*! Stores polyline t for later use */
-  mutable double cached_polyline_flatness_{};                    /*! Flatness of cached polyline */
+  mutable std::unique_ptr<const Curve> cached_derivative_; /*! Stores derivative for later use */
+  mutable std::optional<ParamVector> cached_roots_;        /*! Stores roots for later use */
+  mutable std::optional<BoundingBox> cached_bounding_box_; /*! Stores bounding box for later use */
+  mutable std::optional<PointVector> cached_polyline_;     /*! Stores polyline for later use */
+  mutable std::optional<ParamVector> cached_polyline_t_;   /*! Stores polyline t for later use */
+  mutable double cached_polyline_flatness_{};              /*! Flatness of cached polyline */
   mutable std::optional<Eigen::VectorXd>
       cached_projection_polynomial_const_; /*! Constant part of point projection polynomial */
   mutable std::optional<Eigen::MatrixX2d>

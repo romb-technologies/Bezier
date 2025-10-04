@@ -123,14 +123,14 @@ public:
    * \return A vector of polyline vertices
    * \note Default flatness parameter is calculated as 0.1% for smallest bounding box diagonal of all subcurves
    */
-  std::vector<Point> polyline() const;
+  PointVector polyline() const;
 
   /*!
    * \brief Get a polyline representation of the polycurve as a vector of points on polycurve
    * \param flatness Error tolerance of approximation
    * \return A vector of polyline vertices
    */
-  std::vector<Point> polyline(double flatness) const;
+  PointVector polyline(double flatness) const;
 
   /*!
    * \brief Compute exact arc length using Chebyshev polynomials
@@ -171,7 +171,7 @@ public:
    * \brief Get the control points of all subcurves
    * \return A vector of control points
    */
-  std::vector<Point> controlPoints() const;
+  PointVector controlPoints() const;
 
   /*!
    * \brief Set the new coordinates to a control point
@@ -192,7 +192,7 @@ public:
    * \param t_vector Curve parameters
    * \return Vector of points on a polycurve for given parameters
    */
-  std::vector<Point> valueAt(const std::vector<double>& t_vector) const;
+  PointVector valueAt(const ParamVector& t_vector) const;
 
   /*!
    * \brief Get curvature of the polycurve for a given t
@@ -250,7 +250,7 @@ public:
    * \param curve Curve to intersect with
    * \return A vector af points of intersection between curves
    */
-  template <typename Curve_PolyCurve> std::vector<Point> intersections(const Curve_PolyCurve& curve) const;
+  template <typename Curve_PolyCurve> PointVector intersections(const Curve_PolyCurve& curve) const;
 
   /*!
    * \brief Get the parameter t where polycurve is closest to given point
@@ -264,7 +264,7 @@ public:
    * \param point_vector Points to project on polycurve
    * \return Vector of parameters t
    */
-  std::vector<double> projectPoint(const std::vector<Point>& point_vector) const;
+  ParamVector projectPoint(const PointVector& point_vector) const;
 
   /*!
    * \brief Get distance of the point to the polycurve
@@ -278,7 +278,7 @@ public:
    * \param point_vector Points to project on the polycurve
    * \return Vector of distances
    */
-  std::vector<double> distance(const std::vector<Point>& point_vector) const;
+  std::vector<double> distance(const PointVector& point_vector) const;
 
 protected:
   /// Structure for holding underlying Bezier curves

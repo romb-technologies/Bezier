@@ -67,7 +67,7 @@ template <typename T> inline std::vector<T> concatenate(std::vector<T>&& v1, std
 {
   v1.reserve(v1.size() + v2.size());
   std::move(v2.begin(), v2.end(), std::back_inserter(v1));
-  return std::move(v1);
+  return v1;
 }
 
 /// Evaluate Chebyshev polynomial at point t
@@ -97,7 +97,7 @@ inline double dist(const Point& p1, const Point& p2, const Point& point)
 }
 
 /// Distance between a point and a polyline
-inline double dist(const std::vector<Point>& polyline, const Point& point)
+inline double dist(const PointVector& polyline, const Point& point)
 {
   double min_dist = std::numeric_limits<double>::max();
   for (size_t k{1}; k < polyline.size(); k++)
@@ -115,13 +115,13 @@ inline double maxDeviation(const Eigen::MatrixX2d& cp)
 }
 
 /// Sort indices of polyline points by their contribution to the polyline shape
-std::vector<unsigned> visvalingamWyatt(const std::vector<Point>& polyline);
+std::vector<unsigned> visvalingamWyatt(const PointVector& polyline);
 
 /// Simplify polyline to N points
-std::vector<Point> polylineSimplify(const std::vector<Point>& polyline, unsigned N);
+PointVector polylineSimplify(const PointVector& polyline, unsigned N);
 
 /// Length of a polyline
-inline double polylineLength(const std::vector<Point>& polyline)
+inline double polylineLength(const PointVector& polyline)
 {
   double length{};
   for (size_t k{1}; k < polyline.size(); k++)

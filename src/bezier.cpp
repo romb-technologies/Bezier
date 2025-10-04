@@ -15,7 +15,7 @@ namespace bc = Bezier::Coefficients;
 
 Curve::Curve(Eigen::MatrixX2d points) : N_(points.rows()), control_points_(std::move(points)) {}
 
-Curve::Curve(const std::vector<Point>& points) : N_(points.size()), control_points_(N_, 2)
+Curve::Curve(const PointVector& points) : N_(points.size()), control_points_(N_, 2)
 {
   for (unsigned k{}; k < N_; k++)
     control_points_.row(k) = points[k];
@@ -32,9 +32,9 @@ Curve& Curve::operator=(const Curve& curve)
 
 unsigned Curve::order() const { return N_ - 1; }
 
-std::vector<Point> Curve::controlPoints() const
+PointVector Curve::controlPoints() const
 {
-  std::vector<Point> points(N_);
+  PointVector points(N_);
   for (unsigned k{}; k < N_; k++)
     points[k] = control_points_.row(k);
   return points;
@@ -44,9 +44,9 @@ Point Curve::controlPoint(unsigned idx) const { return control_points_.row(idx);
 
 std::pair<Point, Point> Curve::endPoints() const { return {control_points_.row(0), control_points_.row(N_ - 1)}; }
 
-std::vector<Point> Curve::polyline() const { return polyline(boundingBox().diagonal().norm() / 1000); }
+PointVector Curve::polyline() const { return polyline(boundingBox().diagonal().norm() / 1000); }
 
-std::vector<Point> Curve::polyline(double flatness) const
+PointVector Curve::polyline(double flatness) const
 {
   if (cached_polyline_ && std::fabs(cached_polyline_flatness_ - flatness) < bu::epsilon)
     return cached_polyline_.value();
@@ -215,7 +215,7 @@ Point Curve::valueAt(double t) const
   return N_ ? (bu::powVector(t, N_) * bc::bernstein(N_) * control_points_).transpose() : Point(0, 0);
 }
 
-Eigen::MatrixX2d Curve::valueAt(const std::vector<double>& t_vector) const
+Eigen::MatrixX2d Curve::valueAt(const ParamVector& t_vector) const
 {
   auto t_map = Eigen::Map<const Eigen::VectorXd>(t_vector.data(), t_vector.size());
   return bu::powMatrix(t_map, N_) * bc::bernstein(N_) * control_points_;
@@ -270,7 +270,7 @@ Vector Curve::derivativeAt(double t) const { return derivative().valueAt(t); }
 
 Vector Curve::derivativeAt(unsigned n, double t) const { return derivative(n).valueAt(t); }
 
-std::vector<double> Curve::roots() const
+ParamVector Curve::roots() const
 {
   if (cached_roots_)
     return cached_roots_.value();
@@ -280,7 +280,7 @@ std::vector<double> Curve::roots() const
                                                bu::solvePolynomial(bezier_polynomial.col(1))));
 }
 
-std::vector<double> Curve::extrema() const { return derivative().roots(); }
+ParamVector Curve::extrema() const { return derivative().roots(); }
 
 BoundingBox Curve::boundingBox() const
 {
@@ -293,7 +293,7 @@ BoundingBox Curve::boundingBox() const
   return cached_bounding_box_.emplace(extremes.colwise().minCoeff(), extremes.colwise().maxCoeff());
 }
 
-std::vector<Curve> Curve::splitCurve(const std::vector<double>& t) const
+std::vector<Curve> Curve::splitCurve(const ParamVector& t) const
 {
   auto sorted_t = t;
   std::sort(sorted_t.begin(), sorted_t.end());
@@ -315,7 +315,7 @@ std::vector<Curve> Curve::splitCurve(double t) const
   return {Curve(bc::leftSplit(N_, t) * control_points_), Curve(bc::rightSplit(N_, t) * control_points_)};
 }
 
-std::vector<Point> Curve::intersections(const Curve& curve) const
+PointVector Curve::intersections(const Curve& curve) const
 {
   std::vector<std::pair<Eigen::MatrixX2d, Eigen::MatrixX2d>> cp_pairs;
   if (!control_points_.isApprox(curve.control_points_))
@@ -339,7 +339,7 @@ std::vector<Point> Curve::intersections(const Curve& curve) const
     return {bc::leftSplit(cp.rows()) * cp, bc::rightSplit(cp.rows()) * cp};
   };
 
-  std::vector<Point> intersections;
+  PointVector intersections;
   auto insertIntersection = [&intersections](const Eigen::MatrixX2d& cp1, const Eigen::MatrixX2d& cp2) {
     // Intersection of two line segments (Victor Lecomte - Handbook of geometry for competitive programmers)
     auto a1 = cp1.row(0), a2 = cp1.bottomRows<1>();
@@ -445,7 +445,7 @@ void Curve::applyContinuity(const Curve& curve, const std::vector<double>& beta_
 
 Curve Curve::offsetCurve(const Curve& curve, double offset, unsigned order)
 {
-  std::vector<Point> offset_polyline = curve.polyline();
+  PointVector offset_polyline = curve.polyline();
   for (unsigned k{}; k < offset_polyline.size(); k++)
     offset_polyline[k] += offset * curve.normalAt((*curve.cached_polyline_t_)[k]);
   return fromPolyline(offset_polyline, order ? order : curve.order() + 1);
@@ -454,12 +454,12 @@ Curve Curve::offsetCurve(const Curve& curve, double offset, unsigned order)
 Curve Curve::joinCurves(const Curve& curve1, const Curve& curve2, unsigned order)
 {
   if (order == 1)
-    return Curve(std::vector<Point>{curve1.control_points_.row(0), curve2.control_points_.row(curve2.N_ - 1)});
+    return Curve(PointVector{curve1.control_points_.row(0), curve2.control_points_.row(curve2.N_ - 1)});
   return fromPolyline(bu::concatenate(curve1.polyline(), curve2.polyline()),
                       order ? order : curve1.order() + curve2.order());
 }
 
-Curve Curve::fromPolyline(const std::vector<Point>& polyline, unsigned order)
+Curve Curve::fromPolyline(const PointVector& polyline, unsigned order)
 {
   const unsigned N = std::min(order ? order + 1 : polyline.size(), polyline.size());
 
