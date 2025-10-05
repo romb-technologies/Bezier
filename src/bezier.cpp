@@ -144,7 +144,7 @@ double Curve::length(double t) const
 
 double Curve::length(double t1, double t2) const { return length(t2) - length(t1); }
 
-double Curve::iterateByLength(double t, double ds) const
+double Curve::step(double t, double ds) const
 {
   if (std::fabs(ds) < bu::epsilon) // no-op
     return t;
@@ -206,7 +206,7 @@ void Curve::setControlPoint(unsigned idx, const Point& point)
   cache.clear();
 }
 
-void Curve::elevateOrder()
+void Curve::raiseOrder()
 {
   control_points_ = bc::raiseOrder(N_++) * control_points_;
   cache.clear();

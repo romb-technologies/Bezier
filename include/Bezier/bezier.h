@@ -110,10 +110,10 @@ public:
   /*!
    * \brief Compute parameter t which is S distance from given t
    * \param t Curve parameter
-   * \param s Distance to iterate
+   * \param ds Distance to iterate
    * \return New parameter t
    */
-  double iterateByLength(double t, double ds) const;
+  double step(double t, double ds) const;
 
   /*!
    * \brief Reverse order of control points
@@ -133,7 +133,7 @@ public:
    * Curve will always retain its shape
    * \warning Resets cached data
    */
-  void elevateOrder();
+  void raiseOrder();
 
   /*!
    * \brief Lower the curve order by 1
