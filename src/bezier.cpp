@@ -321,6 +321,23 @@ BoundingBox Curve::boundingBox() const
   return *cache.bounding_box;
 }
 
+std::vector<Curve> Curve::splitCurve(const ParamVector& t) const
+{
+  auto sorted_t = t;
+  std::sort(sorted_t.begin(), sorted_t.end());
+  std::vector<Curve> subcurves;
+  subcurves.reserve(sorted_t.size() + 1);
+  auto leftover_cp = control_points_;
+  for (unsigned k{}; k < sorted_t.size(); k++)
+  {
+    subcurves.emplace_back(bc::leftSplit(N_, sorted_t[k]) * leftover_cp);
+    leftover_cp = bc::rightSplit(N_, sorted_t[k]) * leftover_cp;
+    std::for_each(sorted_t.begin() + k + 1, sorted_t.end(), [t = sorted_t[k]](double& x) { x = (x - t) / (1 - t); });
+  }
+  subcurves.emplace_back(std::move(leftover_cp));
+  return subcurves;
+}
+
 std::pair<Curve, Curve> Curve::splitCurve(double t) const
 {
   return {Curve(bc::leftSplit(N_, t) * control_points_), Curve(bc::rightSplit(N_, t) * control_points_)};

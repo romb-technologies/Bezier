@@ -236,6 +236,13 @@ public:
   BoundingBox boundingBox() const;
 
   /*!
+   * \brief Split the curve into subcurves at multiple parameters
+   * \param t Vector of curve parameters at which to split the curve
+   * \return A vector of subcurves
+   */
+  std::vector<Curve> splitCurve(const ParamVector& t) const;
+
+  /*!
    * \brief Split the curve into two subcurves
    * \param t Curve parameter at which to split the curve
    * \return Pair of two subcurves
