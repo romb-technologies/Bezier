@@ -2,3 +2,4 @@ html/
 latex/
 build*/
 *.user
+.cache/
