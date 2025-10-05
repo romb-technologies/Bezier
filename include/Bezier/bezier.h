@@ -129,7 +129,7 @@ public:
   double length(double t1, double t2) const;
 
   /*!
-   * \brief Compute parameter t which is S distance from given t
+   * \brief Compute parameter t which is ds distance from given t
    * \param t Curve parameter
    * \param ds Distance to iterate
    * \return New parameter t
