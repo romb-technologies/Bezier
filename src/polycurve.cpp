@@ -142,7 +142,7 @@ Point PolyCurve::valueAt(double t) const
   return curves_[idx].valueAt(t - idx);
 }
 
-PointVector PolyCurve::valueAt(const std::vector<double>& t_vector) const
+PointVector PolyCurve::valueAt(const ParamVector& t_vector) const
 {
   PointVector points(t_vector.size());
   std::transform(t_vector.begin(), t_vector.end(), points.begin(), [this](double t) { return valueAt(t); });
@@ -237,9 +237,9 @@ double PolyCurve::projectPoint(const Point& point) const
   return min_t;
 }
 
-std::vector<double> PolyCurve::projectPoint(const PointVector& point_vector) const
+ParamVector PolyCurve::projectPoint(const PointVector& point_vector) const
 {
-  std::vector<double> t_vector(point_vector.size());
+  ParamVector t_vector(point_vector.size());
   std::transform(point_vector.begin(), point_vector.end(), t_vector.begin(),
                  [this](const Point& point) { return projectPoint(point); });
   return t_vector;

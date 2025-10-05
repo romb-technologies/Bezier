@@ -1,4 +1,5 @@
 #include "Bezier/bezier.h"
+#include "Bezier/declarations.h"
 
 #include <numeric>
 
@@ -10,14 +11,14 @@ using namespace Bezier;
 
 ///// Additional declarations
 
-struct _PolynomialRoots : public std::vector<double>
+struct _PolynomialRoots : public ParamVector
 {
-  explicit _PolynomialRoots(unsigned reserve) { std::vector<double>::reserve(reserve); }
+  explicit _PolynomialRoots(unsigned reserve) { ParamVector::reserve(reserve); }
   void clear() {};         // no-op so that PolynomialSolver::RealRoots() doesn't clear it
   void push_back(double t) // only allow valid roots
   {
     if (t >= 0 && t <= 1)
-      std::vector<double>::push_back(t);
+      ParamVector::push_back(t);
   }
 };
 
@@ -54,7 +55,7 @@ inline Eigen::VectorXd _trimZeroes(const Eigen::VectorXd& vec)
 
 ///// Curve::Curve
 
-Curve::Curve(Eigen::MatrixX2d points) : control_points_(std::move(points)), N_(control_points_.rows()) {}
+Curve::Curve(Eigen::MatrixX2d points) : N_(points.rows()), control_points_(std::move(points)) {}
 
 Curve::Curve(const PointVector& points)
     : control_points_(Eigen::Index(points.size()), Eigen::Index(2)), N_(points.size())
@@ -335,7 +336,7 @@ Point Curve::valueAt(double t) const
   return (_powSeries(t, N_) * bernsteinCoeffs(N_) * control_points_).transpose();
 }
 
-Eigen::MatrixX2d Curve::valueAt(const std::vector<double>& t_vector) const
+Eigen::MatrixX2d Curve::valueAt(const ParamVector& t_vector) const
 {
   Eigen::MatrixXd power_basis(t_vector.size(), N_);
   for (unsigned k = 0; k < t_vector.size(); k++)
@@ -400,7 +401,7 @@ Vector Curve::derivativeAt(double t) const { return derivative().valueAt(t); }
 
 Vector Curve::derivativeAt(unsigned n, double t) const { return derivative(n).valueAt(t); }
 
-std::vector<double> Curve::roots() const
+ParamVector Curve::roots() const
 {
   if (!cache.roots)
   {
@@ -428,7 +429,7 @@ std::vector<double> Curve::roots() const
   return *cache.roots;
 }
 
-std::vector<double> Curve::extrema() const { return derivative().roots(); }
+ParamVector Curve::extrema() const { return derivative().roots(); }
 
 BoundingBox Curve::boundingBox() const
 {

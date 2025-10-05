@@ -167,7 +167,7 @@ public:
    * \param t_vector Curve parameters
    * \return Matrix of points on a curve for given parameters
    */
-  Eigen::MatrixX2d valueAt(const std::vector<double>& t_vector) const;
+  Eigen::MatrixX2d valueAt(const ParamVector& t_vector) const;
 
   /*!
    * \brief Get curvature of the curve for a given t
@@ -232,13 +232,13 @@ public:
    * \brief Get roots of the curve on both axes
    * \return A vector of parameters where curve passes through axes
    */
-  std::vector<double> roots() const;
+  ParamVector roots() const;
 
   /*!
    * \brief Get all extrema of the curve
    * \return A vector of parameters where extrema are
    */
-  std::vector<double> extrema() const;
+  ParamVector extrema() const;
 
   /*!
    * \brief Get the bounding box of curve
@@ -290,7 +290,7 @@ private:
   struct Cache
   {
     std::unique_ptr<const Curve> derivative;                    /*! Derivative stored for later use */
-    std::optional<std::vector<double>> roots;                   /*! Roots stored for later use */
+    std::optional<ParamVector> roots;                           /*! Roots stored for later use */
     std::optional<BoundingBox> bounding_box;                    /*! Bounding box stored for later use */
     std::optional<PointVector> polyline;                        /*! Polyline stored for later use */
     double polyline_flatness{};                                 /*! Flatness value associated with stored polyline */
