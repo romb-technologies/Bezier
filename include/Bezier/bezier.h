@@ -19,6 +19,7 @@
 
 #include <map>
 #include <memory>
+#include <optional>
 
 #include "declarations.h"
 
@@ -280,19 +281,26 @@ public:
    */
   void applyContinuity(const Curve& curve, const std::vector<double>& beta_coeffs);
 
-protected:
-  /*!
-   * \brief N x 2 matrix where each row corresponds to control Point
-   * \warning Any changes made to control_points_ require a call to resetCache() funtion!
-   */
-  Eigen::MatrixX2d control_points_;
-
-  /// Reset all privately cached data
-  inline void resetCache();
-
 private:
   /// Number of control points (order + 1)
   unsigned N_{};
+  /// N x 2 matrix where each row corresponds to control Point
+  Eigen::MatrixX2d control_points_;
+
+  struct Cache
+  {
+    std::unique_ptr<const Curve> derivative;                    /*! Derivative stored for later use */
+    std::optional<std::vector<double>> roots;                   /*! Roots stored for later use */
+    std::optional<BoundingBox> bounding_box;                    /*! Bounding box stored for later use */
+    std::optional<PointVector> polyline;                        /*! Polyline stored for later use */
+    double polyline_flatness{};                                 /*! Flatness value associated with stored polyline */
+    std::optional<Eigen::VectorXd> projection_polynomial_const; /*! Constant part of point projection polynomial */
+    std::optional<Eigen::MatrixX2d> projection_polynomial_der;  /*! Polynomial representation of curve derivative */
+    std::optional<Eigen::VectorXd> chebyshev_polynomial; /*! Coefficients of Chebyshev polynomial for curve length */
+
+    void clear();
+  };
+  mutable Cache cache;
 
   /*!
    * \brief Coefficients for matrix operations
@@ -303,20 +311,6 @@ private:
    * \brief Map of different coefficient matrices, depending on the order of the curve
    */
   using CoeffsMap = std::map<unsigned, Coeffs>;
-
-  // private caching
-  mutable std::unique_ptr<const Curve> cached_derivative_;    /*! If generated, stores derivative for later use */
-  mutable std::unique_ptr<std::vector<double>> cached_roots_; /*! If generated, stores roots for later use */
-  mutable std::unique_ptr<BoundingBox> cached_bounding_box_;  /*! If generated, stores bounding box for later use */
-  mutable std::unique_ptr<PointVector> cached_polyline_;      /*! If generated, stores polyline for later use */
-  mutable double cached_polyline_flatness_{};                 /*! Flatness of cached polyline */
-  mutable std::unique_ptr<Eigen::VectorXd>
-      cached_projection_polynomial_part_; /*! Constant part of point projection polynomial */
-  mutable Eigen::MatrixXd
-      cached_projection_polynomial_derivative_; /*! Polynomial representation of the curve derivative */
-  mutable std::unique_ptr<Eigen::VectorXd> cached_chebyshev_coeffs_; /*!  If generated, stores chebyshev coefficients
-                                                                        for calculating the length of the curve */
-
   // static caching
   static CoeffsMap bernstein_coeffs_;       /*! Map of Bernstein coefficients */
   static CoeffsMap splitting_coeffs_left_;  /*! Map of coefficients to get subcurve for t = [0, 0.5] */
