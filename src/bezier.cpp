@@ -206,38 +206,6 @@ void Curve::setControlPoint(unsigned idx, const Point& point)
   cache.clear();
 }
 
-void Curve::manipulateCurvature(double t, const Point& point)
-{
-  if (N_ < 3 || N_ > 4)
-    throw std::logic_error{"Only quadratic and cubic curves can be manipulated"};
-
-  double r =
-      std::fabs((bu::pow(t, N_ - 1) + bu::pow(1 - t, N_ - 1) - 1) / (bu::pow(t, N_ - 1) + bu::pow(1 - t, N_ - 1)));
-  double u = bu::pow(1 - t, N_ - 1) / (bu::pow(t, N_ - 1) + bu::pow(1 - t, N_ - 1));
-  Point C = u * control_points_.row(0) + (1 - u) * control_points_.row(N_ - 1);
-  const Point& B = point;
-  Point A = B - (C - B) / r;
-
-  switch (N_)
-  {
-  case 3:
-    control_points_.row(1) = A;
-    break;
-  case 4:
-    Point e1 = control_points_.row(0) * bu::pow(1 - t, 2) + control_points_.row(1) * 2 * t * (1 - t) +
-               control_points_.row(2) * bu::pow(t, 2);
-    Point e2 = control_points_.row(1) * bu::pow(1 - t, 2) + control_points_.row(2) * 2 * t * (1 - t) +
-               control_points_.row(3) * bu::pow(t, 2);
-    e1 = B + e1 - valueAt(t);
-    e2 = B + e2 - valueAt(t);
-    Point v1 = A - (A - e1) / (1 - t);
-    Point v2 = A + (e2 - A) / t;
-    control_points_.row(1).noalias() = control_points_.row(0) + (v1.transpose() - control_points_.row(0)) / t;
-    control_points_.row(2).noalias() = control_points_.row(3) - (control_points_.row(3) - v2.transpose()) / (1 - t);
-  }
-  cache.clear();
-}
-
 void Curve::elevateOrder()
 {
   control_points_ = bc::raiseOrder(N_++) * control_points_;
