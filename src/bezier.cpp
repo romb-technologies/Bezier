@@ -47,33 +47,46 @@ Point Curve::controlPoint(unsigned idx) const { return control_points_.row(idx);
 
 std::pair<Point, Point> Curve::endPoints() const { return {control_points_.row(0), control_points_.row(N_ - 1)}; }
 
+PointVector Curve::polyline() const { return polyline(boundingBox().diagonal().norm() / 1000); }
+
 PointVector Curve::polyline(double flatness) const
 {
-  if (!cache.polyline || cache.polyline_flatness != flatness)
+  if (cache.polyline && std::fabs(cache.polyline_flatness - flatness) < bu::epsilon)
+    return cache.polyline.value();
+
+  cache.polyline_flatness = flatness;
+  cache.polyline_t.emplace({0.0});
+  cache.polyline.emplace({Point(control_points_.row(0))});
+
+  std::vector<std::tuple<Eigen::MatrixX2d, double, double>> subcurves;
+  subcurves.emplace_back(control_points_, 0.0, 1.0);
+
+  while (!subcurves.empty())
   {
-    cache.polyline_flatness = flatness;
-    cache.polyline.emplace();
-    cache.polyline->emplace_back(control_points_.row(0));
+    auto [cp, t1, t2] = std::move(subcurves.back());
+    subcurves.pop_back();
 
-    std::vector<Eigen::MatrixX2d> subcurves;
-    subcurves.emplace_back(control_points_);
-
-    while (!subcurves.empty())
+    if (bu::maxDeviation(cp) <= flatness)
     {
-      Eigen::MatrixX2d cp(std::move(subcurves.back()));
-      subcurves.pop_back();
-
-      if (bu::maxDeviation(cp) <= flatness)
-        cache.polyline->emplace_back(cp.row(N_ - 1));
-      else
-      {
-        subcurves.emplace_back(bc::rightSplit(N_) * cp);
-        subcurves.emplace_back(bc::leftSplit(N_) * cp);
-      }
+      cache.polyline_t->emplace_back(t2);
+      cache.polyline->emplace_back(cp.row(N_ - 1));
+    }
+    else
+    {
+      subcurves.emplace_back(bc::rightSplit(N_) * cp, (t1 + t2) / 2, t2);
+      subcurves.emplace_back(bc::leftSplit(N_) * cp, t1, (t1 + t2) / 2);
     }
   }
 
-  return *cache.polyline;
+  return cache.polyline.value();
+}
+
+ParamVector Curve::polylineParams() const { return polylineParams(boundingBox().diagonal().norm() / 1000); }
+
+ParamVector Curve::polylineParams(double flatness) const
+{
+  polyline(flatness);
+  return cache.polyline_t.value();
 }
 
 double Curve::length() const { return length(1.0); }
@@ -493,6 +506,7 @@ void Curve::Cache::clear()
   roots.reset();
   bounding_box.reset();
   polyline.reset();
+  polyline_t.reset();
   projection_polynomial_const.reset();
   projection_polynomial_der.reset();
   chebyshev_polynomial.reset();

@@ -120,10 +120,31 @@ public:
 
   /*!
    * \brief Get a polyline representation of the polycurve as a vector of points on curve
+   * \return A vector of polyline vertices
+   * \note Default flatness parameter is calculated as 0.1% of smallest subcurve bounding box diagonal
+   */
+  PointVector polyline() const;
+
+  /*!
+   * \brief Get a polyline representation of the polycurve as a vector of points on curve
    * \param flatness Error tolerance of approximation
    * \return A vector of polyline vertices
    */
-  PointVector polyline(double flatness = 0.5) const;
+  PointVector polyline(double flatness) const;
+
+  /*!
+   * \brief Get curve parameters corresponding to polyline points
+   * \return A vector of curve parameters for each polyline vertex
+   * \note Default flatness parameter is calculated as 0.1% of smallest subcurve bounding box diagonal
+   */
+  ParamVector polylineParams() const;
+
+  /*!
+   * \brief Get curve parameters corresponding to polyline points
+   * \param flatness Error tolerance of approximation
+   * \return A vector of curve parameters for each polyline vertex
+   */
+  ParamVector polylineParams(double flatness) const;
 
   /*!
    * \brief Compute exact arc length using Chebyshev polynomials

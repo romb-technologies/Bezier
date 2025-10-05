@@ -81,10 +81,31 @@ public:
 
   /*!
    * \brief Get a polyline representation of the curve as a vector of points on curve
+   * \return A vector of polyline vertices
+   * \note Default flatness parameter is calculated as 0.1% of bounding box diagonal
+   */
+  PointVector polyline() const;
+
+  /*!
+   * \brief Get a polyline representation of the curve as a vector of points on curve
    * \param flatness Error tolerance of approximation
    * \return A vector of polyline vertices
    */
-  PointVector polyline(double flatness = 0.5) const;
+  PointVector polyline(double flatness) const;
+
+  /*!
+   * \brief Get curve parameters corresponding to polyline points
+   * \return A vector of curve parameters for each polyline vertex
+   * \note Default flatness parameter is calculated as 0.1% of bounding box diagonal
+   */
+  ParamVector polylineParams() const;
+
+  /*!
+   * \brief Get curve parameters corresponding to polyline points
+   * \param flatness Error tolerance of approximation
+   * \return A vector of curve parameters for each polyline vertex
+   */
+  ParamVector polylineParams(double flatness) const;
 
   /*!
    * \brief Compute exact arc length using Chebyshev polynomials
@@ -289,6 +310,7 @@ private:
     std::optional<ParamVector> roots;                           /*! Roots stored for later use */
     std::optional<BoundingBox> bounding_box;                    /*! Bounding box stored for later use */
     std::optional<PointVector> polyline;                        /*! Polyline stored for later use */
+    std::optional<ParamVector> polyline_t;                      /*! Polyline t parameters stored for later use */
     double polyline_flatness{};                                 /*! Flatness value associated with stored polyline */
     std::optional<Eigen::VectorXd> projection_polynomial_const; /*! Constant part of point projection polynomial */
     std::optional<Eigen::MatrixX2d> projection_polynomial_der;  /*! Polynomial representation of curve derivative */

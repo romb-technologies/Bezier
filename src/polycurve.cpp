@@ -36,6 +36,14 @@ std::deque<Curve>& PolyCurve::curves() { return curves_; }
 
 const std::deque<Curve>& PolyCurve::curves() const { return curves_; }
 
+PointVector PolyCurve::polyline() const
+{
+  double flatness = std::numeric_limits<double>::infinity();
+  for (const auto& curve : curves_)
+    flatness = std::min(flatness, curve.boundingBox().diagonal().norm() / 1000);
+  return polyline(flatness);
+}
+
 PointVector PolyCurve::polyline(double flatness) const
 {
   if (curves_.empty())
@@ -47,6 +55,26 @@ PointVector PolyCurve::polyline(double flatness) const
     polyline = bu::concatenate(std::move(polyline), curves_[k].polyline(flatness));
   }
   return polyline;
+}
+
+ParamVector PolyCurve::polylineParams() const
+{
+  double flatness = std::numeric_limits<double>::infinity();
+  for (const auto& curve : curves_)
+    flatness = std::min(flatness, curve.boundingBox().diagonal().norm() / 1000);
+  return polylineParams(flatness);
+}
+
+ParamVector PolyCurve::polylineParams(double flatness) const
+{
+  ParamVector params;
+  for (unsigned k{}; k < curves_.size(); k++)
+  {
+    auto subcurve_params = curves_[k].polylineParams(flatness);
+    std::transform(subcurve_params.begin() + (k != 0), subcurve_params.end(), std::back_inserter(params),
+                   [k](double t) { return k + t; });
+  }
+  return params;
 }
 
 double PolyCurve::length() const { return length(0.0, size()); }
