@@ -17,7 +17,6 @@
 #ifndef BEZIER_H
 #define BEZIER_H
 
-#include <map>
 #include <memory>
 #include <optional>
 
@@ -301,33 +300,6 @@ private:
     void clear();
   };
   mutable Cache cache;
-
-  /*!
-   * \brief Coefficients for matrix operations
-   */
-  using Coeffs = Eigen::MatrixXd;
-
-  /*!
-   * \brief Map of different coefficient matrices, depending on the order of the curve
-   */
-  using CoeffsMap = std::map<unsigned, Coeffs>;
-  // static caching
-  static CoeffsMap bernstein_coeffs_;       /*! Map of Bernstein coefficients */
-  static CoeffsMap splitting_coeffs_left_;  /*! Map of coefficients to get subcurve for t = [0, 0.5] */
-  static CoeffsMap splitting_coeffs_right_; /*! Map of coefficients to get subcurve for t = [0.5, 1] */
-  static CoeffsMap elevate_order_coeffs_;   /*! Map of coefficients for elevating the order of the curve */
-  static CoeffsMap lower_order_coeffs_;     /*! Map of coefficients for lowering the order of the curve */
-
-  /// Static getter function for Bernstein coefficients
-  static Coeffs bernsteinCoeffs(unsigned n);
-  /// Static getter function for coefficients to get a subcurve [0, t];
-  static Coeffs splittingCoeffsLeft(unsigned n, double t = 0.5);
-  /// Static getter function for coefficients to get a subcurve [t, 1];
-  static Coeffs splittingCoeffsRight(unsigned n, double t = 0.5);
-  /// Static getter function for coefficients to elevate order of curve
-  static Coeffs elevateOrderCoeffs(unsigned n);
-  /// Static getter function for coefficients to lower order of curve
-  static Coeffs lowerOrderCoeffs(unsigned n);
 };
 
 } // namespace Bezier

@@ -12,6 +12,7 @@ set(Bezier_SRC
   )
 
 set(Bezier_INC
+  ${PROJECT_SOURCE_DIR}/include/Bezier/coefficients.h
   ${PROJECT_SOURCE_DIR}/include/Bezier/declarations.h
   ${PROJECT_SOURCE_DIR}/include/Bezier/bezier.h
   ${PROJECT_SOURCE_DIR}/include/Bezier/polycurve.h
