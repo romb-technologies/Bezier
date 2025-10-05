@@ -133,6 +133,20 @@ public:
   PointVector polyline(double flatness) const;
 
   /*!
+   * \brief Get curve parameters corresponding to polyline points
+   * \return A vector of curve parameters for each polyline vertex
+   * \note Default flatness parameter is calculated as 0.1% for smallest bounding box diagonal of all subcurves
+   */
+  ParamVector polylineParams() const;
+
+  /*!
+   * \brief Get curve parameters corresponding to polyline points
+   * \param flatness Error tolerance of approximation
+   * \return A vector of curve parameters for each polyline vertex
+   */
+  ParamVector polylineParams(double flatness) const;
+
+  /*!
    * \brief Compute exact arc length using Chebyshev polynomials
    * \return Arc length
    */

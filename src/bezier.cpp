@@ -78,6 +78,14 @@ PointVector Curve::polyline(double flatness) const
   return cached_polyline_.value();
 }
 
+ParamVector Curve::polylineParams() const { return polylineParams(boundingBox().diagonal().norm() / 1000); }
+
+ParamVector Curve::polylineParams(double flatness) const
+{
+  polyline(flatness);
+  return cached_polyline_t_.value();
+}
+
 double Curve::length() const { return length(1.0); }
 
 double Curve::length(double t) const
