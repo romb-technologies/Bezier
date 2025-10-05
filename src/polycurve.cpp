@@ -1,8 +1,10 @@
 #include "Bezier/polycurve.h"
+#include "Bezier/utils.h"
 
 #include <numeric>
 
 using namespace Bezier;
+namespace bu = Bezier::Utils;
 
 PolyCurve::PolyCurve(std::deque<Curve> curves) : curves_(std::move(curves)) {}
 
@@ -36,13 +38,13 @@ const std::deque<Curve>& PolyCurve::curves() const { return curves_; }
 
 PointVector PolyCurve::polyline(double flatness) const
 {
-  PointVector polyline;
-  for (unsigned idx = 0; idx < size(); idx++)
+  if (curves_.empty())
+    return {};
+  std::vector<Point> polyline = curves_[0].polyline(flatness);
+  for (unsigned k{1}; k < curves_.size(); k++)
   {
-    auto new_poly = curves_[idx].polyline(flatness);
-    polyline.reserve(polyline.size() + new_poly.size() - (idx ? 1 : 0));
-    polyline.insert(polyline.end(), std::make_move_iterator(new_poly.begin() + (idx ? 1 : 0)),
-                    std::make_move_iterator(new_poly.end()));
+    polyline.pop_back();
+    polyline = bu::concatenate(std::move(polyline), curves_[k].polyline(flatness));
   }
   return polyline;
 }
@@ -75,15 +77,15 @@ double PolyCurve::length(double t1, double t2) const
 
 double PolyCurve::iterateByLength(double t, double s) const
 {
-  if (std::fabs(s) < _epsilon) // no-op
+  if (std::fabs(s) < bu::epsilon) // no-op
     return t;
 
   double s_t = length(t);
 
-  if (s < -s_t + _epsilon) // out-of-scope
+  if (s < -s_t + bu::epsilon) // out-of-scope
     return 0.0;
 
-  if (s > length() - s_t - _epsilon) // out-of-scope
+  if (s > length() - s_t - bu::epsilon) // out-of-scope
     return size();
 
   unsigned idx = curveIdx(t);
@@ -91,13 +93,13 @@ double PolyCurve::iterateByLength(double t, double s) const
 
   s_t = s < 0 ? s_t - length(idx) : length(idx + 1) - s_t;
 
-  while (-s_t > s + _epsilon)
+  while (-s_t > s + bu::epsilon)
   {
     s += s_t;
     s_t = curves_[--idx].length();
     t = 1.0;
   }
-  while (s_t < s - _epsilon)
+  while (s_t < s - bu::epsilon)
   {
     s -= s_t;
     s_t = curves_[++idx].length();
@@ -114,13 +116,9 @@ std::pair<Point, Point> PolyCurve::endPoints() const
 
 PointVector PolyCurve::controlPoints() const
 {
-  PointVector cp;
+  std::vector<Point> cp;
   for (const auto& curve : curves_)
-  {
-    auto cp_c = curve.controlPoints();
-    cp.reserve(cp.size() + cp_c.size());
-    cp.insert(cp.end(), std::make_move_iterator(cp_c.begin()), std::make_move_iterator(cp_c.end()));
-  }
+    cp = bu::concatenate(std::move(cp), curve.controlPoints());
   return cp;
 }
 
@@ -200,25 +198,17 @@ namespace Bezier
 
 template <> PointVector PolyCurve::intersections<Curve>(const Curve& curve) const
 {
-  PointVector points;
+  std::vector<Point> points;
   for (const auto& curve2 : curves_)
-  {
-    auto new_points = curve2.intersections(curve);
-    points.reserve(points.size() + new_points.size());
-    points.insert(points.end(), std::make_move_iterator(new_points.begin()), std::make_move_iterator(new_points.end()));
-  }
+    points = bu::concatenate(std::move(points), curve2.intersections(curve));
   return points;
 }
 
 template <> PointVector PolyCurve::intersections<PolyCurve>(const PolyCurve& poly_curve) const
 {
-  PointVector points;
+  std::vector<Point> points;
   for (const auto& curve : curves_)
-  {
-    auto new_points = poly_curve.intersections(curve);
-    points.reserve(points.size() + new_points.size());
-    points.insert(points.end(), std::make_move_iterator(new_points.begin()), std::make_move_iterator(new_points.end()));
-  }
+    points = bu::concatenate(std::move(points), poly_curve.intersections(curve));
   return points;
 }
 
