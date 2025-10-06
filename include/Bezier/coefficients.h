@@ -19,6 +19,7 @@
 
 #include "Bezier/utils.h"
 
+#include <mutex>
 #include <unordered_map>
 
 #include <unsupported/Eigen/MatrixFunctions>
@@ -39,6 +40,9 @@ template <class Func, class... Args> struct lazyFunctor
 inline Eigen::MatrixXd bernstein(unsigned n)
 {
   static std::unordered_map<unsigned, Eigen::MatrixXd> cache;
+  static std::mutex cache_mutex;
+
+  std::lock_guard<std::mutex> lock(cache_mutex);
   auto fun = [n]() -> Eigen::MatrixXd {
     Eigen::MatrixXd coeffs = Eigen::MatrixXd::Zero(n, n);
     coeffs.diagonal(-1).setLinSpaced(-1, -static_cast<int>(n - 1));
@@ -52,15 +56,24 @@ inline Eigen::MatrixXd bernstein(unsigned n)
 inline Eigen::MatrixXd leftSplit(unsigned n, double t = 0.5)
 {
   static std::unordered_map<unsigned, Eigen::MatrixXd> cache;
+  static std::mutex cache_mutex;
+
   auto fun = [n](double t) -> Eigen::MatrixXd {
     return bernstein(n).inverse() * Bezier::Utils::powVector(t, n).asDiagonal() * bernstein(n);
   };
-  return t == 0.5 ? cache.try_emplace(n, lazyFunctor(fun, 0.5)).first->second : fun(t);
+
+  if (t != 0.5)
+    return fun(t);
+
+  std::lock_guard<std::mutex> lock(cache_mutex);
+  return cache.try_emplace(n, lazyFunctor(fun, 0.5)).first->second;
 }
 
 inline Eigen::MatrixXd rightSplit(unsigned n, double t = 0.5)
 {
   static std::unordered_map<unsigned, Eigen::MatrixXd> cache;
+  static std::mutex cache_mutex;
+
   auto fun = [n](double t) -> Eigen::MatrixXd {
     Eigen::MatrixXd coeffs = leftSplit(n, t);
     for (unsigned k{}; k < n; k++)
@@ -68,12 +81,20 @@ inline Eigen::MatrixXd rightSplit(unsigned n, double t = 0.5)
     coeffs.triangularView<Eigen::StrictlyLower>().setZero();
     return coeffs;
   };
-  return t == 0.5 ? cache.try_emplace(n, lazyFunctor(fun, 0.5)).first->second : fun(t);
+
+  if (t != 0.5)
+    return fun(t);
+
+  std::lock_guard<std::mutex> lock(cache_mutex);
+  return cache.try_emplace(n, lazyFunctor(fun, 0.5)).first->second;
 }
 
 inline Eigen::MatrixXd raiseOrder(unsigned n)
 {
   static std::unordered_map<unsigned, Eigen::MatrixXd> cache;
+  static std::mutex cache_mutex;
+
+  std::lock_guard<std::mutex> lock(cache_mutex);
   auto fun = [n]() -> Eigen::MatrixXd {
     Eigen::MatrixXd coeffs = Eigen::MatrixXd::Zero(n + 1, n);
     coeffs.diagonal(-1) = coeffs.diagonal().setLinSpaced(1, 1. / n).reverse();
@@ -85,6 +106,9 @@ inline Eigen::MatrixXd raiseOrder(unsigned n)
 inline Eigen::MatrixXd lowerOrder(unsigned n)
 {
   static std::unordered_map<unsigned, Eigen::MatrixXd> cache;
+  static std::mutex cache_mutex;
+
+  std::lock_guard<std::mutex> lock(cache_mutex);
   auto fun = [n]() -> Eigen::MatrixXd { return raiseOrder(n - 1).completeOrthogonalDecomposition().pseudoInverse(); };
   return cache.try_emplace(n, lazyFunctor(fun)).first->second;
 }
