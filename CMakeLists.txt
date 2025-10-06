@@ -21,6 +21,13 @@ set(Bezier_INC
 
 # Options
 option(BUILD_SHARED_LIBS "Build shared library (.so) instead of static one (.a)" OFF)
+option(BUILD_TESTING "Build the testing tree." OFF)
+
+# Tests subdirectory
+if(BUILD_TESTING)
+  enable_testing()
+  add_subdirectory(test)
+endif()
 
 # build rules
 
