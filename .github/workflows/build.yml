@@ -1,28 +1,38 @@
-name: Build Test
+name: Build
 
 on:
-  pull_request:
-    branches:
-      - '**' 
   push:
     branches:
+      - '**'  # All branches
+  pull_request:
+    branches:
+      - main
       - master
 
 jobs:
-  build:
-    runs-on: ubuntu-latest
-
+  build-and-test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, ubuntu-20.04]
+        build_type: [Release, Debug]
+        
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
-
-    - name: Install Dependencies
-      run: sudo apt-get install -y libeigen3-dev
-
-    - name: Build Project
+    
+    - name: Install dependencies
       run: |
-        mkdir build
-        cd build
-        cmake ..
-        make
-
+        sudo apt-get update
+        sudo apt-get install -y libeigen3-dev libgtest-dev cmake g++
+    
+    - name: Configure CMake
+      run: cmake -B build -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DBUILD_TESTING=ON
+    
+    - name: Build
+      run: cmake --build build -j$(nproc)
+    
+    - name: Run tests
+      working-directory: build
+      run: ctest --output-on-failure --verbose
