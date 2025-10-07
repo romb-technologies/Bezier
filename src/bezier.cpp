@@ -334,18 +334,18 @@ BoundingBox Curve::boundingBox() const
   return *cache.bounding_box;
 }
 
-std::vector<Curve> Curve::splitCurve(const ParamVector& t) const
+std::vector<Curve> Curve::splitCurve(const ParamVector& t_vector) const
 {
-  auto sorted_t = t;
-  std::sort(sorted_t.begin(), sorted_t.end());
+  auto t_sorted = t_vector;
+  std::sort(t_sorted.begin(), t_sorted.end());
   std::vector<Curve> subcurves;
-  subcurves.reserve(sorted_t.size() + 1);
+  subcurves.reserve(t_sorted.size() + 1);
   auto leftover_cp = control_points_;
-  for (unsigned k{}; k < sorted_t.size(); k++)
+  for (unsigned k{}; k < t_sorted.size(); k++)
   {
-    subcurves.emplace_back(bc::leftSplit(N_, sorted_t[k]) * leftover_cp);
-    leftover_cp = bc::rightSplit(N_, sorted_t[k]) * leftover_cp;
-    std::for_each(sorted_t.begin() + k + 1, sorted_t.end(), [t = sorted_t[k]](double& x) { x = (x - t) / (1 - t); });
+    subcurves.emplace_back(bc::leftSplit(N_, t_sorted[k]) * leftover_cp);
+    leftover_cp = bc::rightSplit(N_, t_sorted[k]) * leftover_cp;
+    std::for_each(t_sorted.begin() + k + 1, t_sorted.end(), [t = t_sorted[k]](double& x) { x = (x - t) / (1 - t); });
   }
   subcurves.emplace_back(std::move(leftover_cp));
   return subcurves;
@@ -502,4 +502,3 @@ void Curve::Cache::clear()
   chebyshev_polynomial.reset();
   polyline_flatness = 0.0;
 }
-

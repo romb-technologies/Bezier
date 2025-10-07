@@ -261,7 +261,7 @@ public:
    * \param t Vector of curve parameters at which to split the curve
    * \return A vector of subcurves
    */
-  std::vector<Curve> splitCurve(const ParamVector& t) const;
+  std::vector<Curve> splitCurve(const ParamVector& t_vector) const;
 
   /*!
    * \brief Split the curve into two subcurves
