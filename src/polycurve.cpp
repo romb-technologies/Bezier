@@ -36,6 +36,19 @@ std::deque<Curve>& PolyCurve::curves() { return curves_; }
 
 const std::deque<Curve>& PolyCurve::curves() const { return curves_; }
 
+PointVector PolyCurve::polyline() const
+{
+  if (curves_.empty())
+    return {};
+  std::vector<Point> polyline = curves_[0].polyline();
+  for (unsigned k{1}; k < curves_.size(); k++)
+  {
+    polyline.pop_back();
+    polyline = bu::concatenate(std::move(polyline), curves_[k].polyline());
+  }
+  return polyline;
+}
+
 PointVector PolyCurve::polyline(double flatness) const
 {
   if (curves_.empty())
@@ -47,6 +60,30 @@ PointVector PolyCurve::polyline(double flatness) const
     polyline = bu::concatenate(std::move(polyline), curves_[k].polyline(flatness));
   }
   return polyline;
+}
+
+ParamVector PolyCurve::polylineParams() const
+{
+  ParamVector params;
+  for (unsigned k{}; k < curves_.size(); k++)
+  {
+    auto subcurve_params = curves_[k].polylineParams();
+    std::transform(subcurve_params.begin() + (k != 0), subcurve_params.end(), std::back_inserter(params),
+                   [k](double t) { return k + t; });
+  }
+  return params;
+}
+
+ParamVector PolyCurve::polylineParams(double flatness) const
+{
+  ParamVector params;
+  for (unsigned k{}; k < curves_.size(); k++)
+  {
+    auto subcurve_params = curves_[k].polylineParams(flatness);
+    std::transform(subcurve_params.begin() + (k != 0), subcurve_params.end(), std::back_inserter(params),
+                   [k](double t) { return k + t; });
+  }
+  return params;
 }
 
 double PolyCurve::length() const { return length(0.0, size()); }
@@ -75,38 +112,38 @@ double PolyCurve::length(double t1, double t2) const
                                 [](double sum, const Curve& curve) { return sum + curve.length(); });
 }
 
-double PolyCurve::iterateByLength(double t, double s) const
+double PolyCurve::step(double t, double ds) const
 {
-  if (std::fabs(s) < bu::epsilon) // no-op
+  if (std::fabs(ds) < bu::epsilon) // no-op
     return t;
 
   double s_t = length(t);
 
-  if (s < -s_t + bu::epsilon) // out-of-scope
+  if (ds < -s_t + bu::epsilon) // out-of-scope
     return 0.0;
 
-  if (s > length() - s_t - bu::epsilon) // out-of-scope
+  if (ds > length() - s_t - bu::epsilon) // out-of-scope
     return size();
 
   unsigned idx = curveIdx(t);
   t -= idx;
 
-  s_t = s < 0 ? s_t - length(idx) : length(idx + 1) - s_t;
+  s_t = ds < 0 ? s_t - length(idx) : length(idx + 1) - s_t;
 
-  while (-s_t > s + bu::epsilon)
+  while (-s_t > ds + bu::epsilon)
   {
-    s += s_t;
+    ds += s_t;
     s_t = curves_[--idx].length();
     t = 1.0;
   }
-  while (s_t < s - bu::epsilon)
+  while (s_t < ds - bu::epsilon)
   {
-    s -= s_t;
+    ds -= s_t;
     s_t = curves_[++idx].length();
     t = 0.0;
   }
 
-  return idx + curves_[idx].iterateByLength(t, s);
+  return idx + curves_[idx].step(t, ds);
 }
 
 std::pair<Point, Point> PolyCurve::endPoints() const

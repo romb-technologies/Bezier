@@ -3,7 +3,6 @@
 #include "Bezier/declarations.h"
 #include "Bezier/utils.h"
 
-#include <Eigen/Core>
 #include <unsupported/Eigen/FFT>
 #include <unsupported/Eigen/MatrixFunctions>
 
@@ -46,33 +45,46 @@ Point Curve::controlPoint(unsigned idx) const { return control_points_.row(idx);
 
 std::pair<Point, Point> Curve::endPoints() const { return {control_points_.row(0), control_points_.row(N_ - 1)}; }
 
+PointVector Curve::polyline() const { return polyline(boundingBox().diagonal().norm() / 1000); }
+
 PointVector Curve::polyline(double flatness) const
 {
-  if (!cache_.polyline || std::fabs(cache_.polyline_flatness - flatness) > bu::epsilon)
+  if (cache_.polyline && std::fabs(cache_.polyline_flatness - flatness) < bu::epsilon)
+    return cache_.polyline.value();
+
+  cache_.polyline_flatness = flatness;
+  cache_.polyline_t.emplace({0.0});
+  cache_.polyline.emplace({Point(control_points_.row(0))});
+
+  std::vector<std::tuple<Eigen::MatrixX2d, double, double>> subcurves;
+  subcurves.emplace_back(control_points_, 0.0, 1.0);
+
+  while (!subcurves.empty())
   {
-    cache_.polyline_flatness = flatness;
-    cache_.polyline.emplace();
-    cache_.polyline->emplace_back(control_points_.row(0));
+    auto [cp, t1, t2] = std::move(subcurves.back());
+    subcurves.pop_back();
 
-    std::vector<Eigen::MatrixX2d> subcurves;
-    subcurves.emplace_back(control_points_);
-
-    while (!subcurves.empty())
+    if (bu::maxDeviation(cp) <= flatness)
     {
-      Eigen::MatrixX2d cp(std::move(subcurves.back()));
-      subcurves.pop_back();
-
-      if (bu::maxDeviation(cp) <= flatness)
-        cache_.polyline->emplace_back(cp.row(N_ - 1));
-      else
-      {
-        subcurves.emplace_back(bc::rightSplit(N_) * cp);
-        subcurves.emplace_back(bc::leftSplit(N_) * cp);
-      }
+      cache_.polyline_t->emplace_back(t2);
+      cache_.polyline->emplace_back(cp.row(N_ - 1));
+    }
+    else
+    {
+      subcurves.emplace_back(bc::rightSplit(N_) * cp, (t1 + t2) / 2, t2);
+      subcurves.emplace_back(bc::leftSplit(N_) * cp, t1, (t1 + t2) / 2);
     }
   }
 
-  return *cache_.polyline;
+  return cache_.polyline.value();
+}
+
+ParamVector Curve::polylineParams() const { return polylineParams(boundingBox().diagonal().norm() / 1000); }
+
+ParamVector Curve::polylineParams(double flatness) const
+{
+  polyline(flatness);
+  return cache_.polyline_t.value();
 }
 
 double Curve::length() const { return length(1.0); }
@@ -143,7 +155,7 @@ double Curve::length(double t) const
 
 double Curve::length(double t1, double t2) const { return length(t2) - length(t1); }
 
-double Curve::iterateByLength(double t, double ds) const
+double Curve::step(double t, double ds) const
 {
   if (std::fabs(ds) < bu::epsilon) // no-op
     return t;
@@ -205,39 +217,7 @@ void Curve::setControlPoint(unsigned idx, const Point& point)
   cache_.clear();
 }
 
-void Curve::manipulateCurvature(double t, const Point& point)
-{
-  if (N_ < 3 || N_ > 4)
-    throw std::logic_error{"Only quadratic and cubic curves can be manipulated"};
-
-  double r =
-      std::fabs((bu::pow(t, N_ - 1) + bu::pow(1 - t, N_ - 1) - 1) / (bu::pow(t, N_ - 1) + bu::pow(1 - t, N_ - 1)));
-  double u = bu::pow(1 - t, N_ - 1) / (bu::pow(t, N_ - 1) + bu::pow(1 - t, N_ - 1));
-  Point C = u * control_points_.row(0) + (1 - u) * control_points_.row(N_ - 1);
-  const Point& B = point;
-  Point A = B - (C - B) / r;
-
-  switch (N_)
-  {
-  case 3:
-    control_points_.row(1) = A;
-    break;
-  case 4:
-    Point e1 = control_points_.row(0) * bu::pow(1 - t, 2) + control_points_.row(1) * 2 * t * (1 - t) +
-               control_points_.row(2) * bu::pow(t, 2);
-    Point e2 = control_points_.row(1) * bu::pow(1 - t, 2) + control_points_.row(2) * 2 * t * (1 - t) +
-               control_points_.row(3) * bu::pow(t, 2);
-    e1 = B + e1 - valueAt(t);
-    e2 = B + e2 - valueAt(t);
-    Point v1 = A - (A - e1) / (1 - t);
-    Point v2 = A + (e2 - A) / t;
-    control_points_.row(1).noalias() = control_points_.row(0) + (v1.transpose() - control_points_.row(0)) / t;
-    control_points_.row(2).noalias() = control_points_.row(3) - (control_points_.row(3) - v2.transpose()) / (1 - t);
-  }
-  cache_.clear();
-}
-
-void Curve::elevateOrder()
+void Curve::raiseOrder()
 {
   control_points_ = bc::raiseOrder(N_++) * control_points_;
   cache_.clear();
@@ -352,6 +332,23 @@ BoundingBox Curve::boundingBox() const
   return *cache_.bounding_box;
 }
 
+std::vector<Curve> Curve::splitCurve(const ParamVector& t_vector) const
+{
+  auto t_sorted = t_vector;
+  std::sort(t_sorted.begin(), t_sorted.end());
+  std::vector<Curve> subcurves;
+  subcurves.reserve(t_sorted.size() + 1);
+  auto leftover_cp = control_points_;
+  for (unsigned k{}; k < t_sorted.size(); k++)
+  {
+    subcurves.emplace_back(bc::leftSplit(N_, t_sorted[k]) * leftover_cp);
+    leftover_cp = bc::rightSplit(N_, t_sorted[k]) * leftover_cp;
+    std::for_each(t_sorted.begin() + k + 1, t_sorted.end(), [t = t_sorted[k]](double& x) { x = (x - t) / (1 - t); });
+  }
+  subcurves.emplace_back(std::move(leftover_cp));
+  return subcurves;
+}
+
 std::pair<Curve, Curve> Curve::splitCurve(double t) const
 {
   return {Curve(bc::leftSplit(N_, t) * control_points_), Curve(bc::rightSplit(N_, t) * control_points_)};
@@ -359,72 +356,62 @@ std::pair<Curve, Curve> Curve::splitCurve(double t) const
 
 PointVector Curve::intersections(const Curve& curve) const
 {
-  PointVector intersections;
-  auto addIntersection = [&intersections](Point new_point) {
-    // check if not already found, and add new point
-    if (std::none_of(intersections.begin(), intersections.end(),
-                     [&new_point](const Point& point) { return (point - new_point).norm() < bu::epsilon; }))
-      intersections.emplace_back(std::move(new_point));
-  };
-
-  std::vector<std::pair<Eigen::MatrixX2d, Eigen::MatrixX2d>> subcurve_pairs;
-
-  if (this != &curve)
-    subcurve_pairs.emplace_back(control_points_, curve.control_points_);
+  std::vector<std::pair<Eigen::MatrixX2d, Eigen::MatrixX2d>> cp_pairs;
+  if (!control_points_.isApprox(curve.control_points_))
+    cp_pairs.emplace_back(control_points_, curve.control_points_);
   else
   {
-    // for self intersections divide curve into subcurves at extrema
-    auto t = extrema();
-    std::sort(t.begin(), t.end());
-    std::vector<Eigen::MatrixX2d> subcurves;
-    subcurves.emplace_back(control_points_);
-    for (unsigned k = 0; k < t.size(); k++)
-    {
-      Eigen::MatrixX2d new_cp = std::move(subcurves.back());
-      subcurves.pop_back();
-      subcurves.emplace_back(bc::leftSplit(N_, t[k] - bu::epsilon / 2) * new_cp);
-      subcurves.emplace_back(bc::rightSplit(N_, t[k] + bu::epsilon / 2) * new_cp);
-
-      std::for_each(t.begin() + k + 1, t.end(), [t = t[k]](double& x) { x = (x - t) / (1 - t); });
-    }
-
-    // create all pairs of subcurves
-    for (unsigned k = 0; k < subcurves.size(); k++)
-      for (unsigned i = k + 1; i < subcurves.size(); i++)
-        subcurve_pairs.emplace_back(subcurves[k], subcurves[i]);
+    // If self-similar, split curve into subcurves at extremas and compare each pair of distinct subcurves
+    auto subcurves = splitCurve(extrema());
+    for (unsigned k{}; k < subcurves.size(); k++)
+      for (unsigned i{k + 1}; i < subcurves.size(); i++)
+        cp_pairs.emplace_back(subcurves[k].control_points_, subcurves[i].control_points_);
   }
 
-  while (!subcurve_pairs.empty())
+  auto insertPairs = [&cp_pairs](const auto& scp1, const auto& scp2) {
+    for (const auto& cp1 : scp1)
+      for (const auto& cp2 : scp2)
+        cp_pairs.emplace_back(cp1, cp2);
+  };
+
+  auto splitCP = [](const Eigen::MatrixX2d& cp) -> std::array<Eigen::MatrixX2d, 2> {
+    return {bc::leftSplit(cp.rows()) * cp, bc::rightSplit(cp.rows()) * cp};
+  };
+
+  PointVector intersections;
+  auto insertIntersection = [&intersections](const Eigen::MatrixX2d& cp1, const Eigen::MatrixX2d& cp2) {
+    // Intersection of two line segments (Victor Lecomte - Handbook of geometry for competitive programmers)
+    auto a1 = cp1.row(0), a2 = cp1.bottomRows<1>();
+    auto b1 = cp2.row(0), b2 = cp2.bottomRows<1>();
+    double oa = bu::cross(b2 - b1, a1 - b1);
+    double ob = bu::cross(b2 - b1, a2 - b1);
+    double oc = bu::cross(a2 - a1, b1 - a1);
+    double od = bu::cross(a2 - a1, b2 - a1);
+
+    // If intersection exists, insert it into solution vector
+    if (oa * ob < 0 && oc * od < 0)
+      intersections.emplace_back((a1 * ob - a2 * oa) / (ob - oa));
+  };
+
+  while (!cp_pairs.empty())
   {
-    auto [cp_a, cp_b] = std::move(subcurve_pairs.back());
-    subcurve_pairs.pop_back();
+    auto [cp1, cp2] = std::move(cp_pairs.back());
+    cp_pairs.pop_back();
 
-    BoundingBox bbox1(Point(cp_a.col(0).minCoeff(), cp_a.col(1).minCoeff()),
-                      Point(cp_a.col(0).maxCoeff(), cp_a.col(1).maxCoeff()));
-    BoundingBox bbox2(Point(cp_b.col(0).minCoeff(), cp_b.col(1).minCoeff()),
-                      Point(cp_b.col(0).maxCoeff(), cp_b.col(1).maxCoeff()));
-
+    BoundingBox bbox1(cp1.colwise().minCoeff(), cp1.colwise().maxCoeff());
+    BoundingBox bbox2(cp2.colwise().minCoeff(), cp2.colwise().maxCoeff());
     if (!bbox1.intersects(bbox2))
-      ; // no intersection
+      continue; // no intersection, cheap check
+
+    // Split each curve until both are flat enough to be represented as line segment
+    if (bu::maxDeviation(cp1) < bu::epsilon && bu::maxDeviation(cp2) < bu::epsilon)
+      insertIntersection(cp1, cp2);
     else if (bbox1.diagonal().norm() < bu::epsilon)
-      addIntersection(bbox1.center());
+      insertPairs(std::array{cp1}, splitCP(cp2));
     else if (bbox2.diagonal().norm() < bu::epsilon)
-      addIntersection(bbox2.center());
+      insertPairs(splitCP(cp1), std::array{cp2});
     else
-    {
-      // intersection exists, but segments are still too large
-      // - divide both segments in half
-      // - insert all combinations for next iteration
-      // - last pair is one where both subcurves have smallest t ranges
-      Eigen::MatrixX2d subcurve_a_1(bc::rightSplit(N_) * cp_a);
-      Eigen::MatrixX2d subcurve_a_2(bc::leftSplit(N_) * cp_a);
-      Eigen::MatrixX2d subcurve_b_1(bc::rightSplit(cp_b.rows()) * cp_b);
-      Eigen::MatrixX2d subcurve_b_2(bc::leftSplit(cp_b.rows()) * cp_b);
-      subcurve_pairs.emplace_back(subcurve_a_1, subcurve_b_1);
-      subcurve_pairs.emplace_back(subcurve_a_2, std::move(subcurve_b_1));
-      subcurve_pairs.emplace_back(std::move(subcurve_a_1), subcurve_b_2);
-      subcurve_pairs.emplace_back(std::move(subcurve_a_2), std::move(subcurve_b_2));
-    }
+      insertPairs(splitCP(cp1), splitCP(cp2));
   }
 
   return intersections;
@@ -507,6 +494,7 @@ void Curve::Cache::clear()
   roots.reset();
   bounding_box.reset();
   polyline.reset();
+  polyline_t.reset();
   projection_polynomial_const.reset();
   projection_polynomial_der.reset();
   chebyshev_polynomial.reset();
