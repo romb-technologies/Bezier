@@ -8,12 +8,15 @@ find_package(Eigen3 REQUIRED)
 set(Bezier_SRC
   ${PROJECT_SOURCE_DIR}/src/bezier.cpp
   ${PROJECT_SOURCE_DIR}/src/polycurve.cpp
+  ${PROJECT_SOURCE_DIR}/src/utils.cpp
   )
 
 set(Bezier_INC
+  ${PROJECT_SOURCE_DIR}/include/Bezier/coefficients.h
   ${PROJECT_SOURCE_DIR}/include/Bezier/declarations.h
   ${PROJECT_SOURCE_DIR}/include/Bezier/bezier.h
   ${PROJECT_SOURCE_DIR}/include/Bezier/polycurve.h
+  ${PROJECT_SOURCE_DIR}/include/Bezier/utils.h
   )
 
 # Options

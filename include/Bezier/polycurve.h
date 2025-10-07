@@ -185,7 +185,7 @@ public:
    * \param t_vector Curve parameters
    * \return Vector of points on a polycurve for given parameters
    */
-  PointVector valueAt(const std::vector<double>& t_vector) const;
+  PointVector valueAt(const ParamVector& t_vector) const;
 
   /*!
    * \brief Get curvature of the polycurve for a given t
@@ -257,7 +257,7 @@ public:
    * \param point_vector Points to project on polycurve
    * \return Vector of parameters t
    */
-  std::vector<double> projectPoint(const PointVector& point_vector) const;
+  ParamVector projectPoint(const PointVector& point_vector) const;
 
   /*!
    * \brief Get distance of the point to the polycurve

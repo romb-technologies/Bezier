@@ -54,6 +54,11 @@ using Point = Eigen::Vector2d;
 using PointVector = std::vector<Point>;
 
 /*!
+ * \brief A vector of curve parameters
+ */
+using ParamVector = std::vector<double>;
+
+/*!
  * \brief A Vector in xy plane
  */
 using Vector = Eigen::Vector2d;
@@ -62,10 +67,5 @@ using Vector = Eigen::Vector2d;
  * \brief Bounding box class
  */
 using BoundingBox = Eigen::AlignedBox2d;
-
-/*!
- * \brief Precision for numerical methods
- */
-const double _epsilon = std::sqrt(std::numeric_limits<double>::epsilon());
 } // namespace Bezier
 #endif // DECLARATIONS_H
