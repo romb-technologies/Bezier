@@ -85,15 +85,15 @@ inline double evaluateChebyshev(double t, const Eigen::VectorXd& coeffs)
 }
 
 /// Distance between two points
-inline double dist(const Point& p1, const Point& p2) { return (p1 - p2).norm(); }
+inline double dist(const Point& point1, const Point& point2) { return (point1 - point2).norm(); }
 
 /// Distance between a point and a segment
-inline double dist(const Point& p1, const Point& p2, const Point& point)
+inline double dist(const Point& seg_start, const Point& seg_end, const Point& point)
 {
-  Vector u = p2 - p1;
-  Vector v = point - p1;
+  Vector u = seg_end - seg_start;
+  Vector v = point - seg_start;
   double t = std::clamp(u.dot(v) / u.squaredNorm(), 0., 1.);
-  return (p1 + t * u - point).norm();
+  return (seg_start + t * u - point).norm();
 }
 
 /// Distance between a point and a polyline

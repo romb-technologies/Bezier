@@ -299,7 +299,7 @@ private:
 
     void clear();
   };
-  mutable Cache cache;
+  mutable Cache cache_;
 };
 
 } // namespace Bezier

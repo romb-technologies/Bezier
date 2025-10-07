@@ -3,8 +3,7 @@
 #include "Bezier/declarations.h"
 #include "Bezier/utils.h"
 
-#include <numeric>
-
+#include <Eigen/Core>
 #include <unsupported/Eigen/FFT>
 #include <unsupported/Eigen/MatrixFunctions>
 
@@ -27,9 +26,9 @@ Curve::Curve(const Curve& curve) : Curve(curve.control_points_) {}
 
 Curve& Curve::operator=(const Curve& curve)
 {
-  N_ = control_points_.rows();
+  N_ = curve.control_points_.rows();
   control_points_ = curve.control_points_;
-  cache.clear();
+  cache_.clear();
   return *this;
 }
 
@@ -49,11 +48,11 @@ std::pair<Point, Point> Curve::endPoints() const { return {control_points_.row(0
 
 PointVector Curve::polyline(double flatness) const
 {
-  if (!cache.polyline || cache.polyline_flatness != flatness)
+  if (!cache_.polyline || std::fabs(cache_.polyline_flatness - flatness) > bu::epsilon)
   {
-    cache.polyline_flatness = flatness;
-    cache.polyline.emplace();
-    cache.polyline->emplace_back(control_points_.row(0));
+    cache_.polyline_flatness = flatness;
+    cache_.polyline.emplace();
+    cache_.polyline->emplace_back(control_points_.row(0));
 
     std::vector<Eigen::MatrixX2d> subcurves;
     subcurves.emplace_back(control_points_);
@@ -64,7 +63,7 @@ PointVector Curve::polyline(double flatness) const
       subcurves.pop_back();
 
       if (bu::maxDeviation(cp) <= flatness)
-        cache.polyline->emplace_back(cp.row(N_ - 1));
+        cache_.polyline->emplace_back(cp.row(N_ - 1));
       else
       {
         subcurves.emplace_back(bc::rightSplit(N_) * cp);
@@ -73,7 +72,7 @@ PointVector Curve::polyline(double flatness) const
     }
   }
 
-  return *cache.polyline;
+  return *cache_.polyline;
 }
 
 double Curve::length() const { return length(1.0); }
@@ -83,7 +82,7 @@ double Curve::length(double t) const
   if (t < 0.0 || t > 1.0)
     throw std::logic_error{"Length can only be calculated for t within [0.0, 1.0] range."};
 
-  if (!cache.chebyshev_polynomial)
+  if (!cache_.chebyshev_polynomial)
   {
     constexpr unsigned START_LOG_N = 10;
     unsigned log_n = START_LOG_N - 1;
@@ -135,11 +134,11 @@ double Curve::length(double t) const
     unsigned cut = 0;
     while (std::fabs(chebyshev(cut)) > bu::epsilon * 1e-2)
       cut++;
-    cache.chebyshev_polynomial.emplace(cut + 1);
-    (*cache.chebyshev_polynomial) << 0, chebyshev.head(cut);
-    (*cache.chebyshev_polynomial)(0) = -bu::evaluateChebyshev(0, *cache.chebyshev_polynomial);
+    cache_.chebyshev_polynomial.emplace(cut + 1);
+    (*cache_.chebyshev_polynomial) << 0, chebyshev.head(cut);
+    (*cache_.chebyshev_polynomial)(0) = -bu::evaluateChebyshev(0, *cache_.chebyshev_polynomial);
   }
-  return bu::evaluateChebyshev(t, *cache.chebyshev_polynomial);
+  return bu::evaluateChebyshev(t, *cache_.chebyshev_polynomial);
 }
 
 double Curve::length(double t1, double t2) const { return length(t2) - length(t1); }
@@ -197,13 +196,13 @@ double Curve::iterateByLength(double t, double ds) const
 void Curve::reverse()
 {
   control_points_ = control_points_.colwise().reverse().eval();
-  cache.clear();
+  cache_.clear();
 }
 
 void Curve::setControlPoint(unsigned idx, const Point& point)
 {
   control_points_.row(idx) = point;
-  cache.clear();
+  cache_.clear();
 }
 
 void Curve::manipulateCurvature(double t, const Point& point)
@@ -235,13 +234,13 @@ void Curve::manipulateCurvature(double t, const Point& point)
     control_points_.row(1).noalias() = control_points_.row(0) + (v1.transpose() - control_points_.row(0)) / t;
     control_points_.row(2).noalias() = control_points_.row(3) - (control_points_.row(3) - v2.transpose()) / (1 - t);
   }
-  cache.clear();
+  cache_.clear();
 }
 
 void Curve::elevateOrder()
 {
   control_points_ = bc::raiseOrder(N_++) * control_points_;
-  cache.clear();
+  cache_.clear();
 }
 
 void Curve::lowerOrder()
@@ -249,7 +248,7 @@ void Curve::lowerOrder()
   if (N_ == 2)
     throw std::logic_error{"Cannot further reduce the order of curve."};
   control_points_ = bc::lowerOrder(N_--) * control_points_;
-  cache.clear();
+  cache_.clear();
 }
 
 Point Curve::valueAt(double t) const
@@ -298,15 +297,15 @@ Vector Curve::normalAt(double t, bool normalize) const
 
 const Curve& Curve::derivative() const
 {
-  if (!cache.derivative)
+  if (!cache_.derivative)
   {
     if (N_ == 1)
-      cache.derivative = std::make_unique<const Curve>(PointVector{Point(0, 0)});
+      cache_.derivative = std::make_unique<const Curve>(PointVector{Point(0, 0)});
     else
-      cache.derivative = std::make_unique<const Curve>(
+      cache_.derivative = std::make_unique<const Curve>(
           (N_ - 1) * (control_points_.bottomRows(N_ - 1) - control_points_.topRows(N_ - 1)));
   }
-  return *cache.derivative;
+  return *cache_.derivative;
 }
 
 const Curve& Curve::derivative(unsigned n) const
@@ -323,34 +322,34 @@ Vector Curve::derivativeAt(unsigned n, double t) const { return derivative(n).va
 
 ParamVector Curve::roots() const
 {
-  if (!cache.roots)
+  if (!cache_.roots)
   {
-    cache.roots.emplace();
+    cache_.roots.emplace();
     if (N_ > 1)
     {
       Eigen::MatrixXd bezier_polynomial = bc::bernstein(N_) * control_points_;
-      cache.roots =
+      cache_.roots =
           bu::concatenate(bu::solvePolynomial(bezier_polynomial.col(0)), bu::solvePolynomial(bezier_polynomial.col(1)));
     }
   }
-  return *cache.roots;
+  return *cache_.roots;
 }
 
 ParamVector Curve::extrema() const { return derivative().roots(); }
 
 BoundingBox Curve::boundingBox() const
 {
-  if (!cache.bounding_box)
+  if (!cache_.bounding_box)
   {
     auto extremes = valueAt(extrema());
     extremes.conservativeResize(extremes.rows() + 2, Eigen::NoChange);
     extremes.row(extremes.rows() - 1) = control_points_.row(0);
     extremes.row(extremes.rows() - 2) = control_points_.row(N_ - 1);
 
-    cache.bounding_box.emplace(Point(extremes.col(0).minCoeff(), extremes.col(1).minCoeff()),
-                               Point(extremes.col(0).maxCoeff(), extremes.col(1).maxCoeff()));
+    cache_.bounding_box.emplace(Point(extremes.col(0).minCoeff(), extremes.col(1).minCoeff()),
+                                Point(extremes.col(0).maxCoeff(), extremes.col(1).maxCoeff()));
   }
-  return *cache.bounding_box;
+  return *cache_.bounding_box;
 }
 
 std::pair<Curve, Curve> Curve::splitCurve(double t) const
@@ -433,7 +432,7 @@ PointVector Curve::intersections(const Curve& curve) const
 
 double Curve::projectPoint(const Point& point) const
 {
-  if (!cache.projection_polynomial_const || !cache.projection_polynomial_der)
+  if (!cache_.projection_polynomial_const || !cache_.projection_polynomial_der)
   {
     Eigen::MatrixXd curve_polynomial = (bc::bernstein(N_) * control_points_);
     Eigen::MatrixX2d derivate_polynomial = (bc::bernstein(N_ - 1) * derivative().control_points_);
@@ -443,12 +442,12 @@ double Curve::projectPoint(const Point& point) const
       polynomial_part.middleRows(k, derivate_polynomial.rows()) +=
           derivate_polynomial * curve_polynomial.row(k).transpose();
 
-    cache.projection_polynomial_const.emplace(std::move(polynomial_part));
-    cache.projection_polynomial_der.emplace(std::move(derivate_polynomial));
+    cache_.projection_polynomial_const.emplace(std::move(polynomial_part));
+    cache_.projection_polynomial_der.emplace(std::move(derivate_polynomial));
   }
 
-  Eigen::VectorXd polynomial = cache.projection_polynomial_const.value();
-  polynomial.topRows(N_ - 1) -= cache.projection_polynomial_der.value() * point;
+  Eigen::VectorXd polynomial = cache_.projection_polynomial_const.value();
+  polynomial.topRows(N_ - 1) -= cache_.projection_polynomial_der.value() * point;
 
   double min_t{0.0}, min_dist{bu::dist(point, valueAt(0.0))};
 
@@ -499,7 +498,7 @@ void Curve::applyContinuity(const Curve& curve, const std::vector<double>& beta_
 
   // calculate new control points
   control_points_.topRows(c_order + 1) = (factorial_matrix * pascal_alternating_matrix).inverse() * new_derivatives;
-  cache.clear();
+  cache_.clear();
 }
 
 void Curve::Cache::clear()
@@ -513,4 +512,3 @@ void Curve::Cache::clear()
   chebyshev_polynomial.reset();
   polyline_flatness = 0.0;
 }
-
