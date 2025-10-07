@@ -53,7 +53,7 @@ PointVector PolyCurve::polyline(double flatness) const
 {
   if (curves_.empty())
     return {};
-  std::vector<Point> polyline = curves_[0].polyline(flatness);
+  PointVector polyline = curves_[0].polyline(flatness);
   for (unsigned k{1}; k < curves_.size(); k++)
   {
     polyline.pop_back();
@@ -153,7 +153,7 @@ std::pair<Point, Point> PolyCurve::endPoints() const
 
 PointVector PolyCurve::controlPoints() const
 {
-  std::vector<Point> cp;
+  PointVector cp;
   for (const auto& curve : curves_)
     cp = bu::concatenate(std::move(cp), curve.controlPoints());
   return cp;
@@ -235,7 +235,7 @@ namespace Bezier
 
 template <> PointVector PolyCurve::intersections<Curve>(const Curve& curve) const
 {
-  std::vector<Point> points;
+  PointVector points;
   for (const auto& curve2 : curves_)
     points = bu::concatenate(std::move(points), curve2.intersections(curve));
   return points;
@@ -243,7 +243,7 @@ template <> PointVector PolyCurve::intersections<Curve>(const Curve& curve) cons
 
 template <> PointVector PolyCurve::intersections<PolyCurve>(const PolyCurve& poly_curve) const
 {
-  std::vector<Point> points;
+  PointVector points;
   for (const auto& curve : curves_)
     points = bu::concatenate(std::move(points), poly_curve.intersections(curve));
   return points;
