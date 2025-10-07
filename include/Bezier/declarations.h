@@ -18,7 +18,6 @@
 #define DECLARATIONS_H
 
 #include <Eigen/Dense>
-#include <vector>
 
 /*!
  * Nominal namespace containing class pre-definitions and typedefs
@@ -34,15 +33,6 @@ namespace Bezier
  * static caching is used for common data (coefficient matrices)
  */
 class Curve;
-
-/*!
- * \brief A polyline class
- *
- * A class for operations on polyline, mainly used for
- * polyline representation of curves. Underlying structure
- * is a vector of points.
- */
-class PolyLine;
 
 /*!
  * \brief A Bezier polycurve class
