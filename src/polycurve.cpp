@@ -107,7 +107,7 @@ double PolyCurve::length(double t1, double t2) const
   if (idx1 + 1 == idx2)
     return sign * curves_[idx1].length(t1 - idx1, 1.0) + curves_[idx2].length(t2 - idx2);
 
-  return sign * std::accumulate(begin(curves_) + idx1 + 1, begin(curves_) + idx2,
+  return sign * std::accumulate(curves_.begin() + idx1 + 1, curves_.begin() + idx2,
                                 curves_[idx1].length(t1 - idx1, 1.0) + curves_[idx2].length(t2 - idx2),
                                 [](double sum, const Curve& curve) { return sum + curve.length(); });
 }
@@ -161,14 +161,12 @@ PointVector PolyCurve::controlPoints() const
 
 void PolyCurve::setControlPoint(unsigned idx, const Point& point)
 {
-  for (auto& curve : curves_)
-    if (idx <= curve.order())
+  for (auto it = curves_.begin(); it != curves_.end(); idx -= it++->order() + 1)
+    if (idx <= it->order())
     {
-      curve.setControlPoint(idx, point);
+      it->setControlPoint(idx, point);
       break;
     }
-    else
-      --idx -= curve.order();
 }
 
 Point PolyCurve::valueAt(double t) const
@@ -228,11 +226,6 @@ BoundingBox PolyCurve::boundingBox() const
   return bbox;
 }
 
-// namespace is a workaround for a bug on old gcc versions:
-// https://stackoverflow.com/questions/25311512/specialization-of-template-in-different-namespace
-namespace Bezier
-{
-
 template <> PointVector PolyCurve::intersections<Curve>(const Curve& curve) const
 {
   PointVector points;
@@ -249,12 +242,10 @@ template <> PointVector PolyCurve::intersections<PolyCurve>(const PolyCurve& pol
   return points;
 }
 
-} // namespace Bezier
-
 double PolyCurve::projectPoint(const Point& point) const
 {
   double min_t{}, min_dist{std::numeric_limits<double>::infinity()};
-  for (unsigned k = 0; k < curves_.size(); k++)
+  for (unsigned k{}; k < curves_.size(); k++)
   {
     double t = curves_[k].projectPoint(point);
     double dist = (point - curves_[k].valueAt(t)).norm();

@@ -10,14 +10,11 @@ using namespace Bezier;
 namespace bu = Bezier::Utils;
 namespace bc = Bezier::Coefficients;
 
-///// Curve::Curve
-
 Curve::Curve(Eigen::MatrixX2d points) : N_(points.rows()), control_points_(std::move(points)) {}
 
-Curve::Curve(const PointVector& points)
-    : control_points_(Eigen::Index(points.size()), Eigen::Index(2)), N_(points.size())
+Curve::Curve(const PointVector& points) : N_(points.size()), control_points_(N_, 2)
 {
-  for (unsigned k = 0; k < N_; k++)
+  for (unsigned k{}; k < N_; k++)
     control_points_.row(k) = points[k];
 }
 
@@ -36,7 +33,7 @@ unsigned Curve::order() const { return N_ - 1; }
 PointVector Curve::controlPoints() const
 {
   PointVector points(N_);
-  for (unsigned k = 0; k < N_; k++)
+  for (unsigned k{}; k < N_; k++)
     points[k] = control_points_.row(k);
   return points;
 }
@@ -50,7 +47,7 @@ PointVector Curve::polyline() const { return polyline(boundingBox().diagonal().n
 PointVector Curve::polyline(double flatness) const
 {
   if (cache_.polyline && std::fabs(cache_.polyline_flatness - flatness) < bu::epsilon)
-    return cache_.polyline.value();
+    return *cache_.polyline;
 
   cache_.polyline_flatness = flatness;
   cache_.polyline_t.emplace({0.0});
@@ -76,7 +73,7 @@ PointVector Curve::polyline(double flatness) const
     }
   }
 
-  return cache_.polyline.value();
+  return *cache_.polyline;
 }
 
 ParamVector Curve::polylineParams() const { return polylineParams(boundingBox().diagonal().norm() / 1000); }
@@ -84,7 +81,7 @@ ParamVector Curve::polylineParams() const { return polylineParams(boundingBox().
 ParamVector Curve::polylineParams(double flatness) const
 {
   polyline(flatness);
-  return cache_.polyline_t.value();
+  return *cache_.polyline_t;
 }
 
 double Curve::length() const { return length(1.0); }
@@ -94,63 +91,56 @@ double Curve::length(double t) const
   if (t < 0.0 || t > 1.0)
     throw std::logic_error{"Length can only be calculated for t within [0.0, 1.0] range."};
 
-  if (!cache_.chebyshev_polynomial)
+  if (cache_.chebyshev_polynomial)
+    return bu::evaluateChebyshev(t, *cache_.chebyshev_polynomial);
+  auto& chebyshev = cache_.chebyshev_polynomial.emplace();
+
+  constexpr unsigned START_LOG_N = 10;
+  unsigned log_n = START_LOG_N;
+  Eigen::VectorXd derivative_cache(bu::exp2(log_n) + 1);
+  derivative_cache.head(2) << derivativeAt(1.0).norm(), derivativeAt(0.0).norm();
+
+  auto updateDerivativeCache = [this, &derivative_cache](unsigned n) {
+    auto derFunc = [n, this](int k) { return derivativeAt((1 + std::cos((2 * k + 1) * M_PI / n)) / 2).norm(); };
+    derivative_cache.conservativeResize(n + 1);
+    derivative_cache.tail(n / 2) = Eigen::VectorXd::NullaryExpr(n / 2, derFunc);
+  };
+
+  for (unsigned k{1}; k < log_n; k++)
+    updateDerivativeCache(bu::exp2(k));
+
+  do
   {
-    constexpr unsigned START_LOG_N = 10;
-    unsigned log_n = START_LOG_N - 1;
-    unsigned n = bu::exp2(START_LOG_N - 1);
+    unsigned n{bu::exp2(log_n++)};
+    Eigen::VectorXd coeff(2 * n);
+    coeff(0) = derivative_cache(0);
+    coeff(n) = derivative_cache(1);
+    updateDerivativeCache(n);
 
-    Eigen::VectorXd derivative_cache(2 * n + 1);
-    auto updateDerivativeCache = [this, &derivative_cache](double n) {
-      derivative_cache.conservativeResize(n + 1);
-      derivative_cache.tail(n / 2) =
-          ((1 + Eigen::cos(Eigen::ArrayXd::LinSpaced(n / 2, 1, n - 1) * M_PI / n)) / 2).unaryExpr([this](double t) {
-            return derivativeAt(t).norm();
-          });
-    };
-
-    derivative_cache.head(2) << derivativeAt(1.0).norm(), derivativeAt(0.0).norm();
-    for (unsigned k = 2; k <= n; k *= 2)
-      updateDerivativeCache(k);
-
-    Eigen::VectorXd chebyshev;
-    Eigen::FFT<double> fft;
-    Eigen::VectorXcd fft_out;
-    do
+    for (unsigned k{1}; k < log_n; k++)
     {
-      n *= 2;
-      log_n++;
-      updateDerivativeCache(n);
+      Eigen::ArrayXi lin_spaced = Eigen::ArrayXi::LinSpaced(bu::exp2(k - 1), 0, bu::exp2(k - 1) - 1);
+      Eigen::ArrayXi index_c = bu::exp2(log_n - (k + 1)) + lin_spaced * bu::exp2(log_n - k);
+      Eigen::ArrayXi index_dc = bu::exp2(k - 1) + 1 + lin_spaced;
+      for (unsigned i{}; i < lin_spaced.size(); i++)
+        coeff(index_c(i)) = coeff(2 * n - index_c(i)) = derivative_cache(index_dc(i)) / n;
+    }
 
-      unsigned N = 2 * n;
-      Eigen::VectorXd coeff(N);
-      coeff(0) = derivative_cache(0);
-      coeff(n) = derivative_cache(1);
+    Eigen::VectorXcd fft_out;
+    Eigen::FFT<double>().fwd(fft_out, coeff);
+    chebyshev.resize(n);
+    chebyshev << 0, (fft_out.real().head(n - 1) - fft_out.real().segment(2, n - 1))
+                        .cwiseQuotient(Eigen::VectorXd::LinSpaced(n - 1, 4, 4 * (n - 1)));
+  } while (std::fabs(chebyshev.tail(1).value()) > bu::epsilon);
 
-      for (unsigned k = 1; k <= log_n; k++)
-      {
-        auto lin_spaced = Eigen::ArrayXi::LinSpaced(bu::exp2(k - 1), 0, bu::exp2(k - 1) - 1);
-        auto index_c = bu::exp2(log_n + 1 - (k + 1)) + lin_spaced * bu::exp2(log_n + 1 - k);
-        auto index_dc = bu::exp2(k - 1) + 1 + lin_spaced;
-        // TODO: make use of slicing & indexing in Eigen3.4
-        // coeff(index_c) = coeff(N - index_c) = derivative_cache(index_dc) / n;
-        for (unsigned i = 0; i < lin_spaced.size(); i++)
-          coeff(index_c(i)) = coeff(N - index_c(i)) = derivative_cache(index_dc(i)) / n;
-      }
+  // Trim trailing zero coefficients
+  unsigned idx = chebyshev.size();
+  while (std::fabs(chebyshev(idx - 1)) < bu::epsilon)
+    --idx;
+  chebyshev.conservativeResize(idx);
 
-      fft.fwd(fft_out, coeff);
-      chebyshev = (fft_out.real().head(n - 1) - fft_out.real().segment(2, n - 1)).array() /
-                  Eigen::ArrayXd::LinSpaced(n - 1, 4, 4 * (n - 1));
-    } while (std::fabs(chebyshev.tail<1>()[0]) > bu::epsilon * 1e-2);
-
-    unsigned cut = 0;
-    while (std::fabs(chebyshev(cut)) > bu::epsilon * 1e-2)
-      cut++;
-    cache_.chebyshev_polynomial.emplace(cut + 1);
-    (*cache_.chebyshev_polynomial) << 0, chebyshev.head(cut);
-    (*cache_.chebyshev_polynomial)(0) = -bu::evaluateChebyshev(0, *cache_.chebyshev_polynomial);
-  }
-  return bu::evaluateChebyshev(t, *cache_.chebyshev_polynomial);
+  chebyshev(0) -= bu::evaluateChebyshev(0, chebyshev);
+  return bu::evaluateChebyshev(t, chebyshev);
 }
 
 double Curve::length(double t1, double t2) const { return length(t2) - length(t1); }
@@ -233,14 +223,12 @@ void Curve::lowerOrder()
 
 Point Curve::valueAt(double t) const
 {
-  if (N_ == 0)
-    return {0, 0};
-  return (bu::powVector(t, N_) * bc::bernstein(N_) * control_points_).transpose();
+  return N_ ? (bu::powVector(t, N_) * bc::bernstein(N_) * control_points_).transpose() : Point(0, 0);
 }
 
 Eigen::MatrixX2d Curve::valueAt(const ParamVector& t_vector) const
 {
-  Eigen::VectorXd t_map = Eigen::Map<const Eigen::VectorXd>(t_vector.data(), t_vector.size());
+  auto t_map = Eigen::Map<const Eigen::VectorXd>(t_vector.data(), t_vector.size());
   return bu::powMatrix(t_map, N_) * bc::bernstein(N_) * control_points_;
 }
 
@@ -263,10 +251,8 @@ double Curve::curvatureDerivativeAt(double t) const
 
 Vector Curve::tangentAt(double t, bool normalize) const
 {
-  Vector p(derivativeAt(t));
-  if (normalize && p.norm() > 0)
-    p.normalize();
-  return p;
+  Vector d = derivativeAt(t);
+  return normalize && d.norm() > 0 ? d.normalized() : d;
 }
 
 Vector Curve::normalAt(double t, bool normalize) const
@@ -278,20 +264,15 @@ Vector Curve::normalAt(double t, bool normalize) const
 const Curve& Curve::derivative() const
 {
   if (!cache_.derivative)
-  {
-    if (N_ == 1)
-      cache_.derivative = std::make_unique<const Curve>(PointVector{Point(0, 0)});
-    else
-      cache_.derivative = std::make_unique<const Curve>(
-          (N_ - 1) * (control_points_.bottomRows(N_ - 1) - control_points_.topRows(N_ - 1)));
-  }
+    cache_.derivative = std::make_unique<const Curve>(
+        (N_ - 1) * (control_points_.bottomRows(N_ - 1) - control_points_.topRows(N_ - 1)));
   return *cache_.derivative;
 }
 
 const Curve& Curve::derivative(unsigned n) const
 {
   auto nth_derivative = this;
-  for (unsigned k = 0; k < n; k++)
+  for (unsigned k{}; k < n; k++)
     nth_derivative = &nth_derivative->derivative();
   return *nth_derivative;
 }
@@ -302,34 +283,25 @@ Vector Curve::derivativeAt(unsigned n, double t) const { return derivative(n).va
 
 ParamVector Curve::roots() const
 {
-  if (!cache_.roots)
-  {
-    cache_.roots.emplace();
-    if (N_ > 1)
-    {
-      Eigen::MatrixXd bezier_polynomial = bc::bernstein(N_) * control_points_;
-      cache_.roots =
-          bu::concatenate(bu::solvePolynomial(bezier_polynomial.col(0)), bu::solvePolynomial(bezier_polynomial.col(1)));
-    }
-  }
-  return *cache_.roots;
+  if (cache_.roots)
+    return *cache_.roots;
+
+  Eigen::MatrixX2d bezier_polynomial = bc::bernstein(N_) * control_points_;
+  return cache_.roots.emplace(bu::concatenate(bu::solvePolynomial(bezier_polynomial.col(0)), //
+                                              bu::solvePolynomial(bezier_polynomial.col(1))));
 }
 
 ParamVector Curve::extrema() const { return derivative().roots(); }
 
 BoundingBox Curve::boundingBox() const
 {
-  if (!cache_.bounding_box)
-  {
-    auto extremes = valueAt(extrema());
-    extremes.conservativeResize(extremes.rows() + 2, Eigen::NoChange);
-    extremes.row(extremes.rows() - 1) = control_points_.row(0);
-    extremes.row(extremes.rows() - 2) = control_points_.row(N_ - 1);
+  if (cache_.bounding_box)
+    return *cache_.bounding_box;
 
-    cache_.bounding_box.emplace(Point(extremes.col(0).minCoeff(), extremes.col(1).minCoeff()),
-                                Point(extremes.col(0).maxCoeff(), extremes.col(1).maxCoeff()));
-  }
-  return *cache_.bounding_box;
+  auto extremes = valueAt(extrema());
+  extremes.conservativeResize(extremes.rows() + 2, Eigen::NoChange);
+  extremes.bottomRows<2>() << control_points_.row(0), control_points_.row(N_ - 1);
+  return cache_.bounding_box.emplace(extremes.colwise().minCoeff(), extremes.colwise().maxCoeff());
 }
 
 std::vector<Curve> Curve::splitCurve(const ParamVector& t_vector) const
@@ -421,24 +393,22 @@ double Curve::projectPoint(const Point& point) const
 {
   if (!cache_.projection_polynomial_const || !cache_.projection_polynomial_der)
   {
-    Eigen::MatrixXd curve_polynomial = (bc::bernstein(N_) * control_points_);
-    Eigen::MatrixX2d derivate_polynomial = (bc::bernstein(N_ - 1) * derivative().control_points_);
+    Eigen::MatrixX2d curve_polynomial = bc::bernstein(N_) * control_points_;
+    Eigen::MatrixX2d derivate_polynomial = bc::bernstein(N_ - 1) * derivative().control_points_;
 
-    Eigen::VectorXd polynomial_part = Eigen::VectorXd::Zero(curve_polynomial.rows() + derivate_polynomial.rows() - 1);
-    for (unsigned k = 0; k < curve_polynomial.rows(); k++)
-      polynomial_part.middleRows(k, derivate_polynomial.rows()) +=
-          derivate_polynomial * curve_polynomial.row(k).transpose();
+    Eigen::VectorXd polynomial_part = Eigen::VectorXd::Zero(2 * N_ - 2);
+    for (unsigned k{}; k < N_; k++)
+      polynomial_part.middleRows(k, N_ - 1) += derivate_polynomial * curve_polynomial.row(k).transpose();
 
     cache_.projection_polynomial_const.emplace(std::move(polynomial_part));
     cache_.projection_polynomial_der.emplace(std::move(derivate_polynomial));
   }
 
-  Eigen::VectorXd polynomial = cache_.projection_polynomial_const.value();
-  polynomial.topRows(N_ - 1) -= cache_.projection_polynomial_der.value() * point;
+  Eigen::VectorXd polynomial = *cache_.projection_polynomial_const;
+  polynomial.topRows(N_ - 1) -= *cache_.projection_polynomial_der * point;
 
-  double min_t{0.0}, min_dist{bu::dist(point, valueAt(0.0))};
-
-  for (double t : bu::concatenate(bu::solvePolynomial(polynomial), {1.0}))
+  double min_t{}, min_dist{std::numeric_limits<double>::infinity()};
+  for (double t : bu::concatenate(bu::solvePolynomial(polynomial), {0.0, 1.0}))
     if (double dist = bu::dist(point, valueAt(t)); dist < min_dist)
       std::tie(min_t, min_dist) = std::make_pair(t, dist);
   return min_t;
@@ -449,42 +419,37 @@ double Curve::distance(const Point& point) const { return bu::dist(point, valueA
 void Curve::applyContinuity(const Curve& curve, const std::vector<double>& beta_coeffs)
 {
   unsigned c_order = beta_coeffs.size();
+  Eigen::Map<const Eigen::VectorXd> beta(beta_coeffs.data(), beta_coeffs.size());
 
   // pascal triangle matrix (binomial coefficients) - rowwise
-  Eigen::MatrixXd pascal_matrix(Eigen::MatrixXd::Zero(c_order + 1, c_order + 1));
-  pascal_matrix.row(0).setOnes();
-  for (unsigned k = 1; k <= c_order; k++)
-    for (unsigned i = 1; i <= k; i++)
-      pascal_matrix(i, k) = pascal_matrix(i - 1, k - 1) + pascal_matrix(i, k - 1);
+  Eigen::MatrixXd pascal_matrix = Eigen::MatrixXd::Zero(c_order + 1, c_order + 1);
+  pascal_matrix.diagonal(1).setLinSpaced(1, c_order);
+  pascal_matrix = pascal_matrix.exp();
 
   // inverse of pascal matrix, i.e., pascal matrix with alternating signs - colwise
   Eigen::MatrixXd pascal_alternating_matrix = pascal_matrix.transpose().inverse();
 
   // https://en.wikipedia.org/wiki/Bell_polynomials -> equivalent to equations of geometric continuity
-  Eigen::MatrixXd bell_matrix(Eigen::MatrixXd::Zero(c_order + 1, c_order + 1));
+  Eigen::MatrixXd bell_matrix = Eigen::MatrixXd::Zero(c_order + 1, c_order + 1);
   bell_matrix(0, c_order) = 1;
-  for (unsigned k = 0; k < c_order; k++)
-    bell_matrix.block(1, c_order - k - 1, k + 1, 1) =
-        bell_matrix.block(0, c_order - k, k + 1, k + 1) *
-        pascal_matrix.block(0, k, k + 1, 1)
-            .cwiseProduct(Eigen::Map<const Eigen::MatrixXd>(beta_coeffs.data(), k + 1, 1));
-
-  // diagonal: (N-1)! / (N-k-1)!
-  Eigen::MatrixXd factorial_matrix(Eigen::MatrixXd::Zero(c_order + 1, c_order + 1));
-  factorial_matrix(0, 0) = 1;
-  for (unsigned k = 1; k <= c_order; k++)
-    factorial_matrix(k, k) = factorial_matrix(k - 1, k - 1) * (N_ - k);
+  for (unsigned k{}; k < c_order; k++)
+    bell_matrix.block(1, c_order - k - 1, k + 1, 1) = bell_matrix.block(0, c_order - k, k + 1, k + 1) *
+                                                      pascal_matrix.col(k).head(k + 1).cwiseProduct(beta.head(k + 1));
 
   // derivatives of given curve
-  Eigen::Matrix2Xd derivatives(Eigen::Index(2), Eigen::Index(c_order + 1));
-  for (unsigned k = 0; k < c_order + 1; k++)
-    derivatives.col(k) = curve.derivative(k).control_points_.bottomRows(1).transpose();
+  Eigen::Matrix2Xd derivatives(2, c_order + 1);
+  for (unsigned k{}; k < c_order + 1; k++)
+    derivatives.col(k) = curve.derivative(k).control_points_.bottomRows<1>().transpose();
 
   // based on the beta coefficients and geometric continuity equations, calculate new derivatives
   Eigen::MatrixXd new_derivatives = (derivatives * bell_matrix).rowwise().reverse().transpose();
 
+  // diagonal: (N-1)! / (N-k-1)!
+  std::function<double(int)> permFunc = [x = 1. / N_, N = N_](int k) mutable { return x *= N - k; };
+  Eigen::MatrixXd permutation_matrix = Eigen::VectorXd::NullaryExpr(c_order + 1, permFunc).asDiagonal();
+
   // calculate new control points
-  control_points_.topRows(c_order + 1) = (factorial_matrix * pascal_alternating_matrix).inverse() * new_derivatives;
+  control_points_.topRows(c_order + 1) = (permutation_matrix * pascal_alternating_matrix).inverse() * new_derivatives;
   cache_.clear();
 }
 
