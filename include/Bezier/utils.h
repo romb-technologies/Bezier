@@ -114,6 +114,21 @@ inline double maxDeviation(const Eigen::MatrixX2d& cp)
   return cp.rows() <= 2 ? 0 : coeff * Eigen::VectorXd::NullaryExpr(cp.rows() - 2, deviationFunc).maxCoeff();
 }
 
+/// Sort indices of polyline points by their contribution to the polyline shape
+std::vector<unsigned> visvalingamWyatt(const PointVector& polyline);
+
+/// Simplify polyline to N points
+PointVector polylineSimplified(const PointVector& polyline, unsigned N);
+
+/// Length of a polyline
+inline double polylineLength(const PointVector& polyline)
+{
+  double length{};
+  for (size_t k{1}; k < polyline.size(); k++)
+    length += (polyline[k] - polyline[k - 1]).norm();
+  return length;
+}
+
 /// Find solutions to polynomial equation (limited to [0, 1])
 std::vector<double> solvePolynomial(const Eigen::VectorXd& polynomial);
 

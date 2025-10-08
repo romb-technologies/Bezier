@@ -4,7 +4,11 @@
 #include "Bezier/utils.h"
 
 #include <unsupported/Eigen/FFT>
+#include <unsupported/Eigen/LevenbergMarquardt>
 #include <unsupported/Eigen/MatrixFunctions>
+#include <unsupported/Eigen/NumericalDiff>
+
+#include <numeric>
 
 using namespace Bezier;
 namespace bu = Bezier::Utils;
@@ -451,6 +455,105 @@ void Curve::applyContinuity(const Curve& curve, const std::vector<double>& beta_
   // calculate new control points
   control_points_.topRows(c_order + 1) = (permutation_matrix * pascal_alternating_matrix).inverse() * new_derivatives;
   cache_.clear();
+}
+
+Curve Curve::offsetCurve(const Curve& curve, double offset, unsigned order)
+{
+  PointVector offset_polyline = curve.polyline();
+  ParamVector polyline_t = curve.polylineParams();
+  for (unsigned k{}; k < offset_polyline.size(); k++)
+    offset_polyline[k] += offset * curve.normalAt(polyline_t[k]);
+  return fromPolyline(offset_polyline, order ? order : curve.order() + 1);
+}
+
+Curve Curve::joinCurves(const Curve& curve1, const Curve& curve2, unsigned order)
+{
+  if (order == 1)
+    return Curve(PointVector{curve1.control_points_.row(0), curve2.control_points_.row(curve2.N_ - 1)});
+  return fromPolyline(bu::concatenate(curve1.polyline(), curve2.polyline()),
+                      order ? order : curve1.order() + curve2.order());
+}
+
+Curve Curve::fromPolyline(const PointVector& polyline, unsigned order)
+{
+  const unsigned N = std::min(order ? order + 1 : polyline.size(), polyline.size());
+
+  if (polyline.size() < 2)
+    throw std::logic_error{"Polyline must have at least two points."};
+  if (N == 2)
+    return Curve(std::vector{polyline.front(), polyline.back()});
+
+  // Sort the polyline points by their contribution to the Visvalingam-Whyatt
+  // simplification algorithm, and keep the N most contributing points in original order.
+  auto vw = bu::visvalingamWyatt(polyline);
+  std::sort(vw.begin(), vw.begin() + N);
+
+  // Divide polyline into subparts where the simplified polyline points are located.
+  std::vector<std::vector<Point>> subpolylines;
+  subpolylines.reserve(N - 1);
+  subpolylines.emplace_back(std::vector{polyline.front()});
+  for (unsigned k{1}; k + 1 < polyline.size(); k++)
+  {
+    subpolylines.back().emplace_back(polyline[k]);
+    if (std::binary_search(vw.begin(), vw.begin() + N, k))
+      subpolylines.emplace_back(std::vector{polyline[k]});
+  }
+  subpolylines.back().emplace_back(polyline.back());
+
+  // Initialize vector t where each element represents a normalized cumulative
+  // distance between consecutive simplified points along the simplified polyline.
+  Eigen::VectorXd t(N);
+  Eigen::MatrixX2d P(N, 2);
+  for (unsigned k{}; k < N; k++)
+  {
+    P.row(k) = polyline[vw[k]];
+    t(k) = !k ? 0 : t(k - 1) + bu::dist(P.row(k), P.row(k - 1));
+  }
+  t /= t(N - 1);
+
+  // Compute the control points for a Bezier curve such that it passes through
+  // the simplified polyline points at parameter t.
+  auto getCurve = [&P, M = bc::bernstein(N)](const Eigen::VectorXd& t) {
+    Eigen::MatrixXd T = bu::powMatrix(t, t.size());
+    return Curve(M.inverse() * (T.transpose() * T).inverse() * T.transpose() * P);
+  };
+
+  // Cost functor calculates RMSD and length difference for each subcurve/subpolyline
+  // divided at parameter t, where C(t_i) = P_i.
+  struct CostFunctor : public Eigen::DenseFunctor<double>
+  {
+    using GetCurveFun = std::function<Curve(const Eigen::VectorXd&)>;
+    GetCurveFun getCurve;
+    std::vector<std::vector<Point>> subpolylines;
+
+    CostFunctor(int N, GetCurveFun getCurve, std::vector<std::vector<Point>> subpolylines)
+        : DenseFunctor<double>(N - 2, 2 * N - 2), getCurve(std::move(getCurve)), subpolylines(std::move(subpolylines))
+    {
+    }
+
+    int operator()(const Eigen::VectorXd& x, Eigen::VectorXd& fvec) const
+    {
+      auto curve = getCurve((Eigen::VectorXd(inputs() + 2) << 0, x, 1).finished());
+      auto subcurves = curve.splitCurve(std::vector<double>(x.data(), x.data() + inputs()));
+      for (int k = 0; k <= inputs(); k++)
+      {
+        auto polyline = subcurves[k].polyline();
+        auto fun = [&](double acc, const Point& p) { return acc + bu::pow(bu::dist(subpolylines[k], p), 2); };
+        fvec(k) = std::sqrt(std::accumulate(polyline.begin(), polyline.end(), 0.0, fun) / polyline.size());
+        fvec(values() / 2 + k) = std::fabs(bu::polylineLength(polyline) - bu::polylineLength(subpolylines[k]));
+      }
+      return 0;
+    }
+  };
+
+  // Use Levenberg-Marquardt algorithm to find optimal t parameters for the curve.
+  // Since we don't have a derivative functor, we use NumericalDiff to approximate it.
+  CostFunctor costFun(N, getCurve, subpolylines);
+  Eigen::NumericalDiff<CostFunctor> numDiff(costFun);
+  Eigen::LevenbergMarquardt<Eigen::NumericalDiff<CostFunctor>> lm(numDiff);
+  Eigen::VectorXd x = t.segment(1, N - 2);
+  lm.minimize(x);
+  return getCurve((Eigen::VectorXd(N) << 0, x, 1).finished());
 }
 
 void Curve::Cache::clear()

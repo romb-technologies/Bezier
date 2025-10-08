@@ -298,6 +298,12 @@ public:
    */
   void applyContinuity(const Curve& curve, const std::vector<double>& beta_coeffs);
 
+  static Curve offsetCurve(const Curve& curve, double offset, unsigned order = 0);
+
+  static Curve joinCurves(const Curve& curve1, const Curve& curve2, unsigned order = 0);
+
+  static Curve fromPolyline(const PointVector& polyline, unsigned order = 0);
+
 private:
   /// Number of control points (order + 1)
   unsigned N_{};
