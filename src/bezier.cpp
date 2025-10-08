@@ -507,7 +507,7 @@ Curve Curve::fromPolyline(const PointVector& polyline, unsigned order)
   for (unsigned k{}; k < N; k++)
   {
     P.row(k) = polyline[vw[k]];
-    t(k) = k == 0 ? 0 : t(k - 1) + bu::dist(P.row(k), P.row(k - 1));
+    t(k) = !k ? 0 : t(k - 1) + bu::dist(P.row(k), P.row(k - 1));
   }
   t /= t(N - 1);
 

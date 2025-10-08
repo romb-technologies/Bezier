@@ -118,7 +118,7 @@ inline double maxDeviation(const Eigen::MatrixX2d& cp)
 std::vector<unsigned> visvalingamWyatt(const PointVector& polyline);
 
 /// Simplify polyline to N points
-PointVector polylineSimplify(const PointVector& polyline, unsigned N);
+PointVector polylineSimplified(const PointVector& polyline, unsigned N);
 
 /// Length of a polyline
 inline double polylineLength(const PointVector& polyline)

@@ -57,7 +57,7 @@ std::vector<unsigned> Bezier::Utils::visvalingamWyatt(const PointVector& polylin
   return by_contribution;
 }
 
-PointVector Bezier::Utils::polylineSimplify(const PointVector& polyline, unsigned int N)
+PointVector Bezier::Utils::polylineSimplified(const PointVector& polyline, unsigned int N)
 {
   if (polyline.size() < N)
     return polyline;
