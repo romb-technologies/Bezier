@@ -98,6 +98,7 @@ std::pair<Point, Point> Curve::endPoints() const { return {control_points_.row(0
 
 PointVector Curve::polyline(double flatness) const
 {
+  std::lock_guard<std::recursive_mutex> lock(cache_mutex_);
   if (!cached_polyline_ || cached_polyline_flatness_ != flatness)
   {
     cached_polyline_flatness_ = flatness;
@@ -169,6 +170,7 @@ double Curve::length(double t) const
     return res;
   };
 
+  std::lock_guard<std::recursive_mutex> lock(cache_mutex_);
   if (!cached_chebyshev_coeffs_)
   {
     constexpr unsigned START_LOG_N = 10;
@@ -386,6 +388,7 @@ Vector Curve::normalAt(double t, bool normalize) const
 
 const Curve& Curve::derivative() const
 {
+  std::lock_guard<std::recursive_mutex> lock(cache_mutex_);
   if (!cached_derivative_)
   {
     cached_derivative_ = N_ == 1 ? std::make_unique<const Curve>(PointVector{Point(0, 0)})
@@ -409,6 +412,7 @@ Vector Curve::derivativeAt(unsigned n, double t) const { return derivative(n).va
 
 std::vector<double> Curve::roots() const
 {
+  std::lock_guard<std::recursive_mutex> lock(cache_mutex_);
   if (!cached_roots_)
   {
     cached_roots_ = std::make_unique<std::vector<double>>();
@@ -439,6 +443,7 @@ std::vector<double> Curve::extrema() const { return derivative().roots(); }
 
 BoundingBox Curve::boundingBox() const
 {
+  std::lock_guard<std::recursive_mutex> lock(cache_mutex_);
   if (!cached_bounding_box_)
   {
     auto extremes = valueAt(extrema());
@@ -541,6 +546,7 @@ PointVector Curve::intersections(const Curve& curve) const
 
 double Curve::projectPoint(const Point& point) const
 {
+  std::lock_guard<std::recursive_mutex> lock(cache_mutex_);
   if (!cached_projection_polynomial_part_)
   {
     Eigen::MatrixXd curve_polynomial = (bernsteinCoeffs(N_) * control_points_);
@@ -641,6 +647,9 @@ Curve::CoeffsMap Curve::lower_order_coeffs_ = CoeffsMap();
 
 Curve::Coeffs Curve::bernsteinCoeffs(unsigned n)
 {
+  static std::mutex mutex;
+  std::lock_guard<std::mutex> lock(mutex);
+
   if (!bernstein_coeffs_.count(n))
   {
     bernstein_coeffs_.insert({n, Coeffs::Zero(n, n)});
@@ -656,6 +665,9 @@ Curve::Coeffs Curve::splittingCoeffsLeft(unsigned n, double t)
 {
   if (t == 0.5)
   {
+    static std::mutex mutex;
+    std::lock_guard<std::mutex> lock(mutex);
+
     if (!splitting_coeffs_left_.count(n))
     {
       splitting_coeffs_left_.insert({n, Coeffs::Zero(n, n)});
@@ -674,6 +686,9 @@ Curve::Coeffs Curve::splittingCoeffsRight(unsigned n, double t)
 {
   if (t == 0.5)
   {
+    static std::mutex mutex;
+    std::lock_guard<std::mutex> lock(mutex);
+
     if (!splitting_coeffs_right_.count(n))
     {
       splitting_coeffs_right_.insert({n, Coeffs::Zero(n, n)});
@@ -694,6 +709,9 @@ Curve::Coeffs Curve::splittingCoeffsRight(unsigned n, double t)
 
 Curve::Coeffs Curve::elevateOrderCoeffs(unsigned n)
 {
+  static std::mutex mutex;
+  std::lock_guard<std::mutex> lock(mutex);
+
   if (!elevate_order_coeffs_.count(n))
   {
     elevate_order_coeffs_.insert({n, Coeffs::Zero(n + 1, n)});
@@ -705,6 +723,9 @@ Curve::Coeffs Curve::elevateOrderCoeffs(unsigned n)
 
 Curve::Coeffs Curve::lowerOrderCoeffs(unsigned n)
 {
+  static std::mutex mutex;
+  std::lock_guard<std::mutex> lock(mutex);
+
   if (!lower_order_coeffs_.count(n))
   {
     lower_order_coeffs_.insert({n, Coeffs::Zero(n - 1, n)});

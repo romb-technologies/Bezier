@@ -19,6 +19,7 @@
 
 #include <map>
 #include <memory>
+#include <mutex>
 
 #include "declarations.h"
 
@@ -305,6 +306,7 @@ private:
   using CoeffsMap = std::map<unsigned, Coeffs>;
 
   // private caching
+  mutable std::recursive_mutex cache_mutex_;
   mutable std::unique_ptr<const Curve> cached_derivative_;    /*! If generated, stores derivative for later use */
   mutable std::unique_ptr<std::vector<double>> cached_roots_; /*! If generated, stores roots for later use */
   mutable std::unique_ptr<BoundingBox> cached_bounding_box_;  /*! If generated, stores bounding box for later use */
