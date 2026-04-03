@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.12.4)
-project(bezier
+project(Bezier
   LANGUAGES CXX
   VERSION 0.3.2)
 
@@ -15,35 +15,32 @@ include_directories(SYSTEM ${EIGEN3_INCLUDE_DIR} include)
 set(Bezier_SRC
   ${PROJECT_SOURCE_DIR}/src/bezier.cpp
   ${PROJECT_SOURCE_DIR}/src/polycurve.cpp
-  )
+)
 
 set(Bezier_INC
   ${PROJECT_SOURCE_DIR}/include/Bezier/declarations.h
   ${PROJECT_SOURCE_DIR}/include/Bezier/bezier.h
   ${PROJECT_SOURCE_DIR}/include/Bezier/polycurve.h
-  )
+)
 
-# Options
 option(BUILD_SHARED_LIBS "Build shared library (.so) instead of static one (.a)" OFF)
 
-# build rules
-
 if(BUILD_SHARED_LIBS)
-  add_library(bezier SHARED ${Bezier_SRC})
+  add_library(Bezier SHARED ${Bezier_SRC})
 else()
-  add_library(bezier STATIC ${Bezier_SRC})
+  add_library(Bezier STATIC ${Bezier_SRC})
 endif()
 
-target_include_directories(bezier PUBLIC
+target_include_directories(Bezier PUBLIC
   $<BUILD_INTERFACE:${Bezier_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>
 )
 
-set_target_properties(bezier PROPERTIES VERSION ${PROJECT_VERSION})
-set_target_properties(bezier PROPERTIES PUBLIC_HEADER "${Bezier_INC}")
+set_target_properties(Bezier PROPERTIES VERSION ${PROJECT_VERSION})
+set_target_properties(Bezier PROPERTIES PUBLIC_HEADER "${Bezier_INC}")
 
-# install rules
-install(TARGETS bezier
-  EXPORT bezier-export DESTINATION "lib"
+install(TARGETS Bezier
+  EXPORT Bezier-export DESTINATION "lib"
   PUBLIC_HEADER DESTINATION "include/Bezier")
-install(EXPORT bezier-export DESTINATION "lib/cmake/Bezier" FILE BezierConfig.cmake)
+
+install(EXPORT Bezier-export NAMESPACE Bezier:: DESTINATION "lib/cmake/Bezier" FILE BezierConfig.cmake)
