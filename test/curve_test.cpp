@@ -1,11 +1,10 @@
-#include "unit_tests.hpp"
-
-#include <Bezier/declarations.h>
-#include <iostream>
+#include "test_data.hpp"
+#include "test_oracles.hpp"
 
 #include <gtest/gtest.h>
 
 #include "Bezier/bezier.h"
+#include "Bezier/declarations.h"
 #include "Bezier/utils.h"
 
 namespace Bezier
@@ -20,11 +19,6 @@ protected:
   Curve curve_;
   Curve curve_roots_;
 };
-
-template <typename T> void CoutFixed(T out)
-{
-  std::cout << std::setprecision(std::numeric_limits<double>::max_digits10) << std::fixed << out << ", ";
-}
 
 TEST(ConstructorTests, ConstructFromEigenMatrix)
 {
@@ -137,7 +131,7 @@ TEST_F(BezierTest, CurveValueAtTest)
   std::vector<double> t_vals{0., 0.25, 0.5, 0.75, 1};
   PointVector expected_points = expectedValueAtVector();
 
-  for (int i = 0; i < t_vals.size(); i++)
+  for (size_t i = 0; i < t_vals.size(); i++)
   {
     Point current_point = curve_.valueAt(t_vals[i]);
     EXPECT_NEAR(current_point.x(), expected_points[i].x(), Utils::epsilon);
@@ -156,7 +150,7 @@ TEST_F(BezierTest, CurveValueAtMultipleParamsTest)
 TEST_F(BezierTest, CurveCurvatureAtTest)
 {
   std::vector<double> t_vals{0., 0.25, 0.5, 0.75, 1};
-  for (int i = 0; i < t_vals.size(); i++)
+  for (size_t i = 0; i < t_vals.size(); i++)
   {
     double current = curve_.curvatureAt(t_vals[i]);
     EXPECT_NEAR(current, TestData::kExpectedCurvature[i], Utils::epsilon);
@@ -166,7 +160,7 @@ TEST_F(BezierTest, CurveCurvatureAtTest)
 TEST_F(BezierTest, CurveCurvatureDerivativeAtTest)
 {
   std::vector<double> t_vals{0., 0.25, 0.5, 0.75, 1};
-  for (int i = 0; i < t_vals.size(); i++)
+  for (size_t i = 0; i < t_vals.size(); i++)
   {
     double current = curve_.curvatureDerivativeAt(t_vals[i]);
     EXPECT_NEAR(current, TestData::kExpectedCurvatureDerivative[i], Utils::epsilon);
@@ -176,7 +170,7 @@ TEST_F(BezierTest, CurveCurvatureDerivativeAtTest)
 TEST_F(BezierTest, CurveTangentAtTest)
 {
   std::vector<double> t_vals{0., 0.25, 0.5, 0.75, 1};
-  for (int i = 0; i < t_vals.size(); i++)
+  for (size_t i = 0; i < t_vals.size(); i++)
   {
     Vector current = curve_.tangentAt(t_vals[i]);
     Vector expected{TestData::kExpectedTangent[i].first, TestData::kExpectedTangent[i].second};
@@ -187,7 +181,7 @@ TEST_F(BezierTest, CurveTangentAtTest)
 TEST_F(BezierTest, CurveNormalAtTest)
 {
   std::vector<double> t_vals{0., 0.25, 0.5, 0.75, 1};
-  for (int i = 0; i < t_vals.size(); i++)
+  for (size_t i = 0; i < t_vals.size(); i++)
   {
     Vector current = curve_.normalAt(t_vals[i]);
     Vector expected{TestData::kExpectedNormal[i].first, TestData::kExpectedNormal[i].second};
@@ -200,7 +194,7 @@ TEST_F(BezierTest, CurveDerivativeTest)
   PointVector expected = TestData::toPointVector(TestData::kExpectedFirstDerivative);
   PointVector derivative_control_points = curve_.derivative().controlPoints();
   ASSERT_EQ(expected.size(), derivative_control_points.size());
-  for (int i = 0; i < derivative_control_points.size(); i++)
+  for (size_t i = 0; i < derivative_control_points.size(); i++)
   {
     EXPECT_EQ(expected[i], derivative_control_points[i]);
   }
@@ -212,7 +206,7 @@ TEST_F(BezierTest, CurveNthDerivativeTest)
   PointVector expected = TestData::toPointVector(TestData::kExpectedSecondDerivative);
   PointVector derivative_control_points = curve_.derivative(N).controlPoints();
   ASSERT_EQ(expected.size(), derivative_control_points.size());
-  for (int i = 0; i < derivative_control_points.size(); i++)
+  for (size_t i = 0; i < derivative_control_points.size(); i++)
   {
     EXPECT_EQ(expected[i], derivative_control_points[i]);
   }
@@ -417,9 +411,3 @@ TEST_F(BezierTest, CurveDistanceTest)
 // TEST_F(BezierTest, CurveApplyContinuityTest) { ... }
 
 } // namespace Bezier
-
-int main(int argc, char** argv)
-{
-  ::testing::InitGoogleTest(&argc, argv);
-  return RUN_ALL_TESTS();
-}

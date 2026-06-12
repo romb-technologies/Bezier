@@ -1,5 +1,5 @@
-#ifndef BEZIER_UNIT_TESTS_HPP
-#define BEZIER_UNIT_TESTS_HPP
+#ifndef BEZIER_TEST_DATA_HPP
+#define BEZIER_TEST_DATA_HPP
 
 #include <Eigen/Dense>
 
@@ -100,4 +100,4 @@ inline PointVector expectedPolylinePoints()
 
 } // namespace Bezier
 
-#endif // BEZIER_UNIT_TESTS_HPP
+#endif // BEZIER_TEST_DATA_HPP
