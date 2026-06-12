@@ -174,7 +174,7 @@ TEST_F(BezierTest, CurveTangentAtTest)
   {
     Vector current = curve_.tangentAt(t_vals[i]);
     Vector expected{TestData::kExpectedTangent[i].first, TestData::kExpectedTangent[i].second};
-    EXPECT_EQ(current, expected);
+    EXPECT_TRUE(current.isApprox(expected, Utils::epsilon)) << "Tangent at t=" << t_vals[i] << " differs";
   }
 }
 
@@ -185,7 +185,7 @@ TEST_F(BezierTest, CurveNormalAtTest)
   {
     Vector current = curve_.normalAt(t_vals[i]);
     Vector expected{TestData::kExpectedNormal[i].first, TestData::kExpectedNormal[i].second};
-    EXPECT_EQ(current, expected);
+    EXPECT_TRUE(current.isApprox(expected, Utils::epsilon)) << "Normal at t=" << t_vals[i] << " differs";
   }
 }
 
@@ -407,7 +407,293 @@ TEST_F(BezierTest, CurveDistanceTest)
   EXPECT_NEAR(distance, 0.68269613683526820, Utils::epsilon);
 }
 
-// TODO: ApplyContinuityTest
-// TEST_F(BezierTest, CurveApplyContinuityTest) { ... }
+// ---------------------------------------------------------------------------
+// Oracle-based and property tests (refactor-proof; see test_oracles.hpp)
+// ---------------------------------------------------------------------------
+
+// Deterministic control points for an arbitrary-order test curve
+static PointVector makeControlPoints(unsigned order)
+{
+  PointVector cp;
+  cp.reserve(order + 1);
+  for (unsigned i = 0; i <= order; i++)
+    cp.emplace_back(100 * std::cos(1.7 * i + order), 100 * std::sin(2.3 * i) + 10 * i);
+  return cp;
+}
+
+TEST_F(BezierTest, CurvePolylineContractTest)
+{
+  PointVector polyline = curve_.polyline();
+  ParamVector params = curve_.polylineParams();
+
+  ASSERT_EQ(polyline.size(), params.size()) << "polyline and polylineParams must correspond 1:1";
+  EXPECT_DOUBLE_EQ(params.front(), 0.0);
+  EXPECT_DOUBLE_EQ(params.back(), 1.0);
+
+  for (size_t i = 0; i < params.size(); i++)
+  {
+    Point on_curve = curve_.valueAt(params[i]);
+    EXPECT_NEAR(on_curve.x(), polyline[i].x(), 1e-6) << "Polyline vertex " << i << " not on curve";
+    EXPECT_NEAR(on_curve.y(), polyline[i].y(), 1e-6) << "Polyline vertex " << i << " not on curve";
+  }
+
+  // Dense samples of the curve stay within flatness of the polyline
+  double flatness = curve_.boundingBox().diagonal().norm() / 1000;
+  for (double t{}; t <= 1.0; t += 0.001)
+    EXPECT_LE(Utils::dist(polyline, curve_.valueAt(t)), flatness + Utils::epsilon) << "Curve too far at t=" << t;
+}
+
+TEST(CurveOracleTests, ValueAtMatchesDeCasteljau)
+{
+  for (unsigned order = 1; order <= 6; order++)
+  {
+    PointVector cp = makeControlPoints(order);
+    Curve curve{cp};
+    for (double t{}; t <= 1.0; t += 0.1)
+    {
+      Point expected = Oracles::deCasteljau(cp, t);
+      Point actual = curve.valueAt(t);
+      EXPECT_NEAR(actual.x(), expected.x(), Oracles::kGeom) << "order=" << order << " t=" << t;
+      EXPECT_NEAR(actual.y(), expected.y(), Oracles::kGeom) << "order=" << order << " t=" << t;
+    }
+  }
+}
+
+TEST_F(BezierTest, CurveLengthMatchesChordLengthOracle)
+{
+  // Fixture cubic
+  double oracle = Oracles::chordLength(curve_.controlPoints());
+  EXPECT_NEAR(curve_.length(), oracle, 1e-6 * oracle);
+
+  // Partial lengths
+  EXPECT_NEAR(curve_.length(0.3), Oracles::chordLength(curve_.controlPoints(), 0.0, 0.3), 1e-6 * oracle);
+  EXPECT_NEAR(curve_.length(0.2, 0.8), Oracles::chordLength(curve_.controlPoints(), 0.2, 0.8), 1e-6 * oracle);
+
+  // Straight line: length equals the chord exactly
+  Curve line{PointVector{{0, 0}, {3, 4}}};
+  EXPECT_NEAR(line.length(), 5.0, Utils::epsilon);
+
+  // Symmetric quadratic — regression guard for the master-branch Chebyshev
+  // truncation bug (even coefficients vanish); v4 must get this right
+  Curve symmetric{PointVector{{0, 0}, {1, 2}, {2, 0}}};
+  double symmetric_oracle = Oracles::chordLength(symmetric.controlPoints());
+  EXPECT_NEAR(symmetric.length(), symmetric_oracle, 1e-6 * symmetric_oracle);
+}
+
+TEST_F(BezierTest, CurveStepLengthRoundTripTest)
+{
+  for (double t : {0.1, 0.42, 0.7})
+    for (double ds : {5.0, 35.0, -5.0, -15.0})
+    {
+      double new_t = curve_.step(t, ds);
+      EXPECT_NEAR(curve_.length(t, new_t), ds, 1e-6) << "Round trip failed for t=" << t << " ds=" << ds;
+    }
+
+  // Out-of-range distances clamp to the curve ends
+  EXPECT_DOUBLE_EQ(curve_.step(0.5, 1e6), 1.0);
+  EXPECT_DOUBLE_EQ(curve_.step(0.5, -1e6), 0.0);
+}
+
+TEST_F(BezierTest, CurveReverseTest)
+{
+  Curve reversed{curve_};
+  reversed.reverse();
+  for (double t{}; t <= 1.0; t += 0.05)
+  {
+    Point expected = curve_.valueAt(1.0 - t);
+    Point actual = reversed.valueAt(t);
+    EXPECT_NEAR(actual.x(), expected.x(), Oracles::kGeom) << "reverse mismatch at t=" << t;
+    EXPECT_NEAR(actual.y(), expected.y(), Oracles::kGeom) << "reverse mismatch at t=" << t;
+  }
+}
+
+TEST_F(BezierTest, CurveSplitMultiTest)
+{
+  const ParamVector t_split{0.25, 0.6};
+  std::vector<Curve> pieces = curve_.splitCurve(t_split);
+  ASSERT_EQ(pieces.size(), 3u);
+
+  // Pieces map linearly onto the original parameter ranges
+  const std::array<std::pair<double, double>, 3> ranges{{{0.0, 0.25}, {0.25, 0.6}, {0.6, 1.0}}};
+  for (size_t k = 0; k < pieces.size(); k++)
+    for (double s{}; s <= 1.0; s += 0.125)
+    {
+      Point expected = curve_.valueAt(ranges[k].first + s * (ranges[k].second - ranges[k].first));
+      Point actual = pieces[k].valueAt(s);
+      EXPECT_NEAR(actual.x(), expected.x(), 1e-8) << "piece " << k << " s=" << s;
+      EXPECT_NEAR(actual.y(), expected.y(), 1e-8) << "piece " << k << " s=" << s;
+    }
+
+  // C0 continuity between adjacent pieces
+  for (size_t k = 0; k + 1 < pieces.size(); k++)
+  {
+    Point left = pieces[k].endPoints().second;
+    Point right = pieces[k + 1].endPoints().first;
+    EXPECT_NEAR(left.x(), right.x(), 1e-8);
+    EXPECT_NEAR(left.y(), right.y(), 1e-8);
+  }
+
+  // Unsorted input produces the same pieces
+  std::vector<Curve> pieces_unsorted = curve_.splitCurve(ParamVector{0.6, 0.25});
+  ASSERT_EQ(pieces_unsorted.size(), 3u);
+  for (size_t k = 0; k < pieces.size(); k++)
+    EXPECT_EQ(pieces[k].controlPoints(), pieces_unsorted[k].controlPoints());
+
+  // Empty parameter vector returns the whole curve as a single piece
+  std::vector<Curve> whole = curve_.splitCurve(ParamVector{});
+  ASSERT_EQ(whole.size(), 1u);
+  EXPECT_EQ(whole.front().controlPoints(), curve_.controlPoints());
+}
+
+TEST_F(BezierTest, CurveRaiseOrderPreservesShape)
+{
+  Curve raised{curve_};
+  raised.raiseOrder();
+  EXPECT_EQ(raised.order(), curve_.order() + 1);
+  for (double t{}; t <= 1.0; t += 0.05)
+  {
+    Point expected = curve_.valueAt(t);
+    Point actual = raised.valueAt(t);
+    EXPECT_NEAR(actual.x(), expected.x(), 1e-8) << "raiseOrder changed shape at t=" << t;
+    EXPECT_NEAR(actual.y(), expected.y(), 1e-8) << "raiseOrder changed shape at t=" << t;
+  }
+
+  // Lowering the raised curve recovers the original control points
+  raised.lowerOrder();
+  ASSERT_EQ(raised.order(), curve_.order());
+  PointVector original = curve_.controlPoints();
+  PointVector round_trip = raised.controlPoints();
+  for (size_t i = 0; i < original.size(); i++)
+  {
+    EXPECT_NEAR(round_trip[i].x(), original[i].x(), 1e-8);
+    EXPECT_NEAR(round_trip[i].y(), original[i].y(), 1e-8);
+  }
+}
+
+TEST(CurveOrderTests, LowerOrderThrowsOnFirstOrderCurve)
+{
+  Curve line{PointVector{{0, 0}, {1, 1}}};
+  EXPECT_THROW(line.lowerOrder(), std::logic_error);
+}
+
+TEST_F(BezierTest, CurveDerivativeAtMatchesCentralDiff)
+{
+  auto f = [this](double t) { return curve_.valueAt(t); };
+  for (double t : {0.1, 0.3, 0.5, 0.7, 0.9})
+  {
+    Vector expected = Oracles::centralDiff(f, t);
+    Vector actual = curve_.derivativeAt(t);
+    // central difference is O(h^2) accurate; derivative magnitudes are ~1e2
+    EXPECT_NEAR(actual.x(), expected.x(), 1e-3) << "derivative mismatch at t=" << t;
+    EXPECT_NEAR(actual.y(), expected.y(), 1e-3) << "derivative mismatch at t=" << t;
+  }
+}
+
+TEST_F(BezierTest, CurveTangentNormalPropertiesTest)
+{
+  for (double t : {0.0, 0.2, 0.5, 0.8, 1.0})
+  {
+    Vector tangent = curve_.tangentAt(t);
+    Vector normal = curve_.normalAt(t);
+
+    EXPECT_NEAR(tangent.norm(), 1.0, Utils::epsilon) << "tangent not unit at t=" << t;
+    EXPECT_NEAR(normal.norm(), 1.0, Utils::epsilon) << "normal not unit at t=" << t;
+    EXPECT_NEAR(tangent.dot(normal), 0.0, Utils::epsilon) << "tangent/normal not orthogonal at t=" << t;
+
+    // normal is the tangent rotated +90 degrees
+    EXPECT_NEAR(normal.x(), -tangent.y(), Utils::epsilon);
+    EXPECT_NEAR(normal.y(), tangent.x(), Utils::epsilon);
+
+    // tangent is parallel to the (non-normalized) derivative
+    Vector derivative = curve_.derivativeAt(t);
+    EXPECT_NEAR(tangent.x() * derivative.y() - tangent.y() * derivative.x(), 0.0,
+                Utils::epsilon * derivative.norm());
+  }
+}
+
+TEST_F(BezierTest, CurveProjectPointRecoveryTest)
+{
+  // Projecting a point that lies on the curve recovers its parameter
+  for (double t : {0.1, 0.3, 0.5, 0.7, 0.9})
+  {
+    double projected = curve_.projectPoint(curve_.valueAt(t));
+    EXPECT_NEAR(curve_.distance(curve_.valueAt(t)), 0.0, 1e-6);
+    Point recovered = curve_.valueAt(projected);
+    Point original = curve_.valueAt(t);
+    EXPECT_NEAR(recovered.x(), original.x(), 1e-6) << "projection at t=" << t;
+    EXPECT_NEAR(recovered.y(), original.y(), 1e-6) << "projection at t=" << t;
+  }
+
+  // Points beyond the endpoints project to the endpoints
+  Point before_start = curve_.valueAt(0.0) - 10 * curve_.tangentAt(0.0);
+  Point past_end = curve_.valueAt(1.0) + 10 * curve_.tangentAt(1.0);
+  EXPECT_DOUBLE_EQ(curve_.projectPoint(before_start), 0.0);
+  EXPECT_DOUBLE_EQ(curve_.projectPoint(past_end), 1.0);
+}
+
+TEST_F(BezierTest, CurveApplyContinuityC1Test)
+{
+  Curve continued{curve_roots_};
+  continued.applyContinuity(curve_, {1.0});
+
+  // C1: position and first derivative match the locked curve's end
+  Point pos_expected = curve_.valueAt(1.0);
+  Point pos_actual = continued.valueAt(0.0);
+  EXPECT_NEAR(pos_actual.x(), pos_expected.x(), 1e-8);
+  EXPECT_NEAR(pos_actual.y(), pos_expected.y(), 1e-8);
+
+  Vector der_expected = curve_.derivativeAt(1.0);
+  Vector der_actual = continued.derivativeAt(0.0);
+  EXPECT_NEAR(der_actual.x(), der_expected.x(), 1e-6);
+  EXPECT_NEAR(der_actual.y(), der_expected.y(), 1e-6);
+}
+
+TEST_F(BezierTest, CurveApplyContinuityG1Test)
+{
+  constexpr double beta = 2.5;
+  Curve continued{curve_roots_};
+  continued.applyContinuity(curve_, {beta});
+
+  // G1: position matches; first derivative is scaled by beta
+  Point pos_expected = curve_.valueAt(1.0);
+  Point pos_actual = continued.valueAt(0.0);
+  EXPECT_NEAR(pos_actual.x(), pos_expected.x(), 1e-8);
+  EXPECT_NEAR(pos_actual.y(), pos_expected.y(), 1e-8);
+
+  Vector der_expected = beta * curve_.derivativeAt(1.0);
+  Vector der_actual = continued.derivativeAt(0.0);
+  EXPECT_NEAR(der_actual.x(), der_expected.x(), 1e-6);
+  EXPECT_NEAR(der_actual.y(), der_expected.y(), 1e-6);
+}
+
+TEST_F(BezierTest, CurveCopySemanticsTest)
+{
+  double original_length = curve_.length();
+  PointVector original_points = curve_.controlPoints();
+
+  Curve copy{curve_};
+  EXPECT_EQ(copy.controlPoints(), original_points);
+
+  // Mutating the copy must not affect the original or its cached data
+  copy.setControlPoint(1, Point{0, 0});
+  EXPECT_EQ(curve_.controlPoints(), original_points);
+  EXPECT_DOUBLE_EQ(curve_.length(), original_length);
+  EXPECT_NE(copy.length(), original_length);
+
+  Curve assigned{curve_roots_};
+  assigned = curve_;
+  EXPECT_EQ(assigned.controlPoints(), original_points);
+  assigned.setControlPoint(0, Point{-1, -1});
+  EXPECT_EQ(curve_.controlPoints(), original_points);
+}
+
+TEST_F(BezierTest, CurveLengthReversedArgsContractTest)
+{
+  // Pinned contract: Curve::length(t1, t2) == length(t2) - length(t1),
+  // so swapped arguments yield a negative value. A future contract change
+  // (e.g. throwing or taking the absolute value) must edit this test.
+  EXPECT_DOUBLE_EQ(curve_.length(0.8, 0.2), -curve_.length(0.2, 0.8));
+  EXPECT_LT(curve_.length(0.8, 0.2), 0.0);
+}
 
 } // namespace Bezier
