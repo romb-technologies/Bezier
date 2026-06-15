@@ -63,7 +63,8 @@ TEST_F(ApproxTest, FromPolylineEdgeCases)
 
 TEST_F(ApproxTest, FromPolylineAutoOrderOnRealisticPolyline)
 {
-  // Auto order (order = 0) on a full-resolution polyline completes and is usable.
+  // Guards the auto-order cap: full-resolution input must not hang (FromPolyline
+  // EdgeCases only exercises a 6-point polyline, too small to trigger it).
   Curve fitted = Curve::fromPolyline(curve_.polyline());
   EXPECT_GE(fitted.order(), 1u);
 }

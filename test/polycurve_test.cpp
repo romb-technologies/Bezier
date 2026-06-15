@@ -219,8 +219,7 @@ TEST_F(PolyCurveTest, ProjectPointAndDistanceConsistency)
 
 TEST_F(PolyCurveTest, IntersectionsWithCurveAndPolyCurve)
 {
-  // A vertical cubic "line" crossing the middle subcurve once; same order as
-  // the subcurves to stay clear of the known different-order intersection bug
+  // A vertical cubic "line" crossing the middle subcurve once
   Point mid = poly_.valueAt(1.5);
   Eigen::MatrixX2d cross_cp(4, 2);
   cross_cp << mid.x(), mid.y() - 100, mid.x(), mid.y() - 33, mid.x(), mid.y() + 33, mid.x(), mid.y() + 100;

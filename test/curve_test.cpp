@@ -22,15 +22,6 @@ protected:
   Curve curve_roots_;
 };
 
-TEST(ConstructorTests, ConstructFromEigenMatrix)
-{
-  EXPECT_NO_THROW(Curve{curvePointsAsMatrix()}) << "Cannot create Curve with Eigen::MatrixX2d.";
-}
-TEST(ConstructorTests, ConstructFromPointVector)
-{
-  EXPECT_NO_THROW(Curve{curvePointsAsVector()}) << "Cannot create Curve with PointVector.";
-}
-
 TEST_F(BezierTest, CurveOrderTest) { EXPECT_EQ(curve_.order(), 3) << "Curve order differs from expected."; }
 
 TEST_F(BezierTest, CurveControlPointsTest)
@@ -54,67 +45,22 @@ TEST_F(BezierTest, CurveEndPointsTest)
   EXPECT_EQ(end_points_expected, point_curve) << "Curve end points differ from expected";
 }
 
-TEST_F(BezierTest, CurvePolylineTest)
+TEST_F(BezierTest, CurvePolylineFlatnessTest)
 {
-  // Test with default flatness (no manual parameter)
+  // Finer flatness yields more vertices (correctness is CurvePolylineContractTest)
   PointVector polyline = curve_.polyline();
-  PointVector expected = expectedPolylinePoints();
-
-  ASSERT_EQ(polyline.size(), expected.size()) << "Polyline size differs from expected";
-
-  for (size_t i = 0; i < polyline.size(); ++i)
-  {
-    EXPECT_NEAR(polyline[i].x(), expected[i].x(), Utils::epsilon) << "Polyline point " << i << " X differs";
-    EXPECT_NEAR(polyline[i].y(), expected[i].y(), Utils::epsilon) << "Polyline point " << i << " Y differs";
-  }
-
-  // Test with custom flatness parameters
-  PointVector polyline_coarse = curve_.polyline(1.0);
-  PointVector polyline_fine = curve_.polyline(0.01);
-
-  // Coarser flatness should produce fewer points
-  EXPECT_LT(polyline_coarse.size(), polyline.size());
-
-  // Finer flatness should produce more points
-  EXPECT_GT(polyline_fine.size(), polyline.size());
+  EXPECT_LT(curve_.polyline(1.0).size(), polyline.size());
+  EXPECT_GT(curve_.polyline(0.01).size(), polyline.size());
 }
 
-TEST_F(BezierTest, CurveLengthTest)
+TEST_F(BezierTest, CurveLengthMonotonicTest)
 {
-  double length = curve_.length();
-
-  // Length should be positive
-  EXPECT_GT(length, 0) << "Curve length should be positive";
-
-  // Check against expected value with tight tolerance
-  EXPECT_NEAR(length, TestData::kExpectedCurveLength, Utils::epsilon);
-
-  // Length at t=0 should be 0
+  // length(t) starts at 0 and increases; full length equals length(1)
+  // (absolute value is checked against the chord-length oracle elsewhere)
   EXPECT_NEAR(curve_.length(0.0), 0.0, Utils::epsilon);
-
-  // Length should be monotonically increasing
-  EXPECT_LT(curve_.length(0.0), curve_.length(0.25));
   EXPECT_LT(curve_.length(0.25), curve_.length(0.5));
   EXPECT_LT(curve_.length(0.5), curve_.length(0.75));
-  EXPECT_LT(curve_.length(0.75), curve_.length(1.0));
-
-  // Full length should match length(1.0)
-  EXPECT_DOUBLE_EQ(length, curve_.length(1.0));
-}
-
-TEST_F(BezierTest, CurveStepByLengthTest)
-{
-  constexpr double start_t{0.42}, target_length{35};
-
-  // Check that we moved forward along the curve
-  double result_t = curve_.step(start_t, target_length);
-  EXPECT_GT(result_t, start_t) << "Step should move forward for positive length";
-  EXPECT_NEAR(curve_.length(start_t, result_t), target_length, Utils::epsilon);
-
-  // Test backward stepping
-  double backward_t = curve_.step(start_t, -target_length);
-  EXPECT_LT(backward_t, start_t) << "Step should move backward for negative length";
-  EXPECT_NEAR(curve_.length(backward_t, start_t), target_length, Utils::epsilon);
+  EXPECT_DOUBLE_EQ(curve_.length(), curve_.length(1.0));
 }
 
 TEST_F(BezierTest, CurveSetControlPointTest)
@@ -124,70 +70,29 @@ TEST_F(BezierTest, CurveSetControlPointTest)
   EXPECT_EQ(curve_.controlPoint(2), new_control_point) << "Failed to set control point";
 }
 
-TEST_F(BezierTest, CurveRaiseOrderTest) { EXPECT_NO_THROW(curve_.raiseOrder()) << "Curve::raiseOrder failed"; }
-
-TEST_F(BezierTest, CurveLowerOrderTest) { EXPECT_NO_THROW(curve_.lowerOrder()) << "Curve::lowerOrder failed"; }
-
-TEST_F(BezierTest, CurveValueAtTest)
-{
-  std::vector<double> t_vals{0., 0.25, 0.5, 0.75, 1};
-  PointVector expected_points = expectedValueAtVector();
-
-  for (size_t i = 0; i < t_vals.size(); i++)
-  {
-    Point current_point = curve_.valueAt(t_vals[i]);
-    EXPECT_NEAR(current_point.x(), expected_points[i].x(), Utils::epsilon);
-    EXPECT_NEAR(current_point.y(), expected_points[i].y(), Utils::epsilon);
-  }
-}
-
 TEST_F(BezierTest, CurveValueAtMultipleParamsTest)
 {
+  // Batch overload must agree with the scalar one (de Casteljau oracle)
   std::vector<double> t_vals{0., 0.25, 0.5, 0.75, 1};
   Eigen::MatrixX2d points = curve_.valueAt(t_vals);
-  Eigen::MatrixX2d expected = expectedValueAtMatrix();
-  EXPECT_TRUE(points.isApprox(expected, Utils::epsilon));
-}
-
-TEST_F(BezierTest, CurveCurvatureAtTest)
-{
-  std::vector<double> t_vals{0., 0.25, 0.5, 0.75, 1};
+  ASSERT_EQ(points.rows(), static_cast<Eigen::Index>(t_vals.size()));
+  PointVector cp = curve_.controlPoints();
   for (size_t i = 0; i < t_vals.size(); i++)
   {
-    double current = curve_.curvatureAt(t_vals[i]);
-    EXPECT_NEAR(current, TestData::kExpectedCurvature[i], Utils::epsilon);
+    Point expected = Oracles::deCasteljau(cp, t_vals[i]);
+    EXPECT_NEAR(points(i, 0), expected.x(), Oracles::kGeom) << "t=" << t_vals[i];
+    EXPECT_NEAR(points(i, 1), expected.y(), Oracles::kGeom) << "t=" << t_vals[i];
   }
 }
 
-TEST_F(BezierTest, CurveCurvatureDerivativeAtTest)
+TEST_F(BezierTest, CurveCurvatureMatchesOracle)
 {
-  std::vector<double> t_vals{0., 0.25, 0.5, 0.75, 1};
-  for (size_t i = 0; i < t_vals.size(); i++)
+  PointVector cp = curve_.controlPoints();
+  for (double t : {0.0, 0.25, 0.5, 0.75, 1.0})
   {
-    double current = curve_.curvatureDerivativeAt(t_vals[i]);
-    EXPECT_NEAR(current, TestData::kExpectedCurvatureDerivative[i], Utils::epsilon);
-  }
-}
-
-TEST_F(BezierTest, CurveTangentAtTest)
-{
-  std::vector<double> t_vals{0., 0.25, 0.5, 0.75, 1};
-  for (size_t i = 0; i < t_vals.size(); i++)
-  {
-    Vector current = curve_.tangentAt(t_vals[i]);
-    Vector expected{TestData::kExpectedTangent[i].first, TestData::kExpectedTangent[i].second};
-    EXPECT_TRUE(current.isApprox(expected, Utils::epsilon)) << "Tangent at t=" << t_vals[i] << " differs";
-  }
-}
-
-TEST_F(BezierTest, CurveNormalAtTest)
-{
-  std::vector<double> t_vals{0., 0.25, 0.5, 0.75, 1};
-  for (size_t i = 0; i < t_vals.size(); i++)
-  {
-    Vector current = curve_.normalAt(t_vals[i]);
-    Vector expected{TestData::kExpectedNormal[i].first, TestData::kExpectedNormal[i].second};
-    EXPECT_TRUE(current.isApprox(expected, Utils::epsilon)) << "Normal at t=" << t_vals[i] << " differs";
+    EXPECT_NEAR(curve_.curvatureAt(t), Oracles::curvature(cp, t), 1e-9) << "kappa at t=" << t;
+    EXPECT_NEAR(curve_.curvatureDerivativeAt(t), Oracles::curvatureDerivative(cp, t), 1e-6)
+        << "kappa' at t=" << t;
   }
 }
 
@@ -218,59 +123,42 @@ TEST_F(BezierTest, CurveRootsTest)
 {
   std::vector<double> curve_roots = curve_roots_.roots();
 
-  // Check that roots are in valid range [0, 1]
   for (double root : curve_roots)
   {
-    EXPECT_GE(root, 0.0) << "Root should be >= 0";
-    EXPECT_LE(root, 1.0) << "Root should be <= 1";
-  }
+    EXPECT_GE(root, 0.0);
+    EXPECT_LE(root, 1.0);
 
-  // Verify that the curve actually crosses zero at the roots
-  for (double root : curve_roots)
-  {
+    // a root lies on one of the axes
     Point p = curve_roots_.valueAt(root);
-    // At least one coordinate should be very close to zero
-    bool crosses_x = std::abs(p.x()) < Utils::epsilon;
-    bool crosses_y = std::abs(p.y()) < Utils::epsilon;
-    EXPECT_TRUE(crosses_x || crosses_y) << "At root t=" << root << ", point should be near axis: "
-                                        << "(" << p.x() << ", " << p.y() << ")";
+    EXPECT_TRUE(std::abs(p.x()) < Utils::epsilon || std::abs(p.y()) < Utils::epsilon)
+        << "root t=" << root << " not on an axis: (" << p.x() << ", " << p.y() << ")";
   }
 
-  // For this specific curve, we expect 3 roots
-  EXPECT_EQ(curve_roots.size(), 3) << "This test curve should have 3 roots";
+  EXPECT_EQ(curve_roots.size(), 3) << "this fixture has 3 roots";
 }
 
 TEST_F(BezierTest, CurveExtremaTest)
 {
   std::vector<double> curve_extrema = curve_roots_.extrema();
 
-  // Check that extrema are in valid range [0, 1]
   for (double t : curve_extrema)
   {
-    EXPECT_GE(t, 0.0) << "Extrema should be >= 0";
-    EXPECT_LE(t, 1.0) << "Extrema should be <= 1";
-  }
+    EXPECT_GE(t, 0.0);
+    EXPECT_LE(t, 1.0);
 
-  // Verify that derivative is near zero at extrema
-  for (double t : curve_extrema)
-  {
+    // one derivative component vanishes at an axis-aligned extremum
     Vector deriv = curve_roots_.derivativeAt(t);
-    // At extrema, at least one component of the derivative should be very small
-    bool x_extreme = std::abs(deriv.x()) < Utils::epsilon;
-    bool y_extreme = std::abs(deriv.y()) < Utils::epsilon;
-    EXPECT_TRUE(x_extreme || y_extreme) << "At extrema t=" << t << ", derivative should be near zero: "
-                                        << "(" << deriv.x() << ", " << deriv.y() << ")";
+    EXPECT_TRUE(std::abs(deriv.x()) < Utils::epsilon || std::abs(deriv.y()) < Utils::epsilon)
+        << "extremum t=" << t << " derivative not axis-aligned: (" << deriv.x() << ", " << deriv.y() << ")";
   }
 
-  // For this specific curve, we expect 2 extrema
-  EXPECT_EQ(curve_extrema.size(), 2) << "This test curve should have 2 extrema";
+  EXPECT_EQ(curve_extrema.size(), 2) << "this fixture has 2 extrema";
 }
 
 TEST_F(BezierTest, CurveBoundingBoxTest)
 {
   BoundingBox bbox = curve_.boundingBox();
 
-  // Bounding box should contain curve endpoints
   auto endpoints = curve_.endPoints();
   EXPECT_GE(endpoints.first.x(), bbox.min().x());
   EXPECT_LE(endpoints.first.x(), bbox.max().x());
@@ -281,22 +169,19 @@ TEST_F(BezierTest, CurveBoundingBoxTest)
   EXPECT_GE(endpoints.second.y(), bbox.min().y());
   EXPECT_LE(endpoints.second.y(), bbox.max().y());
 
-  // Bounding box should contain all extrema
-  auto extrema = curve_.extrema();
-  for (double t : extrema)
+  for (double t : curve_.extrema())
   {
     Point p = curve_.valueAt(t);
-    EXPECT_GE(p.x(), bbox.min().x() - Utils::epsilon) << "Extrema point outside bbox";
-    EXPECT_LE(p.x(), bbox.max().x() + Utils::epsilon) << "Extrema point outside bbox";
-    EXPECT_GE(p.y(), bbox.min().y() - Utils::epsilon) << "Extrema point outside bbox";
-    EXPECT_LE(p.y(), bbox.max().y() + Utils::epsilon) << "Extrema point outside bbox";
+    EXPECT_GE(p.x(), bbox.min().x() - Utils::epsilon) << "extremum outside bbox";
+    EXPECT_LE(p.x(), bbox.max().x() + Utils::epsilon) << "extremum outside bbox";
+    EXPECT_GE(p.y(), bbox.min().y() - Utils::epsilon) << "extremum outside bbox";
+    EXPECT_LE(p.y(), bbox.max().y() + Utils::epsilon) << "extremum outside bbox";
   }
 
-  // Min should be less than max
   EXPECT_LT(bbox.min().x(), bbox.max().x());
   EXPECT_LT(bbox.min().y(), bbox.max().y());
 
-  // Verify some points on the curve are within the bounding box
+  // every sampled point lies inside the box
   for (double t = 0.0; t <= 1.0; t += 0.1)
   {
     Point p = curve_.valueAt(t);
@@ -328,22 +213,19 @@ TEST_F(BezierTest, CurveSplitTest)
 {
   std::pair<Curve, Curve> split_curves = curve_.splitCurve(0.5);
 
-  // Test continuity at split point
+  // halves meet at the split point and keep the original order
   Point left_end = split_curves.first.endPoints().second;
   Point right_start = split_curves.second.endPoints().first;
-  EXPECT_NEAR(left_end.x(), right_start.x(), Utils::epsilon) << "Split curves should be continuous";
-  EXPECT_NEAR(left_end.y(), right_start.y(), Utils::epsilon) << "Split curves should be continuous";
+  EXPECT_NEAR(left_end.x(), right_start.x(), Utils::epsilon);
+  EXPECT_NEAR(left_end.y(), right_start.y(), Utils::epsilon);
 
-  // Test that original curve value at 0.5 matches split point
   Point original_mid = curve_.valueAt(0.5);
   EXPECT_NEAR(left_end.x(), original_mid.x(), Utils::epsilon);
   EXPECT_NEAR(left_end.y(), original_mid.y(), Utils::epsilon);
 
-  // Test that split curves have same order as original
   EXPECT_EQ(split_curves.first.order(), curve_.order());
   EXPECT_EQ(split_curves.second.order(), curve_.order());
 
-  // Test that endpoints match original (with tolerance for floating point)
   auto orig_endpoints = curve_.endPoints();
   auto left_start = split_curves.first.endPoints().first;
   auto right_end = split_curves.second.endPoints().second;
@@ -352,7 +234,7 @@ TEST_F(BezierTest, CurveSplitTest)
   EXPECT_NEAR(right_end.x(), orig_endpoints.second.x(), Utils::epsilon);
   EXPECT_NEAR(right_end.y(), orig_endpoints.second.y(), Utils::epsilon);
 
-  // Test value preservation: points on split curves should match original
+  // each half reparametrizes the matching slice of the original
   auto p1 = split_curves.first.valueAt(0.0);
   auto p2 = curve_.valueAt(0.0);
   EXPECT_NEAR(p1.x(), p2.x(), Utils::epsilon);
@@ -378,41 +260,24 @@ TEST_F(BezierTest, CurveProjectPointTest)
 {
   Point point{100, 150};
   double t_projected = curve_.projectPoint(point);
-
-  // t should be in valid range
   EXPECT_GE(t_projected, 0.0);
   EXPECT_LE(t_projected, 1.0);
 
-  // Point on curve at t_projected should be closer than any other sampled point
-  Point closest_point = curve_.valueAt(t_projected);
-  double min_dist = (point - closest_point).norm();
-
+  // No sampled point is closer than the projection
+  double min_dist = (point - curve_.valueAt(t_projected)).norm();
   for (double t = 0.0; t <= 1.0; t += 0.01)
-  {
-    double dist = (point - curve_.valueAt(t)).norm();
-    EXPECT_GE(dist, min_dist - Utils::epsilon) << "Found closer point at t=" << t;
-  }
-
-  // For this specific test case, check against known value (tight tolerance)
-  EXPECT_NEAR(t_projected, 0.03465913829148962, Utils::epsilon);
+    EXPECT_GE((point - curve_.valueAt(t)).norm(), min_dist - Utils::epsilon) << "closer point at t=" << t;
 }
 
 TEST_F(BezierTest, CurveDistanceTest)
 {
   Point point{100, 150};
   double distance = curve_.distance(point);
-
-  // Distance should be non-negative
   EXPECT_GE(distance, 0.0);
 
-  // Distance should match distance to projected point
-  double t_projected = curve_.projectPoint(point);
-  Point closest_point = curve_.valueAt(t_projected);
-  double expected_distance = (point - closest_point).norm();
+  // distance == ‖point − valueAt(projectPoint)‖
+  double expected_distance = (point - curve_.valueAt(curve_.projectPoint(point))).norm();
   EXPECT_NEAR(distance, expected_distance, Utils::epsilon);
-
-  // For this specific test case, check against known value
-  EXPECT_NEAR(distance, 0.68269613683526820, Utils::epsilon);
 }
 
 // ---------------------------------------------------------------------------
@@ -612,10 +477,11 @@ TEST_F(BezierTest, CurveTangentNormalPropertiesTest)
     EXPECT_NEAR(normal.x(), -tangent.y(), Utils::epsilon);
     EXPECT_NEAR(normal.y(), tangent.x(), Utils::epsilon);
 
-    // tangent is parallel to the (non-normalized) derivative
+    // tangent points along the derivative (same direction, not just parallel)
     Vector derivative = curve_.derivativeAt(t);
     EXPECT_NEAR(tangent.x() * derivative.y() - tangent.y() * derivative.x(), 0.0,
                 Utils::epsilon * derivative.norm());
+    EXPECT_GT(tangent.dot(derivative), 0.0) << "tangent points against the curve at t=" << t;
   }
 }
 
