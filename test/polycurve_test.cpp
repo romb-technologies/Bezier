@@ -133,7 +133,9 @@ TEST_F(PolyCurveTest, LengthAdditivity)
   EXPECT_NEAR(poly_.length(0.5, 2.5),
               poly_.length(0.5, 1.0) + poly_.length(1.0, 2.0) + poly_.length(2.0, 2.5), 1e-8);
 
-  // Pinned contract: swapped arguments yield the negated length
+  // Pinned contract: swapped arguments yield the negated length, across both the
+  // adjacent-subcurve branch (idx1+1==idx2) and the multi-subcurve accumulate branch
+  EXPECT_DOUBLE_EQ(poly_.length(1.5, 0.5), -poly_.length(0.5, 1.5));
   EXPECT_DOUBLE_EQ(poly_.length(2.5, 0.5), -poly_.length(0.5, 2.5));
 }
 
