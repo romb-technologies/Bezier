@@ -1,6 +1,8 @@
 #include "test_data.hpp"
 #include "test_oracles.hpp"
 
+#include <stdexcept>
+
 #include <gtest/gtest.h>
 
 #include "Bezier/bezier.h"
@@ -81,6 +83,18 @@ TEST_F(PolyCurveTest, CurveIdxBoundaries)
   EXPECT_EQ(poly_.curveIdx(2.7), 2u);
   // t == size() maps to the last subcurve
   EXPECT_EQ(poly_.curveIdx(3.0), 2u);
+  // out-of-range parameters clamp to the first / last subcurve
+  EXPECT_EQ(poly_.curveIdx(-1.0), 0u);
+  EXPECT_EQ(poly_.curveIdx(1e9), poly_.size() - 1);
+}
+
+TEST(PolyCurveEmptyTest, AccessThrows)
+{
+  PolyCurve empty;
+  EXPECT_THROW(empty.curveIdx(0.0), std::logic_error);
+  EXPECT_THROW(empty.valueAt(0.0), std::logic_error);
+  EXPECT_THROW(empty.endPoints(), std::logic_error);
+  EXPECT_THROW(empty.length(), std::logic_error);
 }
 
 TEST_F(PolyCurveTest, ValueAtJointsAndContinuity)
