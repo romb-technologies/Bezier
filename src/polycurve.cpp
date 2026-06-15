@@ -194,16 +194,16 @@ double PolyCurve::curvatureDerivativeAt(double t) const
   return curves_[idx].curvatureDerivativeAt(t - idx);
 }
 
-Vector PolyCurve::tangentAt(double t, bool normalize) const
+Vector PolyCurve::tangentAt(double t) const
 {
   unsigned idx = curveIdx(t);
-  return curves_[idx].tangentAt(t - idx, normalize);
+  return curves_[idx].tangentAt(t - idx);
 }
 
-Vector PolyCurve::normalAt(double t, bool normalize) const
+Vector PolyCurve::normalAt(double t) const
 {
   unsigned idx = curveIdx(t);
-  return curves_[idx].normalAt(t - idx, normalize);
+  return curves_[idx].normalAt(t - idx);
 }
 
 Point PolyCurve::derivativeAt(double t) const

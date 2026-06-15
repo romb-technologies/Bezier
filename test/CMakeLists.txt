@@ -7,7 +7,6 @@ add_executable(unit_tests
   utils_test.cpp
   coefficients_test.cpp
   approx_test.cpp
-  known_bugs_test.cpp
 )
 target_link_libraries(unit_tests PRIVATE bezier GTest::gtest GTest::gtest_main)
 

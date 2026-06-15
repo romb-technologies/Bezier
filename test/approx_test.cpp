@@ -43,10 +43,7 @@ TEST_F(ApproxTest, FromPolylineFitsSourcePolyline)
 
 TEST_F(ApproxTest, FromPolylineEdgeCases)
 {
-  // order = 0 -> automatic order selection still returns a usable curve.
-  // Note: auto order is polyline.size() - 1, so only a short polyline is
-  // usable here — on a realistic polyline (e.g. curve_.polyline(), 29 points)
-  // the high-order LM fit effectively hangs; see known_bugs_test.cpp.
+  // order = 0 -> automatic order selection returns a usable curve.
   PointVector short_polyline = Utils::polylineSimplified(curve_.polyline(), 6);
   Curve automatic = Curve::fromPolyline(short_polyline);
   EXPECT_GE(automatic.order(), 1u);
@@ -62,6 +59,13 @@ TEST_F(ApproxTest, FromPolylineEdgeCases)
   EXPECT_EQ(segment.order(), 1u);
   EXPECT_EQ(segment.endPoints().first, Point(1, 2));
   EXPECT_EQ(segment.endPoints().second, Point(5, 6));
+}
+
+TEST_F(ApproxTest, FromPolylineAutoOrderOnRealisticPolyline)
+{
+  // Auto order (order = 0) on a full-resolution polyline completes and is usable.
+  Curve fitted = Curve::fromPolyline(curve_.polyline());
+  EXPECT_GE(fitted.order(), 1u);
 }
 
 TEST_F(ApproxTest, OffsetCurveStraightLine)

@@ -1,6 +1,8 @@
 #include "test_data.hpp"
 #include "test_oracles.hpp"
 
+#include <cmath>
+
 #include <gtest/gtest.h>
 
 #include "Bezier/bezier.h"
@@ -307,11 +309,8 @@ TEST_F(BezierTest, CurveBoundingBoxTest)
 
 TEST_F(BezierTest, CurveIntersectionsTest)
 {
-  // Same-order (cubic) crossing curve: the original quartic test data hits
-  // the known different-order isApprox out-of-bounds read in intersections()
-  // (REVIEW-v4-devel §2.1, caught by ASan) — that case lives in
-  // known_bugs_test.cpp as DISABLED_IntersectionsDifferentOrder.
-  Curve curve_with_intersections{intersectionPointsAsMatrix().topRows(4)};
+  // Crossing curve of a different order (quartic) than the cubic fixture
+  Curve curve_with_intersections{intersectionPointsAsMatrix()};
   PointVector intersections = curve_.intersections(curve_with_intersections);
 
   EXPECT_GE(intersections.size(), 1) << "Too few intersections found";
@@ -703,6 +702,59 @@ TEST_F(BezierTest, CurveLengthReversedArgsContractTest)
   // (e.g. throwing or taking the absolute value) must edit this test.
   EXPECT_DOUBLE_EQ(curve_.length(0.8, 0.2), -curve_.length(0.2, 0.8));
   EXPECT_LT(curve_.length(0.8, 0.2), 0.0);
+}
+
+// ---------------------------------------------------------------------------
+// Degenerate, cusp and contract edge cases
+// ---------------------------------------------------------------------------
+
+TEST_F(BezierTest, CurveIntersectionsSharedEndpointTest)
+{
+  // Only transversal crossings are reported; a contact exactly at a shared
+  // endpoint is not returned (see Curve::intersections).
+  Point shared = curve_.endPoints().second;
+  Curve second{PointVector{shared, {shared.x() + 50, shared.y() + 80}, {shared.x() + 120, shared.y() + 10},
+                           {shared.x() + 150, shared.y() + 90}}};
+  for (const Point& p : curve_.intersections(second))
+    EXPECT_GT((p - shared).norm(), Utils::epsilon) << "Endpoint contact should not be reported";
+}
+
+TEST_F(BezierTest, CurveApplyContinuityRaisesOrderTest)
+{
+  // A continuity order >= the curve order raises the curve's own order to make
+  // room; derivatives beyond the locked curve's degree are zero vectors.
+  Curve continued{curve_roots_};
+  ASSERT_NO_THROW(continued.applyContinuity(curve_, {1.0, 1.0, 1.0, 1.0}));
+  EXPECT_GE(continued.order(), 4u);
+  EXPECT_TRUE(continued.valueAt(0.0).isApprox(curve_.valueAt(1.0), Utils::epsilon));
+}
+
+TEST(CurveLengthTests, DegenerateCurveHasZeroLength)
+{
+  Curve degenerate{PointVector{{10, 10}, {10, 10}, {10, 10}, {10, 10}}};
+  double length{};
+  ASSERT_NO_THROW(length = degenerate.length());
+  EXPECT_NEAR(length, 0.0, Utils::epsilon);
+}
+
+TEST(CurveCuspTests, StepReturnsFiniteParameter)
+{
+  // Genuine cusp at t = 0.5 (velocity is (300(1-2t)^2, 300(1-2t)))
+  Curve cusped{PointVector{{0, 0}, {100, 100}, {0, 100}, {100, 0}}};
+  double t = cusped.step(0.5, 10.0);
+  EXPECT_TRUE(std::isfinite(t));
+  EXPECT_GE(t, 0.0);
+  EXPECT_LE(t, 1.0);
+}
+
+TEST(CurveCuspTests, NormalIsFiniteUnitVector)
+{
+  // At a cusp the direction comes from the first non-vanishing derivative.
+  Curve cusped{PointVector{{0, 0}, {100, 100}, {0, 100}, {100, 0}}};
+  Vector normal = cusped.normalAt(0.5);
+  ASSERT_TRUE(std::isfinite(normal.x()));
+  ASSERT_TRUE(std::isfinite(normal.y()));
+  EXPECT_NEAR(normal.norm(), 1.0, Utils::epsilon);
 }
 
 } // namespace Bezier

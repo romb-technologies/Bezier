@@ -50,7 +50,6 @@ set_target_properties(bezier PROPERTIES
   PUBLIC_HEADER "${Bezier_INC}"
 )
 target_compile_features(bezier PUBLIC cxx_std_17)
-target_compile_options(bezier PRIVATE -O3 -DNDEBUG)
 
 # install rules
 install(TARGETS bezier

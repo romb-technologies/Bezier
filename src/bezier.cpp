@@ -137,9 +137,9 @@ double Curve::length(double t) const
                         .cwiseQuotient(Eigen::VectorXd::LinSpaced(n - 1, 4, 4 * (n - 1)));
   } while (std::fabs(chebyshev.tail(1).value()) > bu::epsilon);
 
-  // Trim trailing zero coefficients
+  // Trim trailing zero coefficients (keep at least 2)
   unsigned idx = chebyshev.size();
-  while (std::fabs(chebyshev(idx - 1)) < bu::epsilon)
+  while (idx > 2 && std::fabs(chebyshev(idx - 1)) < bu::epsilon)
     --idx;
   chebyshev.conservativeResize(idx);
 
@@ -186,7 +186,7 @@ double Curve::step(double t, double ds) const
     guess.t -= (2 * f * df) / (2 * df * df - f * df2);
 
     // root bracketing, if not in bounds, use bisection method
-    if (guess.t <= lbracket.t || guess.t >= rbracket.t)
+    if (!(guess.t > lbracket.t && guess.t < rbracket.t))
       guess.t = (lbracket.t + rbracket.t) / 2;
 
     if (rbracket.t - lbracket.t < bu::epsilon)
@@ -253,23 +253,27 @@ double Curve::curvatureDerivativeAt(double t) const
   return (d1.squaredNorm() * bu::cross(d1, d3) - 3 * d1.dot(d2) * bu::cross(d1, d2)) / bu::pow(d1.norm(), 5);
 }
 
-Vector Curve::tangentAt(double t, bool normalize) const
+Vector Curve::tangentAt(double t) const
 {
-  Vector d = derivativeAt(t);
-  return normalize && d.norm() > 0 ? d.normalized() : d;
+  // tangent direction is the first non-vanishing derivative (zero only if the curve is a point)
+  for (unsigned k{1}; k <= order(); k++)
+    if (Vector d = derivativeAt(k, t); d.squaredNorm() > bu::epsilon * bu::epsilon)
+      return d.normalized();
+  return Vector(0, 0);
 }
 
-Vector Curve::normalAt(double t, bool normalize) const
+Vector Curve::normalAt(double t) const
 {
-  Vector tangent = tangentAt(t, normalize);
+  Vector tangent = tangentAt(t);
   return {-tangent.y(), tangent.x()};
 }
 
 const Curve& Curve::derivative() const
 {
   if (!cache_.derivative)
-    cache_.derivative = std::make_unique<const Curve>(
-        (N_ - 1) * (control_points_.bottomRows(N_ - 1) - control_points_.topRows(N_ - 1)));
+    cache_.derivative = N_ == 1 ? std::make_unique<const Curve>(PointVector{Point(0, 0)})
+                                : std::make_unique<const Curve>((N_ - 1) * (control_points_.bottomRows(N_ - 1) -
+                                                                            control_points_.topRows(N_ - 1)));
   return *cache_.derivative;
 }
 
@@ -333,7 +337,7 @@ std::pair<Curve, Curve> Curve::splitCurve(double t) const
 PointVector Curve::intersections(const Curve& curve) const
 {
   std::vector<std::pair<Eigen::MatrixX2d, Eigen::MatrixX2d>> cp_pairs;
-  if (!control_points_.isApprox(curve.control_points_))
+  if (N_ != curve.N_ || !control_points_.isApprox(curve.control_points_))
     cp_pairs.emplace_back(control_points_, curve.control_points_);
   else
   {
@@ -423,6 +427,11 @@ double Curve::distance(const Point& point) const { return bu::dist(point, valueA
 void Curve::applyContinuity(const Curve& curve, const std::vector<double>& beta_coeffs)
 {
   unsigned c_order = beta_coeffs.size();
+
+  // Raise this curve's order if needed so it has enough control points to
+  // satisfy the requested continuity order (shape is preserved).
+  while (N_ <= c_order)
+    raiseOrder();
   Eigen::Map<const Eigen::VectorXd> beta(beta_coeffs.data(), beta_coeffs.size());
 
   // pascal triangle matrix (binomial coefficients) - rowwise
@@ -476,7 +485,10 @@ Curve Curve::joinCurves(const Curve& curve1, const Curve& curve2, unsigned order
 
 Curve Curve::fromPolyline(const PointVector& polyline, unsigned order)
 {
-  const unsigned N = std::min(order ? order + 1 : polyline.size(), polyline.size());
+  // When order is unspecified (0), cap the automatic order so a long polyline
+  // does not dispatch a prohibitively high-order Levenberg-Marquardt fit.
+  constexpr unsigned MAX_AUTO_ORDER = 5;
+  const unsigned N = std::min<size_t>(order ? order + 1 : MAX_AUTO_ORDER + 1, polyline.size());
 
   if (polyline.size() < 2)
     throw std::logic_error{"Polyline must have at least two points."};
