@@ -501,9 +501,6 @@ void Curve::applyContinuity(const Curve& curve, const std::vector<double>& beta_
     }
   }
 
-  // inverse of pascal matrix, i.e., pascal matrix with alternating signs - colwise
-  Eigen::MatrixXd pascal_alternating_matrix = pascal_matrix.transpose().inverse();
-
   // https://en.wikipedia.org/wiki/Bell_polynomials -> equivalent to equations of geometric continuity
   Eigen::MatrixXd bell_matrix = Eigen::MatrixXd::Zero(c_order + 1, c_order + 1);
   bell_matrix(0, c_order) = 1;
@@ -521,10 +518,10 @@ void Curve::applyContinuity(const Curve& curve, const std::vector<double>& beta_
 
   // diagonal: (N-1)! / (N-k-1)!
   std::function<double(int)> permFunc = [x = 1. / N_, N = N_](int k) mutable { return x *= N - k; };
-  Eigen::MatrixXd permutation_matrix = Eigen::VectorXd::NullaryExpr(c_order + 1, permFunc).asDiagonal();
+  Eigen::VectorXd perm = Eigen::VectorXd::NullaryExpr(c_order + 1, permFunc);
 
   // calculate new control points
-  control_points_.topRows(c_order + 1) = (permutation_matrix * pascal_alternating_matrix).inverse() * new_derivatives;
+  control_points_.topRows(c_order + 1) = pascal_matrix.transpose() * perm.cwiseInverse().asDiagonal() * new_derivatives;
   cache_.clear();
 }
 
