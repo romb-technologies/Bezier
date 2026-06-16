@@ -22,8 +22,6 @@
 #include <mutex>
 #include <unordered_map>
 
-#include <unsupported/Eigen/MatrixFunctions>
-
 namespace Bezier
 {
 namespace Coefficients
@@ -45,9 +43,17 @@ inline Eigen::MatrixXd bernstein(unsigned n)
   std::lock_guard<std::mutex> lock(cache_mutex);
   auto fun = [n]() -> Eigen::MatrixXd {
     Eigen::MatrixXd coeffs = Eigen::MatrixXd::Zero(n, n);
-    coeffs.diagonal(-1).setLinSpaced(-1, -static_cast<int>(n - 1));
-    coeffs = coeffs.exp();
-    coeffs.array().colwise() *= coeffs.row(n - 1).transpose().array().abs();
+    double rn = 1.0; // C(n-1, k) row factor
+    for (unsigned k = 0; k < n; ++k)
+    {
+      double c = 1.0; // C(k,0)
+      for (unsigned i = 0; i <= k; ++i)
+      {
+        coeffs(k, i) = ((k - i) & 1u ? -1.0 : 1.0) * c * rn;
+        c = c * (k - i) / (i + 1); // C(k,i+1)
+      }
+      rn = rn * (n - 1 - k) / (k + 1); // C(n-1, k+1)
+    }
     return coeffs;
   };
   return cache.try_emplace(n, lazyFunctor(fun)).first->second;

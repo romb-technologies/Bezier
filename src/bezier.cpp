@@ -5,7 +5,6 @@
 
 #include <unsupported/Eigen/FFT>
 #include <unsupported/Eigen/LevenbergMarquardt>
-#include <unsupported/Eigen/MatrixFunctions>
 #include <unsupported/Eigen/NumericalDiff>
 
 #include <numeric>
@@ -492,8 +491,15 @@ void Curve::applyContinuity(const Curve& curve, const std::vector<double>& beta_
 
   // pascal triangle matrix (binomial coefficients) - rowwise
   Eigen::MatrixXd pascal_matrix = Eigen::MatrixXd::Zero(c_order + 1, c_order + 1);
-  pascal_matrix.diagonal(1).setLinSpaced(1, c_order);
-  pascal_matrix = pascal_matrix.exp();
+  for (unsigned k = 0; k <= c_order; k++)
+  {
+    double c = 1.0; // C(k,0)
+    for (unsigned i = 0; i <= k; i++)
+    {
+      pascal_matrix(i, k) = c;
+      c = c * (k - i) / (i + 1); // C(k,i+1)
+    }
+  }
 
   // inverse of pascal matrix, i.e., pascal matrix with alternating signs - colwise
   Eigen::MatrixXd pascal_alternating_matrix = pascal_matrix.transpose().inverse();
