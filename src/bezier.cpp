@@ -586,7 +586,7 @@ Curve Curve::fromPolyline(const PointVector& polyline, unsigned order)
   // the simplified polyline points at parameter t.
   auto getCurve = [&P, M = bc::bernstein(N)](const Eigen::VectorXd& t) {
     Eigen::MatrixXd T = bu::powMatrix(t, t.size());
-    return Curve(M.inverse() * (T.transpose() * T).inverse() * T.transpose() * P);
+    return Curve((T * M).colPivHouseholderQr().solve(P));
   };
 
   // Cost functor calculates RMSD and length difference for each subcurve/subpolyline
