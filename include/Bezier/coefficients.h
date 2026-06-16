@@ -59,7 +59,19 @@ inline Eigen::MatrixXd leftSplit(unsigned n, double t = 0.5)
   static std::mutex cache_mutex;
 
   auto fun = [n](double t) -> Eigen::MatrixXd {
-    return bernstein(n).inverse() * Bezier::Utils::powVector(t, n).asDiagonal() * bernstein(n);
+    Eigen::RowVectorXd tp = Utils::powVector(t, n);     // [t^0 .. t^{n-1}]
+    Eigen::RowVectorXd ct = Utils::powVector(1 - t, n); // [(1-t)^0 .. (1-t)^{n-1}]
+    Eigen::MatrixXd L = Eigen::MatrixXd::Zero(n, n);
+    for (unsigned k = 0; k < n; ++k)
+    {
+      double c = 1.0; // C(k,0)
+      for (unsigned i = 0; i <= k; ++i)
+      {
+        L(k, i) = c * tp(i) * ct(k - i);
+        c = c * (k - i) / (i + 1); // C(k,i+1)
+      }
+    }
+    return L;
   };
 
   if (t != 0.5)
@@ -74,13 +86,7 @@ inline Eigen::MatrixXd rightSplit(unsigned n, double t = 0.5)
   static std::unordered_map<unsigned, Eigen::MatrixXd> cache;
   static std::mutex cache_mutex;
 
-  auto fun = [n](double t) -> Eigen::MatrixXd {
-    Eigen::MatrixXd coeffs = leftSplit(n, t);
-    for (unsigned k{}; k < n; k++)
-      coeffs.col(n - 1 - k).head(n - k) = coeffs.diagonal(-static_cast<int>(k)).reverse();
-    coeffs.triangularView<Eigen::StrictlyLower>().setZero();
-    return coeffs;
-  };
+  auto fun = [n](double t) -> Eigen::MatrixXd { return leftSplit(n, 1.0 - t).reverse(); };
 
   if (t != 0.5)
     return fun(t);
