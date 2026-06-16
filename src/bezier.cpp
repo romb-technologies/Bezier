@@ -22,14 +22,63 @@ Curve::Curve(const PointVector& points) : N_(points.size()), control_points_(N_,
     control_points_.row(k) = points[k];
 }
 
-Curve::Curve(const Curve& curve) : Curve(curve.control_points_) {}
+Curve::Curve(const Curve& curve) : N_(curve.N_), control_points_(curve.control_points_)
+{
+  std::lock_guard lock{curve.cache_mutex_};
+  cache_ = curve.cache_;
+}
+
+Curve::Curve(Curve&& curve) noexcept
+    : N_(curve.N_), control_points_(std::move(curve.control_points_)), cache_(std::move(curve.cache_))
+{
+}
 
 Curve& Curve::operator=(const Curve& curve)
 {
-  N_ = curve.control_points_.rows();
-  control_points_ = curve.control_points_;
-  cache_.clear();
+  Curve tmp{curve}; // self-assignment safe
+  swap(tmp);
   return *this;
+}
+
+Curve& Curve::operator=(Curve&& curve) noexcept
+{
+  swap(curve);
+  return *this;
+}
+
+void Curve::swap(Curve& other) noexcept
+{
+  std::swap(N_, other.N_);
+  control_points_.swap(other.control_points_);
+  std::swap(cache_, other.cache_);
+}
+
+Curve::Cache::Cache(const Cache& other)
+    : derivative(other.derivative ? std::make_unique<const Curve>(*other.derivative) : nullptr), roots(other.roots),
+      bounding_box(other.bounding_box), polyline(other.polyline), polyline_t(other.polyline_t),
+      polyline_flatness(other.polyline_flatness), projection_polynomial_const(other.projection_polynomial_const),
+      projection_polynomial_der(other.projection_polynomial_der), chebyshev_polynomial(other.chebyshev_polynomial)
+{
+}
+
+Curve::Cache& Curve::Cache::operator=(const Cache& other)
+{
+  Cache tmp{other};
+  *this = std::move(tmp);
+  return *this;
+}
+
+void Curve::Cache::clear()
+{
+  derivative.reset();
+  roots.reset();
+  bounding_box.reset();
+  polyline.reset();
+  polyline_t.reset();
+  projection_polynomial_const.reset();
+  projection_polynomial_der.reset();
+  chebyshev_polynomial.reset();
+  polyline_flatness = 0.0;
 }
 
 unsigned Curve::order() const { return N_ - 1; }
@@ -50,6 +99,7 @@ PointVector Curve::polyline() const { return polyline(boundingBox().diagonal().n
 
 PointVector Curve::polyline(double flatness) const
 {
+  std::lock_guard lock{cache_mutex_};
   if (cache_.polyline && std::fabs(cache_.polyline_flatness - flatness) < bu::epsilon)
     return *cache_.polyline;
 
@@ -84,6 +134,7 @@ ParamVector Curve::polylineParams() const { return polylineParams(boundingBox().
 
 ParamVector Curve::polylineParams(double flatness) const
 {
+  std::lock_guard lock{cache_mutex_};
   polyline(flatness);
   return *cache_.polyline_t;
 }
@@ -95,6 +146,7 @@ double Curve::length(double t) const
   if (t < 0.0 || t > 1.0)
     throw std::logic_error{"Length can only be calculated for t within [0.0, 1.0] range."};
 
+  std::lock_guard lock{cache_mutex_};
   if (cache_.chebyshev_polynomial)
     return bu::evaluateChebyshev(t, *cache_.chebyshev_polynomial);
   auto& chebyshev = cache_.chebyshev_polynomial.emplace();
@@ -270,6 +322,7 @@ Vector Curve::normalAt(double t) const
 
 const Curve& Curve::derivative() const
 {
+  std::lock_guard lock{cache_mutex_};
   if (!cache_.derivative)
     cache_.derivative = N_ == 1 ? std::make_unique<const Curve>(PointVector{Point(0, 0)})
                                 : std::make_unique<const Curve>((N_ - 1) * (control_points_.bottomRows(N_ - 1) -
@@ -291,6 +344,7 @@ Vector Curve::derivativeAt(unsigned n, double t) const { return derivative(n).va
 
 ParamVector Curve::roots() const
 {
+  std::lock_guard lock{cache_mutex_};
   if (cache_.roots)
     return *cache_.roots;
 
@@ -303,6 +357,7 @@ ParamVector Curve::extrema() const { return derivative().roots(); }
 
 BoundingBox Curve::boundingBox() const
 {
+  std::lock_guard lock{cache_mutex_};
   if (cache_.bounding_box)
     return *cache_.bounding_box;
 
@@ -399,6 +454,7 @@ PointVector Curve::intersections(const Curve& curve) const
 
 double Curve::projectPoint(const Point& point) const
 {
+  std::lock_guard lock{cache_mutex_};
   if (!cache_.projection_polynomial_const || !cache_.projection_polynomial_der)
   {
     Eigen::MatrixX2d curve_polynomial = bc::bernstein(N_) * control_points_;
@@ -566,17 +622,4 @@ Curve Curve::fromPolyline(const PointVector& polyline, unsigned order)
   Eigen::VectorXd x = t.segment(1, N - 2);
   lm.minimize(x);
   return getCurve((Eigen::VectorXd(N) << 0, x, 1).finished());
-}
-
-void Curve::Cache::clear()
-{
-  derivative.reset();
-  roots.reset();
-  bounding_box.reset();
-  polyline.reset();
-  polyline_t.reset();
-  projection_polynomial_const.reset();
-  projection_polynomial_der.reset();
-  chebyshev_polynomial.reset();
-  polyline_flatness = 0.0;
 }
