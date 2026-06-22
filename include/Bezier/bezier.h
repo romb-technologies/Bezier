@@ -302,10 +302,30 @@ public:
    */
   void applyContinuity(const Curve& curve, const std::vector<double>& beta_coeffs);
 
+  /*!
+   * \brief Fit a Bezier approximation of the curve offset by a given distance
+   * \param curve Source curve
+   * \param offset Offset distance (negative offsets toward the inner/concave side)
+   * \param order Order of the resulting curve; 0 selects it automatically
+   * \return Offset curve
+   */
   static Curve offsetCurve(const Curve& curve, double offset, unsigned order = 0);
 
+  /*!
+   * \brief Fit a single Bezier curve through two curves joined end to end
+   * \param curve1 First curve
+   * \param curve2 Second curve
+   * \param order Order of the resulting curve; 0 selects it automatically
+   * \return Joined curve
+   */
   static Curve joinCurves(const Curve& curve1, const Curve& curve2, unsigned order = 0);
 
+  /*!
+   * \brief Fit a Bezier curve to an ordered polyline
+   * \param polyline Polyline vertices to approximate
+   * \param order Order of the fitted curve; 0 selects it automatically
+   * \return Fitted curve
+   */
   static Curve fromPolyline(const PointVector& polyline, unsigned order = 0);
 
 private:

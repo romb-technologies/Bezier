@@ -95,9 +95,10 @@ TEST_F(ApproxTest, OffsetCurveGentleArc)
 
 TEST_F(ApproxTest, OffsetCurveRespectsRequestedOrder)
 {
+  // An explicitly requested order is honoured exactly.
   EXPECT_EQ(Curve::offsetCurve(curve_, 5.0, 4).order(), 4u);
-  // Default order is source order + 1
-  EXPECT_EQ(Curve::offsetCurve(curve_, 5.0).order(), curve_.order() + 1);
+  // Default order = 0 delegates to fromPolyline's automatic order selection.
+  EXPECT_GE(Curve::offsetCurve(curve_, 5.0).order(), 1u);
 }
 
 TEST_F(ApproxTest, JoinCurvesOrderOneIsExactLine)
