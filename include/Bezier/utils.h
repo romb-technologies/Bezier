@@ -33,7 +33,7 @@ const double epsilon = std::sqrt(std::numeric_limits<double>::epsilon());
 inline double cross(const Vector& u, const Vector& v) { return u.x() * v.y() - u.y() * v.x(); }
 
 /// Calculate unsigned power of number 2
-inline unsigned exp2(unsigned exp) { return 1 << exp; }
+inline unsigned exp2(unsigned exp) { return 1u << exp; }
 
 /// Calculate power for integer exponents
 template <typename T> inline T pow(T base, unsigned exp)

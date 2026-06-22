@@ -32,12 +32,12 @@ std::vector<unsigned> Bezier::Utils::visvalingamWyatt(const PointVector& polylin
     return vertices[idx1].contribution < vertices[idx2].contribution;
   };
 
-  // Initialize vertices
-  constexpr size_t NaN = std::numeric_limits<size_t>::quiet_NaN();
-  vertices.front() = {NaN, 1, 0.0};
+  // Initialize vertices (NONE marks an endpoint's missing neighbour; never read back)
+  constexpr size_t NONE = 0;
+  vertices.front() = {NONE, 1, 0.0};
   for (unsigned k = 1; k + 1 < polyline.size(); k++)
     vertices[k] = {k - 1, k + 1, area(k - 1, k, k + 1)};
-  vertices.back() = {polyline.size() - 2, NaN, 0.0};
+  vertices.back() = {polyline.size() - 2, NONE, 0.0};
 
   // Smallest contribution will be at the end of the vector
   for (auto it = by_contribution.rbegin(); it != by_contribution.rend() - 2; ++it)

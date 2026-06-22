@@ -118,6 +118,7 @@ public:
    * \brief Compute exact arc length using Chebyshev polynomials
    * \param t Curve parameter to which length is computed
    * \return Arc length from start to parameter t
+   * \warning CAN THROW: t must be within [0.0, 1.0]
    */
   double length(double t) const;
 
@@ -221,7 +222,6 @@ public:
    * \brief Get the nth derivative of a curve
    * \param n Desired number of derivative
    * \return Derivative curve
-   * \warning double n cannot be zero
    */
   const Curve& derivative(unsigned n) const;
 
@@ -254,7 +254,7 @@ public:
 
   /*!
    * \brief Get the bounding box of curve
-   * \return Bounding box (if use_roots is false, returns the bounding box of control points)
+   * \return Bounding box
    */
   BoundingBox boundingBox() const;
 
