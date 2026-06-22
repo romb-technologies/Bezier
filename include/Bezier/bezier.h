@@ -41,12 +41,14 @@ public:
   /*!
    * \brief Create the Bezier curve
    * \param points Nx2 matrix where each row is one of N control points that define the curve
+   * \note Requires at least one control point
    */
   Curve(Eigen::MatrixX2d points);
 
   /*!
    * \brief Create the Bezier curve
    * \param points A vector of control points that define the curve
+   * \note Requires at least one control point
    */
   Curve(const PointVector& points);
 
@@ -56,7 +58,7 @@ public:
   Curve& operator=(Curve&& curve) noexcept;
 
   /*!
-   * \brief Get order of the curve (Nth order curve is described with N+1 points);
+   * \brief Get order of the curve (Nth order curve is described with N+1 points)
    * \return Order of curve
    */
   unsigned order() const;
@@ -70,7 +72,8 @@ public:
   /*!
    * \brief Get the control point at index idx
    * \param idx Index of chosen control point
-   * \return A vector of control points
+   * \return The control point at index idx
+   * \note idx must be in range [0, order()]
    */
   Point controlPoint(unsigned idx) const;
 
@@ -126,7 +129,7 @@ public:
    * \brief Compute exact arc length using Chebyshev polynomials
    * \param t1 Curve parameter from which length is computed
    * \param t2 Curve parameter to which length is computed
-   * \return Arc length between paramaters t1 and t2
+   * \return Arc length between parameters t1 and t2
    */
   double length(double t1, double t2) const;
 
@@ -147,6 +150,7 @@ public:
    * \brief Set the new coordinates to a control point
    * \param idx Index of chosen control point
    * \param point New control point
+   * \note idx must be in range [0, order()]
    */
   void setControlPoint(unsigned idx, const Point& point);
 
@@ -161,7 +165,7 @@ public:
   /*!
    * \brief Lower the curve order by 1
    *
-   * If current shape cannot be described by lower order, it will be best aproximation
+   * If current shape cannot be described by lower order, it will be best approximation
    * \warning CAN THROW: Cannot be called for curves of 1st order
    * \warning Resets cached data
    */
@@ -275,7 +279,7 @@ public:
   /*!
    * \brief Get the points of intersection with another curve
    * \param curve Curve to intersect with
-   * \return A vector af points of intersection between curves
+   * \return A vector of points of intersection between curves
    * \note Only transversal crossings are reported; contacts that lie exactly at
    * a shared endpoint or tangential (non-crossing) touches are not returned.
    */
@@ -296,8 +300,8 @@ public:
   double distance(const Point& point) const;
 
   /*!
-   * \brief applyContinuity Apply geometric continuity based on the another curve.
-   * \param locked_curve Curve on which calculation are based.
+   * \brief Apply geometric continuity based on another curve
+   * \param curve Curve on which calculations are based
    * \param beta_coeffs Beta-constraints used to calculate continuity. Size defines continuity order.
    */
   void applyContinuity(const Curve& curve, const std::vector<double>& beta_coeffs);

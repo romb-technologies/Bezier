@@ -42,7 +42,7 @@ public:
 
   /*!
    * \brief Create the Bezier polycurve from deque of curves
-   * \param curve_list A list of curves
+   * \param curves A list of curves
    */
   PolyCurve(std::deque<Curve> curves);
 
@@ -55,6 +55,7 @@ public:
    * \brief Insert new curve into polycurve
    * \param idx Index where to insert new curve
    * \param curve A curve to insert
+   * \note idx must be in range [0, size()]
    */
   void insertAt(unsigned idx, Curve curve);
 
@@ -73,16 +74,19 @@ public:
   /*!
    * \brief Remove a subcurve from the polycurve
    * \param idx Index of subcurve to remove
+   * \note idx must be in range [0, size())
    */
   void removeAt(unsigned idx);
 
   /*!
    * \brief Remove a subcurve from the beginning of the polycurve
+   * \note Requires a non-empty polycurve
    */
   void removeFirst();
 
   /*!
    * \brief Remove a subcurve from the end of the polycurve
+   * \note Requires a non-empty polycurve
    */
   void removeBack();
 
@@ -95,15 +99,16 @@ public:
   /*!
    * \brief Resolve polycurve parameter to subcurve index
    * \param t A polycurve parameter
-   * \return An index of of subcurve where parameter t is
+   * \return An index of the subcurve where parameter t is
    */
   unsigned curveIdx(double t) const;
 
   ///@{
   /*!
-   * \brief Get pointer of a subcurve
+   * \brief Get a subcurve
    * \param idx Subcurve index
-   * \return A reference to curve
+   * \return A reference to the subcurve at idx
+   * \note idx must be in range [0, size())
    */
   Curve& curve(unsigned idx);
   const Curve& curve(unsigned idx) const;
@@ -112,7 +117,7 @@ public:
   ///@{
   /*!
    * \brief Get list of all subcurves
-   * \return A vector of curve references
+   * \return A reference to the deque of subcurves
    */
   std::deque<Curve>& curves();
   const std::deque<Curve>& curves() const;
@@ -163,7 +168,7 @@ public:
    * \brief Compute exact arc length using Chebyshev polynomials
    * \param t1 A Polycurve parameter from which length is computed
    * \param t2 A Polycurve parameter to which length is computed
-   * \return Arc length between paramaters t1 and t2
+   * \return Arc length between parameters t1 and t2
    */
   double length(double t1, double t2) const;
 
@@ -189,8 +194,9 @@ public:
 
   /*!
    * \brief Set the new coordinates to a control point
-   * \param index Index of chosen control point
+   * \param idx Global control-point index across all subcurves
    * \param point New control point
+   * \note No-op if idx is out of range
    */
   void setControlPoint(unsigned idx, const Point& point);
 
@@ -210,28 +216,28 @@ public:
 
   /*!
    * \brief Get curvature of the polycurve for a given t
-   * \param t A Polyurve parameter
+   * \param t A Polycurve parameter
    * \return Curvature of a polycurve for a given t
    */
   double curvatureAt(double t) const;
 
   /*!
-   * \brief Get curvature derivative of curve for a given t
-   * \param t Curve parameter
-   * \return Curvature derivative of a curve for a given t
+   * \brief Get curvature derivative of the polycurve for a given t
+   * \param t A Polycurve parameter
+   * \return Curvature derivative of a polycurve for a given t
    */
   double curvatureDerivativeAt(double t) const;
 
   /*!
    * \brief Get the unit tangent of the polycurve for a given t
-   * \param t A Polyurve parameter
+   * \param t A Polycurve parameter
    * \return Unit tangent of a polycurve for a given t
    */
   Vector tangentAt(double t) const;
 
   /*!
    * \brief Get the unit normal of the polycurve for a given t
-   * \param t A Polyurve parameter
+   * \param t A Polycurve parameter
    * \return Unit normal of a polycurve for given t
    */
   Vector normalAt(double t) const;
@@ -260,7 +266,7 @@ public:
   /*!
    * \brief Get the points of intersection with another curve or polycurve
    * \param curve Curve to intersect with
-   * \return A vector af points of intersection between curves
+   * \return A vector of points of intersection between curves
    */
   template <typename Curve_PolyCurve> PointVector intersections(const Curve_PolyCurve& curve) const;
 
