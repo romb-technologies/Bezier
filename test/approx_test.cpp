@@ -1,6 +1,8 @@
 #include "test_data.hpp"
 #include "test_oracles.hpp"
 
+#include <cmath>
+
 #include <gtest/gtest.h>
 
 #include "Bezier/bezier.h"
@@ -129,6 +131,70 @@ TEST_F(ApproxTest, JoinCurvesSmoothPair)
   {
     Point p = joined.valueAt(t);
     EXPECT_LE(std::min(first.distance(p), second.distance(p)), fit_tolerance_) << "joined curve too far at t=" << t;
+  }
+}
+
+TEST_F(ApproxTest, FromPolylineOverOrderStaysBounded)
+{
+  // The ridge regularisation must bound the over-order (Runge) blow-up: fitting a cubic's polyline at
+  // orders well above 3 stays near the data instead of exploding (control points -> 1e3..1e9, curve
+  // oscillating between the samples). Without the ridge these deviations are 1e2..1e9% of the diagonal.
+  PointVector polyline = curve_.polyline();
+  for (unsigned order : {8u, 9u, 10u})
+  {
+    Curve fitted = Curve::fromPolyline(polyline, order);
+    for (double t{}; t <= 1.0; t += 0.02)
+    {
+      Point p = fitted.valueAt(t);
+      ASSERT_TRUE(std::isfinite(p.x()) && std::isfinite(p.y())) << "non-finite at order=" << order << " t=" << t;
+      EXPECT_LE(Utils::dist(polyline, p), fit_tolerance_) << "over-order fit strayed at order=" << order << " t=" << t;
+    }
+  }
+}
+
+TEST_F(ApproxTest, FromPolylineAutoOrderRecoversParsimoniousOrder)
+{
+  // order = 0 must recover a parsimonious order on cleanly representable input, not the cap or 1.
+  for (const auto& cp : {curvePointsAsMatrix(), rootPointsAsMatrix()})
+  {
+    Curve source{cp}; // both fixtures are cubics
+    PointVector polyline = source.polyline();
+    Curve fitted = Curve::fromPolyline(polyline); // order = 0 -> automatic selection
+    EXPECT_GE(fitted.order(), 2u);
+    EXPECT_LE(fitted.order(), source.order() + 1) << "auto-order did not stay parsimonious";
+    for (double t{}; t <= 1.0; t += 0.02)
+      EXPECT_LE(Utils::dist(polyline, fitted.valueAt(t)), fit_tolerance_);
+  }
+}
+
+TEST_F(ApproxTest, FromPolylineDenseInputFixedOrder)
+{
+  // A fixed-order fit on dense input is trimmed to ~3N points internally, so it stays accurate and
+  // keeps the requested order without the optimiser's variable count (and cost) scaling with M.
+  // The suite-wide 60s ctest TIMEOUT is the "does not hang / no O(M^3) blow-up" guard.
+  PointVector dense = curve_.polyline(curve_.boundingBox().diagonal().norm() / 100000);
+  ASSERT_GT(dense.size(), 100u) << "expected a dense polyline (M >> 3N)";
+  Curve fitted = Curve::fromPolyline(dense, 3);
+  EXPECT_EQ(fitted.order(), 3u);
+  for (double t{}; t <= 1.0; t += 0.02)
+    EXPECT_LE(Utils::dist(dense, fitted.valueAt(t)), fit_tolerance_);
+}
+
+TEST_F(ApproxTest, FromPolylineDegenerateInputsStayFinite)
+{
+  // Order exceeding the available points clamps to a valid lower order without throwing.
+  Curve clamped = Curve::fromPolyline(curvePointsAsVector(), 8); // 4 points, order 8 requested
+  EXPECT_LE(clamped.order(), 3u);
+
+  // Duplicate-consecutive and fully-collinear polylines must not produce NaNs (the 1e-12 init floors
+  // on the centripetal log-gaps guard against zero-length segments).
+  PointVector duplicates{{0, 0}, {0, 0}, {50, 50}, {50, 50}, {100, 100}, {100, 100}};
+  PointVector collinear{{0, 0}, {25, 0}, {50, 0}, {75, 0}, {100, 0}};
+  for (const PointVector& poly : {duplicates, collinear})
+  {
+    Curve fitted = Curve::fromPolyline(poly, 3);
+    for (const Point& cp : fitted.controlPoints())
+      EXPECT_TRUE(std::isfinite(cp.x()) && std::isfinite(cp.y()));
   }
 }
 
