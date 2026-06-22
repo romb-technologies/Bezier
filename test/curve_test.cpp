@@ -605,6 +605,32 @@ TEST(CurveLengthTests, DegenerateCurveHasZeroLength)
   EXPECT_NEAR(length, 0.0, Utils::epsilon);
 }
 
+TEST(CurveDegenerateTests, PolylineOnCollapsedCurveTerminates)
+{
+  // All control points coincident: a zero-length chord used to feed NaN into
+  // maxDeviation, so polyline() subdivided forever. The 60s ctest TIMEOUT guards
+  // the regression; here we also check the result is sane and finite.
+  Curve collapsed{PointVector{{10, 10}, {10, 10}, {10, 10}, {10, 10}}};
+
+  PointVector polyline;
+  ASSERT_NO_THROW(polyline = collapsed.polyline());
+  ASSERT_GE(polyline.size(), 2u);
+  for (const Point& v : polyline)
+    EXPECT_NEAR((v - Point{10, 10}).norm(), 0.0, Utils::epsilon);
+
+  // polyline and its parameters still correspond 1:1 and span [0, 1]
+  ParamVector params = collapsed.polylineParams();
+  ASSERT_EQ(params.size(), polyline.size());
+  EXPECT_DOUBLE_EQ(params.front(), 0.0);
+  EXPECT_DOUBLE_EQ(params.back(), 1.0);
+
+  // offsetCurve fits the polyline internally, so it must stay finite too
+  PointVector offset_cps;
+  ASSERT_NO_THROW(offset_cps = Curve::offsetCurve(collapsed, 5.0).controlPoints());
+  for (const Point& cp : offset_cps)
+    EXPECT_TRUE(std::isfinite(cp.x()) && std::isfinite(cp.y()));
+}
+
 TEST(CurveCuspTests, StepReturnsFiniteParameter)
 {
   // Genuine cusp at t = 0.5 (velocity is (300(1-2t)^2, 300(1-2t)))

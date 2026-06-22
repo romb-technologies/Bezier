@@ -92,7 +92,10 @@ inline double dist(const Point& seg_start, const Point& seg_end, const Point& po
 {
   Vector u = seg_end - seg_start;
   Vector v = point - seg_start;
-  double t = std::clamp(u.dot(v) / u.squaredNorm(), 0., 1.);
+  double uu = u.squaredNorm();
+  if (uu == 0.0)
+    return v.norm(); // degenerate (zero-length) segment: distance to the shared point
+  double t = std::clamp(u.dot(v) / uu, 0., 1.);
   return (seg_start + t * u - point).norm();
 }
 

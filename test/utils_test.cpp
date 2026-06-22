@@ -84,10 +84,18 @@ TEST(UtilsTest, DistOverloads)
   EXPECT_DOUBLE_EQ(Utils::dist(Point{0, 0}, Point{10, 0}, Point{-3, 4}), 5.0);
   EXPECT_DOUBLE_EQ(Utils::dist(Point{0, 0}, Point{10, 0}, Point{13, 4}), 5.0);
 
+  // degenerate (zero-length) segment: distance to the shared point, no division by zero
+  EXPECT_DOUBLE_EQ(Utils::dist(Point{2, 2}, Point{2, 2}, Point{5, 6}), 5.0);
+
   // point - polyline: nearest of the segments wins
   PointVector polyline{{0, 0}, {10, 0}, {10, 10}};
   EXPECT_DOUBLE_EQ(Utils::dist(polyline, Point{5, 1}), 1.0);
   EXPECT_DOUBLE_EQ(Utils::dist(polyline, Point{12, 5}), 2.0);
+
+  // a duplicate consecutive vertex must not poison the result (its zero-length
+  // segment used to yield NaN, which std::min silently skipped)
+  PointVector with_dup{{0, 0}, {0, 0}, {10, 0}};
+  EXPECT_DOUBLE_EQ(Utils::dist(with_dup, Point{5, 3}), 3.0);
 }
 
 TEST(UtilsTest, PolylineLength)
