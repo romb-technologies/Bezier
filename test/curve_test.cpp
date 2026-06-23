@@ -121,6 +121,19 @@ TEST_F(BezierTest, CurveNthDerivativeTest)
   }
 }
 
+TEST_F(BezierTest, DerivativesBeyondOrderAreZero)
+{
+  // A cubic's derivatives past order 3 are the zero vector (the documented "infinite -> zero"
+  // contract), not an error. curvatureAt's cusp chase relies on this terminating the chain.
+  ASSERT_EQ(curve_.order(), 3u);
+  for (double t : {0.0, 0.3, 0.7, 1.0})
+  {
+    EXPECT_FALSE(curve_.derivativeAt(3, t).isZero()) << "3rd derivative is a non-zero constant at t=" << t;
+    EXPECT_TRUE(curve_.derivativeAt(4, t).isZero()) << "4th derivative not zero at t=" << t;
+    EXPECT_TRUE(curve_.derivativeAt(8, t).isZero()) << "8th derivative not zero at t=" << t;
+  }
+}
+
 TEST_F(BezierTest, CurveRootsTest)
 {
   std::vector<double> curve_roots = curve_roots_.roots();
@@ -540,6 +553,34 @@ TEST_F(BezierTest, CurveApplyContinuityG1Test)
   Vector der_actual = continued.derivativeAt(0.0);
   EXPECT_NEAR(der_actual.x(), der_expected.x(), 1e-6);
   EXPECT_NEAR(der_actual.y(), der_expected.y(), 1e-6);
+}
+
+TEST_F(BezierTest, CurveApplyContinuityC2Test)
+{
+  // C2 (beta = {1, 0}): position, first and second derivatives all match the locked curve's end
+  Curve continued{curve_roots_};
+  continued.applyContinuity(curve_, {1.0, 0.0});
+
+  EXPECT_TRUE(continued.valueAt(0.0).isApprox(curve_.valueAt(1.0), 1e-8));
+  EXPECT_TRUE(continued.derivativeAt(0.0).isApprox(curve_.derivativeAt(1.0), 1e-6));
+  EXPECT_TRUE(continued.derivativeAt(2, 0.0).isApprox(curve_.derivativeAt(2, 1.0), 1e-6));
+}
+
+TEST_F(BezierTest, CurveApplyContinuityG2Test)
+{
+  // G2 geometric-continuity equations for beta = {b1, b2}:
+  //   C'(0)  = b1 * C'(1)
+  //   C''(0) = b1^2 * C''(1) + b2 * C'(1)
+  constexpr double b1 = 1.5, b2 = 2.0;
+  Curve continued{curve_roots_};
+  continued.applyContinuity(curve_, {b1, b2});
+
+  Vector d1 = curve_.derivativeAt(1.0);
+  Vector d2 = curve_.derivativeAt(2, 1.0);
+
+  EXPECT_TRUE(continued.valueAt(0.0).isApprox(curve_.valueAt(1.0), 1e-8));
+  EXPECT_TRUE(continued.derivativeAt(0.0).isApprox(b1 * d1, 1e-6));
+  EXPECT_TRUE(continued.derivativeAt(2, 0.0).isApprox(b1 * b1 * d2 + b2 * d1, 1e-6));
 }
 
 TEST_F(BezierTest, CurveCopySemanticsTest)

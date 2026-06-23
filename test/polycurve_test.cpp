@@ -233,6 +233,24 @@ TEST_F(PolyCurveTest, ProjectPointAndDistanceConsistency)
   EXPECT_NEAR(poly_.distance(poly_.valueAt(1.7)), 0.0, 1e-6);
 }
 
+TEST_F(PolyCurveTest, BatchProjectPointAndDistance)
+{
+  // The vector overloads must agree element-wise with the scalar ones
+  PointVector probes;
+  for (unsigned k = 0; k < poly_.size(); k++)
+    probes.push_back(poly_.valueAt(k + 0.5) + Vector{3, -4});
+
+  ParamVector t_batch = poly_.projectPoint(probes);
+  std::vector<double> d_batch = poly_.distance(probes);
+  ASSERT_EQ(t_batch.size(), probes.size());
+  ASSERT_EQ(d_batch.size(), probes.size());
+  for (size_t i = 0; i < probes.size(); i++)
+  {
+    EXPECT_DOUBLE_EQ(t_batch[i], poly_.projectPoint(probes[i]));
+    EXPECT_DOUBLE_EQ(d_batch[i], poly_.distance(probes[i]));
+  }
+}
+
 TEST_F(PolyCurveTest, IntersectionsWithCurveAndPolyCurve)
 {
   // A vertical cubic "line" crossing the middle subcurve once

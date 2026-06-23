@@ -293,7 +293,7 @@ double Curve::curvatureAt(double t) const
     return bu::cross(d1, d2) / bu::pow(d1n, 3); // regular point (a straight curve gives 0)
 
   // Cusp: curvature is unbounded -> signed infinity (radius of curvature -> 0)
-  // Stationary: curvature is zero (radis of curvature -> inf)
+  // Stationary: curvature is zero (radius of curvature -> inf)
   for (unsigned a{2}; a <= order(); a++)
     if (Vector da = derivativeAt(a, t); da.squaredNorm() > bu::epsilon)
     {
