@@ -35,7 +35,7 @@ template <class Func, class... Args> struct lazyFunctor
   template <class Out> operator Out() { return std::apply(fun_, args_); }
 };
 
-inline Eigen::MatrixXd bernstein(unsigned n)
+inline const Eigen::MatrixXd& bernstein(unsigned n)
 {
   static std::unordered_map<unsigned, Eigen::MatrixXd> cache;
   static std::mutex cache_mutex;
@@ -59,49 +59,46 @@ inline Eigen::MatrixXd bernstein(unsigned n)
   return cache.try_emplace(n, lazyFunctor(fun)).first->second;
 }
 
-inline Eigen::MatrixXd leftSplit(unsigned n, double t = 0.5)
+inline Eigen::MatrixXd leftSplit(unsigned n, double t)
 {
-  static std::unordered_map<unsigned, Eigen::MatrixXd> cache;
-  static std::mutex cache_mutex;
-
-  auto fun = [n](double t) -> Eigen::MatrixXd {
-    Eigen::RowVectorXd tp = Utils::powVector(t, n);     // [t^0 .. t^{n-1}]
-    Eigen::RowVectorXd ct = Utils::powVector(1 - t, n); // [(1-t)^0 .. (1-t)^{n-1}]
-    Eigen::MatrixXd L = Eigen::MatrixXd::Zero(n, n);
-    for (unsigned k = 0; k < n; ++k)
+  Eigen::RowVectorXd tp = Utils::powVector(t, n);     // [t^0 .. t^{n-1}]
+  Eigen::RowVectorXd ct = Utils::powVector(1 - t, n); // [(1-t)^0 .. (1-t)^{n-1}]
+  Eigen::MatrixXd L = Eigen::MatrixXd::Zero(n, n);
+  for (unsigned k = 0; k < n; ++k)
+  {
+    double c = 1.0; // C(k,0)
+    for (unsigned i = 0; i <= k; ++i)
     {
-      double c = 1.0; // C(k,0)
-      for (unsigned i = 0; i <= k; ++i)
-      {
-        L(k, i) = c * tp(i) * ct(k - i);
-        c = c * (k - i) / (i + 1); // C(k,i+1)
-      }
+      L(k, i) = c * tp(i) * ct(k - i);
+      c = c * (k - i) / (i + 1); // C(k,i+1)
     }
-    return L;
-  };
-
-  if (t != 0.5)
-    return fun(t);
-
-  std::lock_guard<std::mutex> lock(cache_mutex);
-  return cache.try_emplace(n, lazyFunctor(fun, 0.5)).first->second;
+  }
+  return L;
 }
 
-inline Eigen::MatrixXd rightSplit(unsigned n, double t = 0.5)
+inline const Eigen::MatrixXd& leftSplit(unsigned n)
 {
   static std::unordered_map<unsigned, Eigen::MatrixXd> cache;
   static std::mutex cache_mutex;
 
-  auto fun = [n](double t) -> Eigen::MatrixXd { return leftSplit(n, 1.0 - t).reverse(); };
-
-  if (t != 0.5)
-    return fun(t);
-
   std::lock_guard<std::mutex> lock(cache_mutex);
-  return cache.try_emplace(n, lazyFunctor(fun, 0.5)).first->second;
+  auto fun = [n]() -> Eigen::MatrixXd { return leftSplit(n, 0.5); };
+  return cache.try_emplace(n, lazyFunctor(fun)).first->second;
 }
 
-inline Eigen::MatrixXd raiseOrder(unsigned n)
+inline Eigen::MatrixXd rightSplit(unsigned n, double t) { return leftSplit(n, 1.0 - t).reverse(); }
+
+inline const Eigen::MatrixXd& rightSplit(unsigned n)
+{
+  static std::unordered_map<unsigned, Eigen::MatrixXd> cache;
+  static std::mutex cache_mutex;
+
+  std::lock_guard<std::mutex> lock(cache_mutex);
+  auto fun = [n]() -> Eigen::MatrixXd { return leftSplit(n).reverse(); };
+  return cache.try_emplace(n, lazyFunctor(fun)).first->second;
+}
+
+inline const Eigen::MatrixXd& raiseOrder(unsigned n)
 {
   static std::unordered_map<unsigned, Eigen::MatrixXd> cache;
   static std::mutex cache_mutex;
@@ -115,7 +112,7 @@ inline Eigen::MatrixXd raiseOrder(unsigned n)
   return cache.try_emplace(n, lazyFunctor(fun)).first->second;
 }
 
-inline Eigen::MatrixXd lowerOrder(unsigned n)
+inline const Eigen::MatrixXd& lowerOrder(unsigned n)
 {
   static std::unordered_map<unsigned, Eigen::MatrixXd> cache;
   static std::mutex cache_mutex;
