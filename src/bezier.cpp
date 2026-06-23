@@ -290,8 +290,18 @@ double Curve::curvatureAt(double t) const
 {
   Vector d1 = derivativeAt(t);
   Vector d2 = derivativeAt(2, t);
+  if (double d1n = d1.norm(); d1n >= bu::epsilon)
+    return bu::cross(d1, d2) / bu::pow(d1n, 3); // regular point (a straight curve gives 0)
 
-  return bu::cross(d1, d2) / bu::pow(d1.norm(), 3);
+  // Cusp: curvature is unbounded -> signed infinity (radius of curvature -> 0)
+  // Stationary: curvature is zero (radis of curvature -> inf)
+  for (unsigned a{2}; a <= order(); a++)
+    if (Vector da = derivativeAt(a, t); da.squaredNorm() > bu::epsilon)
+    {
+      double turn = bu::cross(da, derivativeAt(a + 1, t));
+      return std::fabs(turn) > bu::epsilon ? std::copysign(std::numeric_limits<double>::infinity(), turn) : 0.0;
+    }
+  return 0.0;
 }
 
 double Curve::curvatureDerivativeAt(double t) const
@@ -299,15 +309,17 @@ double Curve::curvatureDerivativeAt(double t) const
   Vector d1 = derivativeAt(t);
   Vector d2 = derivativeAt(2, t);
   Vector d3 = derivativeAt(3, t);
-
-  return (d1.squaredNorm() * bu::cross(d1, d3) - 3 * d1.dot(d2) * bu::cross(d1, d2)) / bu::pow(d1.norm(), 5);
+  double d1n = d1.norm();
+  return d1n < bu::epsilon
+             ? 0.0
+             : (d1.squaredNorm() * bu::cross(d1, d3) - 3 * d1.dot(d2) * bu::cross(d1, d2)) / bu::pow(d1n, 5);
 }
 
 Vector Curve::tangentAt(double t) const
 {
   // tangent direction is the first non-vanishing derivative (zero only if the curve is a point)
   for (unsigned k{1}; k <= order(); k++)
-    if (Vector d = derivativeAt(k, t); d.squaredNorm() > bu::epsilon * bu::epsilon)
+    if (Vector d = derivativeAt(k, t); d.squaredNorm() > bu::epsilon)
       return d.normalized();
   return Vector(0, 0);
 }

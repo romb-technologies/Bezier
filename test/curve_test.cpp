@@ -651,6 +651,27 @@ TEST(CurveCuspTests, NormalIsFiniteUnitVector)
   EXPECT_NEAR(normal.norm(), 1.0, Utils::epsilon);
 }
 
+TEST(CurveCuspTests, CurvatureAtCusp)
+{
+  // At a genuine cusp curvature is unbounded: curvatureAt returns the signed-infinity limit
+  // (radius of curvature -> 0), never NaN. curvatureDerivativeAt has no two-sided limit
+  // there, so it stays a finite 0 by convention.
+  Curve cusped{PointVector{{0, 0}, {100, 100}, {0, 100}, {100, 0}}};
+  double k = cusped.curvatureAt(0.5);
+  EXPECT_TRUE(std::isinf(k));
+  EXPECT_GT(k, 0.0) << "two-sided limit is +inf for this cusp";
+  EXPECT_NEAR(cusped.curvatureDerivativeAt(0.5), 0.0, Utils::epsilon);
+
+  // A straight cubic is flat: finite zero via the regular branch
+  Curve line{PointVector{{0, 0}, {1, 1}, {2, 2}, {3, 3}}};
+  EXPECT_NEAR(line.curvatureAt(0.5), 0.0, Utils::epsilon);
+  EXPECT_NEAR(line.curvatureDerivativeAt(0.5), 0.0, Utils::epsilon);
+
+  // A collapsed (point) curve does not turn: finite zero, not infinity
+  Curve collapsed{PointVector{{5, 5}, {5, 5}, {5, 5}, {5, 5}}};
+  EXPECT_NEAR(collapsed.curvatureAt(0.5), 0.0, Utils::epsilon);
+}
+
 TEST(CurveThreadSafetyTest, ConcurrentConstAccess)
 {
   // Many threads lazily fill the same const curve's cache; meaningful failures
