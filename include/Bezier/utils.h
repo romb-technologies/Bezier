@@ -135,6 +135,9 @@ inline double polylineLength(const PointVector& polyline)
 /// Find solutions to polynomial equation (limited to [0, 1])
 std::vector<double> solvePolynomial(const Eigen::VectorXd& polynomial);
 
+/// Fit a Bezier curve of the given order to points (variable-projection least squares)
+Curve fitBezier(const PointVector& points, unsigned order);
+
 } // namespace Utils
 } // namespace Bezier
 
