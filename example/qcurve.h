@@ -27,7 +27,6 @@ public:
   void setDraw_curvature_radious(bool value);
   bool getDraw_control_points() const;
   bool getDraw_curvature_radious() const;
-  std::shared_ptr<Bezier::Curve> getSharedPtr();
   bool getLocked() const;
   void setLocked(bool value);
 };
