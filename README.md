@@ -7,6 +7,8 @@
 
 Fast and lightweight C++ library for Bezier curves of any order.
 
+![demo](example/demo.gif)
+
 ## Features
 
 - Curves of any order (any number of control points)
