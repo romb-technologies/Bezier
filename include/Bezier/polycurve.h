@@ -268,7 +268,8 @@ public:
    * \param curve Curve to intersect with
    * \return A vector of points of intersection between curves
    */
-  template <typename Curve_PolyCurve> PointVector intersections(const Curve_PolyCurve& curve) const;
+  PointVector intersections(const Curve& curve) const;
+  PointVector intersections(const PolyCurve& poly_curve) const;
 
   /*!
    * \brief Get the parameter t where polycurve is closest to given point
@@ -302,10 +303,6 @@ protected:
   /// Structure for holding underlying Bezier curves
   std::deque<Curve> curves_;
 };
-
-// Declared here (defined in polycurve.cpp) so cross-TU use isn't ill-formed (IFNDR)
-template <> PointVector PolyCurve::intersections<Curve>(const Curve& curve) const;
-template <> PointVector PolyCurve::intersections<PolyCurve>(const PolyCurve& poly_curve) const;
 
 } // namespace Bezier
 #endif // POLYCURVE_H

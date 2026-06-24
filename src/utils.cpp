@@ -2,6 +2,7 @@
 #include "Bezier/coefficients.h"
 #include "Bezier/utils.h"
 
+#include <algorithm>
 #include <limits>
 #include <numeric>
 
@@ -61,20 +62,6 @@ std::vector<unsigned> Bezier::Utils::visvalingamWyatt(const PointVector& polylin
   return by_contribution;
 }
 
-PointVector Bezier::Utils::polylineSimplified(const PointVector& polyline, unsigned int N)
-{
-  if (polyline.size() < N)
-    return polyline;
-  if (N == 2)
-    return std::vector{polyline.front(), polyline.back()};
-
-  std::vector<Point> simplified(N);
-  auto vw = visvalingamWyatt(polyline);
-  std::sort(vw.begin(), vw.begin() + N);
-  std::transform(vw.begin(), vw.begin() + N, simplified.begin(), [&polyline](unsigned k) { return polyline[k]; });
-  return simplified;
-}
-
 std::vector<double> Bezier::Utils::solvePolynomial(const Eigen::VectorXd& polynomial)
 {
   // Trim trailing zero coefficients from the polynomial
@@ -84,16 +71,9 @@ std::vector<double> Bezier::Utils::solvePolynomial(const Eigen::VectorXd& polyno
   if (idx < 2) // Polynomial is a constant
     return {};
 
-  struct PolynomialRoots : public std::vector<double>
-  {
-    PolynomialRoots(unsigned size) : std::vector<double>() { reserve(size); }
-    void push_back(double t) // only allow valid roots
-    {
-      if (t >= 0 && t <= 1)
-        std::vector<double>::push_back(t);
-    }
-  } roots(idx);
+  std::vector<double> roots;
   Eigen::PolynomialSolver<double, Eigen::Dynamic>(polynomial.head(idx)).realRoots(roots);
+  roots.erase(std::remove_if(roots.begin(), roots.end(), [](double t) { return t < 0 || t > 1; }), roots.end());
   return roots;
 }
 

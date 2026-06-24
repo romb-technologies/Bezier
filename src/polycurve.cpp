@@ -232,7 +232,7 @@ BoundingBox PolyCurve::boundingBox() const
   return bbox;
 }
 
-template <> PointVector PolyCurve::intersections<Curve>(const Curve& curve) const
+PointVector PolyCurve::intersections(const Curve& curve) const
 {
   PointVector points;
   for (const auto& curve2 : curves_)
@@ -240,7 +240,7 @@ template <> PointVector PolyCurve::intersections<Curve>(const Curve& curve) cons
   return points;
 }
 
-template <> PointVector PolyCurve::intersections<PolyCurve>(const PolyCurve& poly_curve) const
+PointVector PolyCurve::intersections(const PolyCurve& poly_curve) const
 {
   PointVector points;
   for (const auto& curve : curves_)

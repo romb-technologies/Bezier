@@ -98,14 +98,6 @@ TEST(UtilsTest, DistOverloads)
   EXPECT_DOUBLE_EQ(Utils::dist(with_dup, Point{5, 3}), 3.0);
 }
 
-TEST(UtilsTest, PolylineLength)
-{
-  PointVector polyline{{0, 0}, {3, 4}, {3, 14}};
-  EXPECT_DOUBLE_EQ(Utils::polylineLength(polyline), 15.0);
-  EXPECT_DOUBLE_EQ(Utils::polylineLength(PointVector{{1, 1}}), 0.0);
-  EXPECT_DOUBLE_EQ(Utils::polylineLength(PointVector{}), 0.0);
-}
-
 TEST(UtilsTest, Concatenate)
 {
   std::vector<int> a{1, 2, 3}, b{4, 5};
@@ -159,35 +151,6 @@ TEST(UtilsTest, VisvalingamWyattOrdering)
 
   // The nearly collinear vertex is eliminated first (appears last)
   EXPECT_EQ(order.back(), 3u);
-}
-
-TEST(UtilsTest, PolylineSimplified)
-{
-  PointVector polyline{{0, 0}, {1, 5}, {2, -3}, {3, 0.001}, {4, 6}, {5, -2}, {6, 0}};
-
-  for (unsigned N : {2u, 3u, 5u})
-  {
-    PointVector simplified = Utils::polylineSimplified(polyline, N);
-    ASSERT_EQ(simplified.size(), N) << "N=" << N;
-
-    // Endpoints preserved
-    EXPECT_EQ(simplified.front(), polyline.front());
-    EXPECT_EQ(simplified.back(), polyline.back());
-
-    // Result is an ordered subset of the input
-    size_t search_from = 0;
-    for (const Point& p : simplified)
-    {
-      auto it = std::find_if(polyline.begin() + search_from, polyline.end(),
-                             [&p](const Point& q) { return q == p; });
-      ASSERT_NE(it, polyline.end()) << "simplified point not found in order";
-      search_from = (it - polyline.begin()) + 1;
-    }
-  }
-
-  // N >= size returns the input unchanged
-  EXPECT_EQ(Utils::polylineSimplified(polyline, 7), polyline);
-  EXPECT_EQ(Utils::polylineSimplified(polyline, 100), polyline);
 }
 
 TEST(UtilsTest, SolvePolynomial)

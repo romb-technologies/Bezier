@@ -1,6 +1,7 @@
 #include "test_data.hpp"
 #include "test_oracles.hpp"
 
+#include <algorithm>
 #include <cmath>
 
 #include <gtest/gtest.h>
@@ -46,7 +47,14 @@ TEST_F(ApproxTest, FromPolylineFitsSourcePolyline)
 TEST_F(ApproxTest, FromPolylineEdgeCases)
 {
   // order = 0 -> automatic order selection returns a usable curve.
-  PointVector short_polyline = Utils::polylineSimplified(curve_.polyline(), 6);
+  // 6 most shape-significant points of the curve's polyline (short enough not to hit the auto-order cap).
+  PointVector dense = curve_.polyline();
+  std::vector<unsigned> vw = Utils::visvalingamWyatt(dense);
+  std::vector<unsigned> idx(vw.begin(), vw.begin() + 6);
+  std::sort(idx.begin(), idx.end());
+  PointVector short_polyline;
+  for (unsigned i : idx)
+    short_polyline.push_back(dense[i]);
   Curve automatic = Curve::fromPolyline(short_polyline);
   EXPECT_GE(automatic.order(), 1u);
   for (double t{}; t <= 1.0; t += 0.1)
