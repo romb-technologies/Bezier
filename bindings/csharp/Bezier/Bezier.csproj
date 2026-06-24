@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
+    <AssemblyName>Bezier</AssemblyName>
+    <RootNamespace>Bezier</RootNamespace>
+  </PropertyGroup>
+
+  <!-- Native shim (build it via the cmake step in README); copied next to the
+       managed assembly so DllImport("bezier_c") resolves at runtime. -->
+  <ItemGroup>
+    <Content Include="../native/build/libbezier_c.so" Condition="Exists('../native/build/libbezier_c.so')">
+      <Link>libbezier_c.so</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+</Project>

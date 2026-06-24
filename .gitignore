@@ -3,3 +3,7 @@ latex/
 build*/
 *.user
 .cache/
+
+# .NET build output (bindings/csharp)
+bin/
+obj/
