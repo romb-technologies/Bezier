@@ -27,21 +27,24 @@ namespace Bezier
 namespace Coefficients
 {
 
-template <class Func, class... Args> struct lazyFunctor
+template <class Func> struct lazyFunctor
 {
   Func& fun_;
-  std::tuple<Args...> args_;
-  lazyFunctor(Func& fun, Args... args) : fun_(fun), args_(std::make_tuple(args...)) {}
-  template <class Out> operator Out() { return std::apply(fun_, args_); }
+  template <class Out> operator Out() { return fun_(); }
 };
 
-inline const Eigen::MatrixXd& bernstein(unsigned n)
+template <class Compute> inline const Eigen::MatrixXd& memoize(unsigned n, Compute compute)
 {
   static std::unordered_map<unsigned, Eigen::MatrixXd> cache;
   static std::mutex cache_mutex;
 
   std::lock_guard<std::mutex> lock(cache_mutex);
-  auto fun = [n]() -> Eigen::MatrixXd {
+  return cache.try_emplace(n, lazyFunctor<Compute>{compute}).first->second;
+}
+
+inline const Eigen::MatrixXd& bernstein(unsigned n)
+{
+  return memoize(n, [n] {
     Eigen::MatrixXd coeffs = Eigen::MatrixXd::Zero(n, n);
     double rn = 1.0; // C(n-1, k) row factor
     for (unsigned k = 0; k < n; ++k)
@@ -55,8 +58,7 @@ inline const Eigen::MatrixXd& bernstein(unsigned n)
       rn = rn * (n - 1 - k) / (k + 1); // C(n-1, k+1)
     }
     return coeffs;
-  };
-  return cache.try_emplace(n, lazyFunctor(fun)).first->second;
+  });
 }
 
 inline Eigen::MatrixXd leftSplit(unsigned n, double t)
@@ -78,48 +80,28 @@ inline Eigen::MatrixXd leftSplit(unsigned n, double t)
 
 inline const Eigen::MatrixXd& leftSplit(unsigned n)
 {
-  static std::unordered_map<unsigned, Eigen::MatrixXd> cache;
-  static std::mutex cache_mutex;
-
-  std::lock_guard<std::mutex> lock(cache_mutex);
-  auto fun = [n]() -> Eigen::MatrixXd { return leftSplit(n, 0.5); };
-  return cache.try_emplace(n, lazyFunctor(fun)).first->second;
+  return memoize(n, [n] { return leftSplit(n, 0.5); });
 }
 
 inline Eigen::MatrixXd rightSplit(unsigned n, double t) { return leftSplit(n, 1.0 - t).reverse(); }
 
 inline const Eigen::MatrixXd& rightSplit(unsigned n)
 {
-  static std::unordered_map<unsigned, Eigen::MatrixXd> cache;
-  static std::mutex cache_mutex;
-
-  std::lock_guard<std::mutex> lock(cache_mutex);
-  auto fun = [n]() -> Eigen::MatrixXd { return leftSplit(n).reverse(); };
-  return cache.try_emplace(n, lazyFunctor(fun)).first->second;
+  return memoize(n, [n] { return leftSplit(n).reverse().eval(); });
 }
 
 inline const Eigen::MatrixXd& raiseOrder(unsigned n)
 {
-  static std::unordered_map<unsigned, Eigen::MatrixXd> cache;
-  static std::mutex cache_mutex;
-
-  std::lock_guard<std::mutex> lock(cache_mutex);
-  auto fun = [n]() -> Eigen::MatrixXd {
+  return memoize(n, [n] {
     Eigen::MatrixXd coeffs = Eigen::MatrixXd::Zero(n + 1, n);
     coeffs.diagonal(-1) = coeffs.diagonal().setLinSpaced(1, 1. / n).reverse();
     return coeffs;
-  };
-  return cache.try_emplace(n, lazyFunctor(fun)).first->second;
+  });
 }
 
 inline const Eigen::MatrixXd& lowerOrder(unsigned n)
 {
-  static std::unordered_map<unsigned, Eigen::MatrixXd> cache;
-  static std::mutex cache_mutex;
-
-  std::lock_guard<std::mutex> lock(cache_mutex);
-  auto fun = [n]() -> Eigen::MatrixXd { return raiseOrder(n - 1).completeOrthogonalDecomposition().pseudoInverse(); };
-  return cache.try_emplace(n, lazyFunctor(fun)).first->second;
+  return memoize(n, [n] { return raiseOrder(n - 1).completeOrthogonalDecomposition().pseudoInverse().eval(); });
 }
 
 } // namespace Coefficients
