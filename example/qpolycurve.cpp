@@ -58,8 +58,8 @@ void qPolyCurve::paint(QPainter* painter, const QStyleOptionGraphicsItem* option
       painter->setPen(QColor(static_cast<int>(std::fabs(255 * (0.5 - t / size()))),
                              static_cast<int>(255 * t / size()), static_cast<int>(255 * (1 - t / size()))));
       auto p = valueAt(t);
-      auto n1 = p + normalAt(t, false) * curvatureDerivativeAt(t);
-      auto n2 = p - normalAt(t, false) * curvatureDerivativeAt(t);
+      auto n1 = p + normalAt(t) * curvatureDerivativeAt(t);
+      auto n2 = p - normalAt(t) * curvatureDerivativeAt(t);
       painter->drawLine(QLineF(n1.x(), n1.y(), n2.x(), n2.y()));
     }
   }
