@@ -405,10 +405,14 @@ PointVector Curve::intersections(const Curve& curve) const
     cp_pairs.emplace_back(control_points_, curve.control_points_);
   else
   {
-    // If self-similar, split curve into subcurves at extremas and compare each pair of distinct subcurves
-    auto subcurves = splitCurve(extrema());
+    // If self-similar, split curve into subcurves at extremas and compare each pair of non-adjacent subcurves
+    auto t = extrema();
+    std::sort(t.begin(), t.end());
+    t.erase(std::unique(t.begin(), t.end(), [](double a, double b) { return std::abs(a - b) < bu::epsilon; }),
+            t.end()); // collapse repeated extrema (cusps)
+    auto subcurves = splitCurve(t);
     for (unsigned k{}; k < subcurves.size(); k++)
-      for (unsigned i{k + 1}; i < subcurves.size(); i++)
+      for (unsigned i{k + 2}; i < subcurves.size(); i++)
         cp_pairs.emplace_back(subcurves[k].control_points_, subcurves[i].control_points_);
   }
 
@@ -432,9 +436,14 @@ PointVector Curve::intersections(const Curve& curve) const
     double oc = bu::cross(a2 - a1, b1 - a1);
     double od = bu::cross(a2 - a1, b2 - a1);
 
-    // If intersection exists, insert it into solution vector
-    if (oa * ob < 0 && oc * od < 0)
-      intersections.emplace_back((a1 * ob - a2 * oa) / (ob - oa));
+    // If intersection is detected and unique, insert it
+    if (oa * ob <= 0 && oc * od <= 0 && ob != oa)
+    {
+      Point p = (a1 * ob - a2 * oa) / (ob - oa);
+      if (std::none_of(intersections.begin(), intersections.end(),
+                       [&p](const Point& q) { return (p - q).norm() < bu::epsilon; }))
+        intersections.emplace_back(p);
+    }
   };
 
   while (!cp_pairs.empty())

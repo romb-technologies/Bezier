@@ -280,8 +280,8 @@ public:
    * \brief Get the points of intersection with another curve
    * \param curve Curve to intersect with
    * \return A vector of points of intersection between curves
-   * \note Only transversal crossings are reported; contacts that lie exactly at
-   * a shared endpoint or tangential (non-crossing) touches are not returned.
+   * \note Transversal crossings and endpoint/vertex contacts are reported;
+   * tangential (non-crossing) touches are not.
    */
   PointVector intersections(const Curve& curve) const;
 

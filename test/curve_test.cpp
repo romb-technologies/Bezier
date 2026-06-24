@@ -1,6 +1,7 @@
 #include "test_data.hpp"
 #include "test_oracles.hpp"
 
+#include <algorithm>
 #include <cmath>
 #include <future>
 #include <vector>
@@ -222,6 +223,41 @@ TEST_F(BezierTest, CurveIntersectionsTest)
     EXPECT_NEAR(curve_.distance(p), 0.0, 1e-4);
     EXPECT_NEAR(curve_with_intersections.distance(p), 0.0, 1e-4);
   }
+}
+
+TEST_F(BezierTest, CurveSelfIntersectionNoGhostTest)
+{
+  // A looping cubic with one real self-intersection; adjacent subcurves must not be compared.
+  Eigen::MatrixX2d cp(4, 2);
+  cp << 100, 100, 400, 300, 100, 300, 300, 100;
+  Curve curve{cp};
+
+  PointVector self = curve.intersections(curve);
+  ASSERT_EQ(self.size(), 1u) << "Expected exactly one self-intersection (no ghosts at extrema)";
+
+  const Point& p = self.front();
+  EXPECT_NEAR(curve.distance(p), 0.0, 1e-4) << "Reported point is not on the curve";
+
+  // genuine crossing: curve passes through p at two well-separated parameters
+  ParamVector hits;
+  for (int i = 0; i <= 2000; i++)
+  {
+    double t = static_cast<double>(i) / 2000;
+    if ((curve.valueAt(t) - p).norm() < 2.0)
+      hits.push_back(t);
+  }
+  ASSERT_FALSE(hits.empty());
+  EXPECT_GT(hits.back() - hits.front(), 0.1) << "Reported point is a junction artifact, not a real crossing";
+}
+
+TEST_F(BezierTest, CurveCuspNoSelfIntersectionTest)
+{
+  // A cuspidal cubic (x' and y' vanish at t=0.5) does not cross itself.
+  Eigen::MatrixX2d cp(4, 2);
+  cp << 0, 0, 300, 300, 0, 300, 300, 0;
+  Curve curve{cp};
+
+  EXPECT_TRUE(curve.intersections(curve).empty()) << "Cusp must not be reported as a self-intersection";
 }
 
 TEST_F(BezierTest, CurveSplitTest)
@@ -619,13 +655,14 @@ TEST_F(BezierTest, CurveLengthReversedArgsContractTest)
 
 TEST_F(BezierTest, CurveIntersectionsSharedEndpointTest)
 {
-  // Only transversal crossings are reported; a contact exactly at a shared
-  // endpoint is not returned (see Curve::intersections).
+  // A contact exactly at a shared endpoint is reported (see Curve::intersections).
   Point shared = curve_.endPoints().second;
   Curve second{PointVector{shared, {shared.x() + 50, shared.y() + 80}, {shared.x() + 120, shared.y() + 10},
                            {shared.x() + 150, shared.y() + 90}}};
-  for (const Point& p : curve_.intersections(second))
-    EXPECT_GT((p - shared).norm(), Utils::epsilon) << "Endpoint contact should not be reported";
+  PointVector intersections = curve_.intersections(second);
+  EXPECT_TRUE(std::any_of(intersections.begin(), intersections.end(),
+                          [&shared](const Point& p) { return (p - shared).norm() < 1e-6; }))
+      << "Shared endpoint contact should be reported";
 }
 
 TEST_F(BezierTest, CurveApplyContinuityRaisesOrderTest)
