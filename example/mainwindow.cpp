@@ -3,6 +3,7 @@
 
 #include <QFrame>
 #include <QLabel>
+#include <QPushButton>
 #include <QVBoxLayout>
 
 MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent), ui(new Ui::MainWindow), scene(new CustomScene)
@@ -54,7 +55,39 @@ void MainWindow::buildDashboard()
   vbox->addWidget(lbl_length_ = new QLabel);
   vbox->addWidget(lbl_offset_ = new QLabel);
   vbox->addStretch(1);
-  // Buttons (draw mode, control-point mode, help) will be added here.
+
+  btn_draw_ = new QPushButton("Free-hand draw");
+  btn_draw_->setCheckable(true);
+  btn_cp_ = new QPushButton("Control points");
+  btn_cp_->setCheckable(true);
+  auto* btn_help = new QPushButton("Help");
+  vbox->addWidget(btn_draw_);
+  vbox->addWidget(btn_cp_);
+  vbox->addWidget(btn_help);
+
+  connect(btn_draw_, &QPushButton::toggled, this, [this](bool on) {
+    if (on)
+    {
+      btn_cp_->setChecked(false);
+      scene->setMode(CustomScene::Mode::DrawFreehand);
+    }
+    else if (!btn_cp_->isChecked())
+      scene->setMode(CustomScene::Mode::Normal);
+  });
+  connect(btn_cp_, &QPushButton::toggled, this, [this](bool on) {
+    if (on)
+    {
+      btn_draw_->setChecked(false);
+      scene->setMode(CustomScene::Mode::PlaceControlPoints);
+    }
+    else if (!btn_draw_->isChecked())
+      scene->setMode(CustomScene::Mode::Normal);
+  });
+  connect(btn_help, &QPushButton::clicked, this, [this] { scene->showHelp(); });
+  connect(scene, &CustomScene::modeFinished, this, [this] {
+    btn_draw_->setChecked(false);
+    btn_cp_->setChecked(false);
+  });
 
   ui->gridLayout->addWidget(panel, 0, 1);
   ui->gridLayout->setColumnStretch(0, 1);

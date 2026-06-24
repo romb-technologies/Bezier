@@ -7,6 +7,8 @@
 #include "qpolycurve.h"
 #include "qgraphicsviewzoom.h"
 
+class QGraphicsPathItem;
+
 namespace Ui
 {
 class MainWindow;
@@ -20,10 +22,32 @@ inline QTextStream& qStdOut()
 
 class CustomScene : public QGraphicsScene
 {
+  Q_OBJECT
+
 public:
+  enum class Mode
+  {
+    Normal,
+    DrawFreehand,
+    PlaceControlPoints
+  };
+
+  void setMode(Mode mode);
+  void showHelp();
   double offset() const { return offset_; }
 
+signals:
+  void modeFinished();
+
 private:
+  void updatePreview();
+  void finalizeFreehand();
+  void finalizeControlPoints();
+
+  Mode mode_ = Mode::Normal;
+  Bezier::PointVector draw_pts_;
+  QGraphicsPathItem* preview_ = nullptr;
+
   QGraphicsEllipseItem* dot;
   QMap<QGraphicsItem*, QGraphicsLineItem*> line;
   QMap<QGraphicsItem*, QGraphicsLineItem*> tan;

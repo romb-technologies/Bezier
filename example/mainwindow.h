@@ -6,6 +6,7 @@
 #include "customscene.h"
 
 class QLabel;
+class QPushButton;
 
 class MainWindow : public QMainWindow
 {
@@ -28,6 +29,9 @@ private:
   QLabel* lbl_order_;
   QLabel* lbl_length_;
   QLabel* lbl_offset_;
+
+  QPushButton* btn_draw_;
+  QPushButton* btn_cp_;
 };
 
 #endif // MAINWINDOW_H
