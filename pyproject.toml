@@ -1,0 +1,19 @@
+[build-system]
+requires = ["scikit-build-core>=0.10", "nanobind>=2.0"]
+build-backend = "scikit_build_core.build"
+
+[project]
+name = "romb-bezier"  # PyPI name `bezier` is taken upstream; import name stays `bezier`
+version = "0.4.0"
+description = "Python bindings for the Bezier C++ library (romb-technologies)"
+readme = "bindings/python/README.md"
+requires-python = ">=3.8"
+license = { text = "Apache-2.0" }
+dependencies = ["numpy"]
+
+[project.optional-dependencies]
+test = ["pytest"]
+
+[tool.scikit-build]
+cmake.source-dir = "bindings/python"
+minimum-version = "0.10"
