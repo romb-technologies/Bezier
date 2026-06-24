@@ -1,68 +1,113 @@
 # Bezier
+
 ![Build Test](https://github.com/romb-technologies/Bezier/actions/workflows/build.yml/badge.svg?branch=master)
-![v0.3.2](https://img.shields.io/badge/version-0.3.2-blue.svg)
+![Version](https://img.shields.io/badge/version-0.4.0-blue.svg)
+![C++17](https://img.shields.io/badge/C%2B%2B-17-blue.svg)
+![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)
 
-Fast and lightweight class for using the Bezier curves of any order in C++
+Fast and lightweight C++ library for Bezier curves of any order.
 
-*Some algorithm implementations are based on [A Primer on Bezier Curves](https://pomax.github.io/bezierinfo/) by Pomax*
+> Some algorithm implementations are based on [A Primer on Bezier Curves](https://pomax.github.io/bezierinfo/) by Pomax.
 
-## Key Features
-- Any number of control points
+## Features
+
+- Curves of any order (any number of control points)
 - Fast operations on curves
 - Dynamic manipulation
+- Curve fitting, joining and offsetting
 - Composite Bezier curves (polycurves)
 
-CMake *find_package()* compatible!
-```
-find_package(Bezier)
-target_link_libraries(target bezier)
+## Quick start
+
+```cpp
+#include <Bezier/bezier.h>
+
+// A cubic curve from four control points
+Eigen::MatrixX2d control_points(4, 2);
+control_points << 0.0, 0.0,
+                  1.0, 2.0,
+                  3.0, 2.0,
+                  4.0, 0.0;
+Bezier::Curve curve(control_points);
+
+Bezier::Point       p       = curve.valueAt(0.5);    // point at t = 0.5
+Bezier::Vector      tangent = curve.tangentAt(0.5);  // unit tangent
+double              length  = curve.length();        // arc length
+Bezier::BoundingBox bbox    = curve.boundingBox();
+
+curve.raiseOrder();                                  // now quartic, same shape
 ```
 
-## Implemented methods
+## Operations
+
 - Get value, derivative, curvature, tangent and normal for a parameter *t*
 - Point projection onto curve
-- Get curve length, parameter iteration by length
+- Get curve length, step along curve by arc length
 - Get a derivative curve (hodograph)
 - Split into subcurves
 - Find curve roots, extrema and bounding box
 - Find points of intersection
-- Elevate/lower order
+- Raise/lower order
 - Apply parametric and geometric continuities
-- etc.
+- Fit a curve through a polyline
+- Join two curves into a single fitted curve
+- Offset a curve by a given distance
 
-## Wish list
+## Integration
 
-- Polycurve - oversee continuities between consecutive sub-curves
-- Polycurve - propagation of sub-curve manipulation depending on continutiy
-- Bezier shapes
-- More sophisticated example
+The library is `find_package()` compatible:
+
+```cmake
+find_package(Bezier REQUIRED)
+target_link_libraries(my_target PRIVATE bezier)
+```
+
+## Installation
+
+```sh
+git clone https://github.com/romb-technologies/Bezier
+cd Bezier
+cmake -B build
+cmake --build build
+cmake --install build
+```
+
+Build options (default `OFF`):
+
+| Option | Description |
+| --- | --- |
+| `BUILD_SHARED_LIBS` | Build a shared library instead of a static one |
+| `BUILD_TESTING` | Build the unit tests |
+| `BUILD_EXAMPLE` | Build the Qt5 example application |
+
+### ROS
+
+For use within a ROS workspace without the system-wide installation, clone the repo into the `src` folder of your catkin workspace.
+
+## Example application
+
+A small Qt5 based program written as a playground for manipulating Bezier curves.
+Build it with `-DBUILD_EXAMPLE=ON` and run `build/example/bezier_example`.
+
+A side panel shows live data (curve counts, selected curve order and length, offset)
+and provides drawing tools:
+
+- **Free-hand draw** — sketch a stroke that is fitted to a curve
+- **Control points** — place control points one by one to build a curve
+- **Help** — list of all mouse and keyboard actions (also shown by pressing <kbd>H</kbd>)
+
+Curves can be selected, reshaped via their control points, split, joined, offset,
+have their order raised/lowered, and inspected (bounding box, intersections,
+extrema, curvature). See the help dialog for the full list of shortcuts.
 
 ## Dependencies
-- Eigen3.3
 
-## Instalation
-### System-wide installation
-```
-git clone https://github.com/romb-technologies/Bezier
-mkdir Bezier/build
-cd Bezier/build
-cmake ..
-make
-make install
-```
-### ROS
-- for use within a ROS workspace without the system-wide installation, clone the repo to src folder in you catkin workspace 
+- [Eigen](https://eigen.tuxfamily.org) 3.3+
+- Qt5 (Core, Gui, Widgets) — only for the example application
 
-## Example program
-A small Qt5 based program written as a playground for manipulating Bezier curves.
-- press *__H__* for a list of possible actions
-- *outdated* - newer features are not used in the example application
+## License
 
-### Additional dependencies
-- qt5-default 
-
-## Licence
-Apache License Version 2.0
+[Apache License 2.0](LICENSE)
 
 ## Credit
 
