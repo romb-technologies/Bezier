@@ -20,6 +20,9 @@ inline QTextStream& qStdOut()
 
 class CustomScene : public QGraphicsScene
 {
+public:
+  double offset() const { return offset_; }
+
 private:
   QGraphicsEllipseItem* dot;
   QMap<QGraphicsItem*, QGraphicsLineItem*> line;
