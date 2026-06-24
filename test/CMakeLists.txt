@@ -8,7 +8,7 @@ add_executable(unit_tests
   coefficients_test.cpp
   approx_test.cpp
 )
-target_link_libraries(unit_tests PRIVATE bezier GTest::gtest GTest::gtest_main)
+target_link_libraries(unit_tests PRIVATE Bezier::Bezier GTest::gtest GTest::gtest_main)
 
 # Per-test ctest registration; TIMEOUT turns infinite-loop bugs into failures
 gtest_discover_tests(unit_tests PROPERTIES TIMEOUT 60)

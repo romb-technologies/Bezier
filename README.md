@@ -7,8 +7,6 @@
 
 Fast and lightweight C++ library for Bezier curves of any order.
 
-> Some algorithm implementations are based on [A Primer on Bezier Curves](https://pomax.github.io/bezierinfo/) by Pomax.
-
 ## Features
 
 - Curves of any order (any number of control points)
@@ -59,7 +57,7 @@ The library is `find_package()` compatible:
 
 ```cmake
 find_package(Bezier REQUIRED)
-target_link_libraries(my_target PRIVATE bezier)
+target_link_libraries(my_target PRIVATE Bezier::Bezier)
 ```
 
 ## Installation
@@ -80,9 +78,13 @@ Build options (default `OFF`):
 | `BUILD_TESTING` | Build the unit tests |
 | `BUILD_EXAMPLE` | Build the Qt5 example application |
 
-### ROS
+### ROS 2
 
-For use within a ROS workspace without the system-wide installation, clone the repo into the `src` folder of your catkin workspace.
+The package is a plain CMake package (`build_type: cmake`) that builds with colcon — no system-wide installation needed. Clone it into the `src` folder of your colcon workspace and build:
+
+```sh
+colcon build --packages-select bezier
+```
 
 ## Example application
 
@@ -110,5 +112,7 @@ extrema, curvature). See the help dialog for the full list of shortcuts.
 [Apache License 2.0](LICENSE)
 
 ## Credit
+
+Some algorithm implementations are based on [A Primer on Bezier Curves](https://pomax.github.io/bezierinfo/) by Pomax.
 
 The development of this software was in part supported by the European Cohesion Fund, through grant number KK.03.2.2.04.314 "Software modules for advanced autonomous motion of load-transportation vehicles (Soft4AGV)" of the "Innovations of newly established SMEs - phase 2" open call.

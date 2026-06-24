@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.12.4)
-project(bezier
+project(Bezier
   LANGUAGES CXX
   VERSION 0.4.0)
 
@@ -27,32 +27,32 @@ option(BUILD_EXAMPLE "Build the Qt example application." OFF)
 # build rules
 
 if(BUILD_SHARED_LIBS)
-  add_library(bezier SHARED ${Bezier_SRC})
+  add_library(Bezier SHARED ${Bezier_SRC})
 else()
-  add_library(bezier STATIC ${Bezier_SRC})
+  add_library(Bezier STATIC ${Bezier_SRC})
 endif()
 
-target_include_directories(bezier PUBLIC
+target_include_directories(Bezier PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>
 )
-target_link_libraries(bezier PUBLIC Eigen3::Eigen)
+target_link_libraries(Bezier PUBLIC Eigen3::Eigen)
 
-set_target_properties(bezier PROPERTIES
+set_target_properties(Bezier PROPERTIES
   VERSION ${PROJECT_VERSION}
   CXX_EXTENSIONS OFF
   POSITION_INDEPENDENT_CODE ON
   PUBLIC_HEADER "${Bezier_INC}"
 )
-target_compile_features(bezier PUBLIC cxx_std_17)
+target_compile_features(Bezier PUBLIC cxx_std_17)
 
 # install rules
-install(TARGETS bezier
-  EXPORT bezier-export DESTINATION "lib"
+install(TARGETS Bezier
+  EXPORT Bezier-export DESTINATION "lib"
   PUBLIC_HEADER DESTINATION "include/Bezier")
-install(EXPORT bezier-export DESTINATION "lib/cmake/Bezier" FILE BezierConfig.cmake)
+install(EXPORT Bezier-export NAMESPACE Bezier:: DESTINATION "lib/cmake/Bezier" FILE BezierConfig.cmake)
 
-add_library(bezier::bezier ALIAS bezier)
+add_library(Bezier::Bezier ALIAS Bezier)
 
 # Tests subdirectory
 if(BUILD_TESTING)

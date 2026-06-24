@@ -14,7 +14,7 @@ add_executable(bezier_example
 )
 
 target_link_libraries(bezier_example PRIVATE
-  bezier::bezier
+  Bezier::Bezier
   Qt5::Core
   Qt5::Gui
   Qt5::Widgets
