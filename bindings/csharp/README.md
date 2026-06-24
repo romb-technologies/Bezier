@@ -1,16 +1,16 @@
 # Bezier — C# bindings
 
 C# bindings for the [Bezier](../../README.md) C++ library, via a thin C ABI shim
-(`native/`) called from idiomatic C# wrappers over P/Invoke. Targets .NET 8, linux-x64.
+(shared `../c-abi/`) called from idiomatic C# wrappers over P/Invoke. Targets .NET 8, linux-x64.
 
 ## Build
 
 Needs a C++17 compiler, CMake, Eigen3, and the .NET 8 SDK (`dotnet-sdk-8.0`).
 
 ```bash
-# 1. build the native shim -> libbezier_c.so
-cmake -S bindings/csharp/native -B bindings/csharp/native/build
-cmake --build bindings/csharp/native/build
+# 1. build the shared C-ABI shim -> libbezier_c.so
+cmake -S bindings/c-abi -B bindings/c-abi/build
+cmake --build bindings/c-abi/build
 
 # 2. build / test the managed library (copies the .so next to the assembly)
 dotnet test bindings/csharp/Bezier.sln

@@ -1,0 +1,25 @@
+{
+  "name": "@romb/bezier",
+  "version": "0.4.0",
+  "description": "WebAssembly bindings for the Bezier C++ library (romb-technologies)",
+  "license": "Apache-2.0",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "test": "node --test \"test/*.test.mjs\""
+  },
+  "devDependencies": {
+    "typescript": "^5.5.0"
+  }
+}

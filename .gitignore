@@ -7,3 +7,8 @@ build*/
 # .NET build output (bindings/csharp)
 bin/
 obj/
+
+# Node / WASM build output (bindings/wasm)
+node_modules/
+dist/
+package-lock.json
