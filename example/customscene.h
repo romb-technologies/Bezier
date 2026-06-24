@@ -27,6 +27,7 @@ private:
   QMap<QGraphicsItem*, QGraphicsEllipseItem*> byLength;
   bool draw_box_ = false;
   bool draw_inter_ = false;
+  bool draw_extrema_ = false;
   bool show_projection = false;
   bool update_cp = false;
   std::pair<QGraphicsItem*, uint> cp_to_update;
