@@ -68,5 +68,9 @@ void qPolyCurve::paint(QPainter* painter, const QStyleOptionGraphicsItem* option
 QRectF qPolyCurve::boundingRect() const
 {
   auto bbox = boundingBox();
-  return QRectF(QPointF(bbox.min().x(), bbox.min().y()), QPointF(bbox.max().x(), bbox.max().y()));
+  QRectF rect(QPointF(bbox.min().x(), bbox.min().y()), QPointF(bbox.max().x(), bbox.max().y()));
+  if (draw_control_points)
+    for (const auto& cp : controlPoints())
+      rect |= QRectF(cp.x() - 3, cp.y() - 3, 6, 6);
+  return rect;
 }

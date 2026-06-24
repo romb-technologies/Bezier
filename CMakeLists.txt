@@ -3,6 +3,11 @@ project(bezier
   LANGUAGES CXX
   VERSION 0.3.2)
 
+# Default to an optimized build unless the user (or a multi-config generator) sets it
+if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+  set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type" FORCE)
+endif()
+
 find_package(Eigen3 REQUIRED)
 
 set(Bezier_SRC
