@@ -71,6 +71,19 @@ void CustomScene::drawForeground(QPainter* painter, const QRectF& rect)
       painter->drawPath(path);
     }
   }
+
+  if (draw_extrema_)
+  {
+    painter->setPen(Qt::magenta);
+    painter->setBrush(QBrush(Qt::magenta, Qt::SolidPattern));
+    for (auto&& curve : items())
+      if (is_curve)
+        for (double t : c_curve->extrema())
+        {
+          auto e = c_curve->valueAt(t);
+          painter->drawEllipse(QPointF(e.x(), e.y()), 4, 4);
+        }
+  }
 }
 
 void CustomScene::mousePressEvent(QGraphicsSceneMouseEvent* mouseEvent)
@@ -284,6 +297,7 @@ Keyboard shortcuts:\n\
 H - display help\n\
 B - toggle bounding box display\n\
 I - toggle intesections display\n\
+E - toggle extrema display\n\
 C - toggle curvature display (of selected curves)\n\
 P - toggle control points display (of selected curves)\n\
 Key Up - raise the order (of selected curves)\n\
@@ -302,6 +316,11 @@ Delete - delete curve/polycurve");
   if (keyEvent->key() == Qt::Key_I)
   {
     draw_inter_ = !draw_inter_;
+    update();
+  }
+  if (keyEvent->key() == Qt::Key_E)
+  {
+    draw_extrema_ = !draw_extrema_;
     update();
   }
   if (keyEvent->key() == Qt::Key_C)
