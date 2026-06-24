@@ -270,7 +270,7 @@ void CustomScene::mouseReleaseEvent(QGraphicsSceneMouseEvent* mouseEvent)
 
 void CustomScene::keyPressEvent(QKeyEvent* keyEvent)
 {
-  if (keyEvent->key() == 72) // key H
+  if (keyEvent->key() == Qt::Key_H)
   {
     QMessageBox::information(nullptr, "Help", "\
 Mouse controls:\n\
@@ -294,17 +294,17 @@ O + +/- - increase/decrease offset distance (shown for all curves when != 0)\n\
 Delete - delete curve/polycurve");
   }
 
-  if (keyEvent->key() == 66) // key B
+  if (keyEvent->key() == Qt::Key_B)
   {
     draw_box_ = !draw_box_;
     update();
   }
-  if (keyEvent->key() == 73) // key I
+  if (keyEvent->key() == Qt::Key_I)
   {
     draw_inter_ = !draw_inter_;
     update();
   }
-  if (keyEvent->key() == 67) // key C
+  if (keyEvent->key() == Qt::Key_C)
   {
     for (auto&& curve : selectedItems())
       if (is_curve)
@@ -313,7 +313,7 @@ Delete - delete curve/polycurve");
         c_poly->setDraw_curvature_radious(!c_poly->getDraw_curvature_radious());
     update();
   }
-  if (keyEvent->key() == 80) // key P
+  if (keyEvent->key() == Qt::Key_P)
   {
     for (auto&& curve : selectedItems())
       if (is_curve)
@@ -322,14 +322,14 @@ Delete - delete curve/polycurve");
         c_poly->setDraw_control_points(!c_poly->getDraw_control_points());
     update();
   }
-  if (keyEvent->key() == 16777235) // key UP
+  if (keyEvent->key() == Qt::Key_Up)
   {
     for (auto&& curve : selectedItems())
       if (is_curve)
         c_curve->raiseOrder();
     update();
   }
-  if (keyEvent->key() == 16777237) // key DOWN
+  if (keyEvent->key() == Qt::Key_Down)
   {
     for (auto&& curve : selectedItems())
       if (is_curve)
@@ -385,7 +385,7 @@ Delete - delete curve/polycurve");
       update();
     }
   }
-  if (keyEvent->key() == 16777223) // Delete
+  if (keyEvent->key() == Qt::Key_Delete)
   {
     for (auto&& curve : selectedItems())
     {
