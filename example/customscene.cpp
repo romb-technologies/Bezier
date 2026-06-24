@@ -1,5 +1,6 @@
 #include "customscene.h"
 
+#include <QGraphicsPathItem>
 #include <QGraphicsSceneMouseEvent>
 #include <QKeyEvent>
 #include <QMessageBox>
@@ -84,12 +85,38 @@ void CustomScene::drawForeground(QPainter* painter, const QRectF& rect)
           painter->drawEllipse(QPointF(e.x(), e.y()), 4, 4);
         }
   }
+
+  if (mode_ == Mode::PlaceControlPoints)
+  {
+    painter->setPen(Qt::blue);
+    painter->setBrush(QBrush(Qt::blue, Qt::SolidPattern));
+    for (const auto& cp : draw_pts_)
+      painter->drawEllipse(QPointF(cp.x(), cp.y()), 3, 3);
+  }
 }
 
 void CustomScene::mousePressEvent(QGraphicsSceneMouseEvent* mouseEvent)
 {
   const int sensitivity = 5;
   Bezier::Point p(mouseEvent->scenePos().x(), mouseEvent->scenePos().y());
+
+  if (mode_ == Mode::DrawFreehand && mouseEvent->button() == Qt::LeftButton)
+  {
+    draw_pts_ = {p};
+    updatePreview();
+    return;
+  }
+  if (mode_ == Mode::PlaceControlPoints)
+  {
+    if (mouseEvent->button() == Qt::LeftButton)
+    {
+      draw_pts_.push_back(p);
+      updatePreview();
+    }
+    else if (mouseEvent->button() == Qt::RightButton)
+      finalizeControlPoints();
+    return;
+  }
   if (mouseEvent->button() == Qt::RightButton)
   {
     dot = addEllipse(QRectF(QPointF(p.x(), p.y()), QSizeF(6, 6)), QPen(Qt::yellow), QBrush(Qt::red, Qt::SolidPattern));
@@ -205,6 +232,18 @@ void CustomScene::mousePressEvent(QGraphicsSceneMouseEvent* mouseEvent)
 void CustomScene::mouseMoveEvent(QGraphicsSceneMouseEvent* mouseEvent)
 {
   Bezier::Point p(mouseEvent->scenePos().x(), mouseEvent->scenePos().y());
+
+  if (mode_ != Mode::Normal)
+  {
+    if (mode_ == Mode::DrawFreehand && (mouseEvent->buttons() & Qt::LeftButton))
+    {
+      draw_pts_.push_back(p);
+      updatePreview();
+    }
+    QGraphicsScene::mouseMoveEvent(mouseEvent);
+    return;
+  }
+
   if (show_projection)
   {
     dot->setRect(QRectF(QPointF(p.x() - 3, p.y() - 3), QSizeF(6, 6)));
@@ -257,6 +296,14 @@ void CustomScene::mouseMoveEvent(QGraphicsSceneMouseEvent* mouseEvent)
 
 void CustomScene::mouseReleaseEvent(QGraphicsSceneMouseEvent* mouseEvent)
 {
+  if (mode_ == Mode::DrawFreehand && mouseEvent->button() == Qt::LeftButton)
+  {
+    finalizeFreehand();
+    return;
+  }
+  if (mode_ != Mode::Normal)
+    return;
+
   if (mouseEvent->button() == Qt::RightButton)
   {
     if (show_projection)
@@ -284,29 +331,7 @@ void CustomScene::mouseReleaseEvent(QGraphicsSceneMouseEvent* mouseEvent)
 void CustomScene::keyPressEvent(QKeyEvent* keyEvent)
 {
   if (keyEvent->key() == Qt::Key_H)
-  {
-    QMessageBox::information(nullptr, "Help", "\
-Mouse controls:\n\
-Right click - project mouse pointer on all curves\n\
-Ctrl + Scroll - zoom in/out\n\
-Ctrl + Left click - select curves\n\
-Left click - deselect curves\n\
-Left click + drag control point - manipulate control point\n\
-\n\
-Keyboard shortcuts:\n\
-H - display help\n\
-B - toggle bounding box display\n\
-I - toggle intesections display\n\
-E - toggle extrema display\n\
-C - toggle curvature display (of selected curves)\n\
-P - toggle control points display (of selected curves)\n\
-Key Up - raise the order (of selected curves)\n\
-Key Down - lower the order (of selected curves)\n\
-G - join multiple curves into polycurve\n\
-J - fit a single new curve through two selected curves\n\
-O + +/- - increase/decrease offset distance (shown for all curves when != 0)\n\
-Delete - delete curve/polycurve");
-  }
+    showHelp();
 
   if (keyEvent->key() == Qt::Key_B)
   {
@@ -470,4 +495,98 @@ void CustomScene::keyReleaseEvent(QKeyEvent* keyEvent)
 {
   if (keyEvent->key() == Qt::Key_O && !keyEvent->isAutoRepeat())
     o_held_ = false;
+}
+
+void CustomScene::setMode(Mode mode)
+{
+  draw_pts_.clear();
+  if (preview_)
+  {
+    removeItem(preview_);
+    delete preview_;
+    preview_ = nullptr;
+  }
+  mode_ = mode;
+  update();
+}
+
+void CustomScene::updatePreview()
+{
+  if (draw_pts_.empty())
+    return;
+  QPainterPath path;
+  path.moveTo(draw_pts_[0].x(), draw_pts_[0].y());
+  for (uint k = 1; k < draw_pts_.size(); k++)
+    path.lineTo(draw_pts_[k].x(), draw_pts_[k].y());
+
+  if (preview_)
+    preview_->setPath(path);
+  else
+    preview_ = addPath(path, QPen(Qt::darkGray, 0, Qt::DashLine));
+  update();
+}
+
+void CustomScene::finalizeFreehand()
+{
+  if (preview_)
+  {
+    removeItem(preview_);
+    delete preview_;
+    preview_ = nullptr;
+  }
+  if (draw_pts_.size() >= 2)
+  {
+    addItem(new qCurve(Bezier::Curve::fromPolyline(draw_pts_)));
+    emit modeFinished();
+  }
+  draw_pts_.clear();
+  update();
+}
+
+void CustomScene::finalizeControlPoints()
+{
+  if (preview_)
+  {
+    removeItem(preview_);
+    delete preview_;
+    preview_ = nullptr;
+  }
+  if (draw_pts_.size() >= 2)
+  {
+    auto* curve = new qCurve(Bezier::Curve(draw_pts_));
+    curve->setDraw_control_points(true);
+    addItem(curve);
+    emit modeFinished();
+  }
+  draw_pts_.clear();
+  update();
+}
+
+void CustomScene::showHelp()
+{
+  QMessageBox::information(nullptr, "Help", "\
+Mouse controls:\n\
+Right click - project mouse pointer on all curves\n\
+Ctrl + Scroll - zoom in/out\n\
+Ctrl + Left click - select curves\n\
+Left click - deselect curves\n\
+Left click + drag control point - manipulate control point\n\
+\n\
+Drawing modes (toggle from the side panel):\n\
+Free-hand draw - drag to sketch a stroke, released as a fitted curve\n\
+Control points - left click to place points, right click to finish\n\
+\n\
+Keyboard shortcuts:\n\
+H - display help\n\
+B - toggle bounding box display\n\
+I - toggle intesections display\n\
+E - toggle extrema display\n\
+C - toggle curvature display (of selected curves)\n\
+P - toggle control points display (of selected curves)\n\
+Key Up - raise the order (of selected curves)\n\
+Key Down - lower the order (of selected curves)\n\
+G - join multiple curves into polycurve\n\
+J - fit a single new curve through two selected curves\n\
+O + +/- - increase/decrease offset distance (shown for all curves when != 0)\n\
+Delete - delete curve/polycurve");
 }
