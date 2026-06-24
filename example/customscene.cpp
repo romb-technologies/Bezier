@@ -433,9 +433,10 @@ void CustomScene::keyPressEvent(QKeyEvent* keyEvent)
   {
     for (auto&& curve : selectedItems())
     {
+      update(curve->sceneBoundingRect()); // repaint the vacated region (no-op update() misses the last item)
       removeItem(curve);
+      delete curve;
     }
-    update();
   }
   if (keyEvent->key() == Qt::Key_L) {
       for (auto&& curve : selectedItems()) {
