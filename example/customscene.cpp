@@ -153,56 +153,52 @@ void CustomScene::mousePressEvent(QGraphicsSceneMouseEvent* mouseEvent)
   }
   if (mouseEvent->button() == Qt::LeftButton)
   {
+    // 1) Grab a control point of an already-selected curve (control points show on selection)
     for (auto&& curve : items())
     {
-      if (!is_curve && !is_poly)
+      if (!curve->isSelected())
         continue;
-
-      if (mouseEvent->modifiers().testFlag(Qt::ControlModifier))
-      {
-        if (is_curve)
-        {
-          double t = c_curve->projectPoint(p);
-          auto pt = c_curve->valueAt(t);
-          if ((pt - p).norm() < 10)
-            curve->setSelected(true);
-        }
-        if (is_poly)
-        {
-          double t = c_poly->projectPoint(p);
-          auto pt = c_poly->valueAt(t);
-          if ((pt - p).norm() < 10)
-            curve->setSelected(true);
-        }
-      }
+      Bezier::PointVector pv;
+      if (is_curve)
+        pv = c_curve->controlPoints();
+      else if (is_poly)
+        pv = c_poly->controlPoints();
       else
+        continue;
+      for (uint k = 0; k < pv.size(); k++)
+        if ((pv[k] - p).norm() < sensitivity)
+        {
+          update_cp = true;
+          cp_to_update = std::make_pair(curve, k);
+        }
+      if (update_cp)
+        break;
+    }
+    if (update_cp)
+      return;
+
+    // 2) Otherwise select the curve under the cursor; Ctrl/Shift adds to the selection
+    bool additive = mouseEvent->modifiers().testFlag(Qt::ControlModifier) ||
+                    mouseEvent->modifiers().testFlag(Qt::ShiftModifier);
+    QGraphicsItem* hit = nullptr;
+    for (auto&& curve : items())
+    {
+      if (is_curve && (c_curve->valueAt(c_curve->projectPoint(p)) - p).norm() < 10)
       {
-        for (auto&& item : selectedItems())
-          item->setSelected(false);
-        if (is_curve)
-        {
-          auto pv = c_curve->controlPoints();
-          for (uint k = 0; k < pv.size(); k++)
-            if ((pv[k] - p).norm() < sensitivity && c_curve->getDraw_control_points())
-            {
-              update_cp = true;
-              cp_to_update = std::make_pair(curve, k);
-            }
-        }
-        if (is_poly)
-        {
-          auto pv = c_poly->controlPoints();
-          for (uint k = 0; k < pv.size(); k++)
-            if ((pv[k] - p).norm() < sensitivity && c_poly->getDraw_control_points())
-            {
-              update_cp = true;
-              cp_to_update = std::make_pair(curve, k);
-            }
-        }
-        if (update_cp)
-          break;
+        hit = curve;
+        break;
+      }
+      if (is_poly && (c_poly->valueAt(c_poly->projectPoint(p)) - p).norm() < 10)
+      {
+        hit = curve;
+        break;
       }
     }
+    if (!additive)
+      for (auto&& item : selectedItems())
+        item->setSelected(false);
+    if (hit)
+      hit->setSelected(true);
   }
   if (mouseEvent->button() == Qt::MiddleButton)
   {
@@ -355,15 +351,6 @@ void CustomScene::keyPressEvent(QKeyEvent* keyEvent)
         c_curve->setDraw_curvature_radious(!c_curve->getDraw_curvature_radious());
       else if (is_poly)
         c_poly->setDraw_curvature_radious(!c_poly->getDraw_curvature_radious());
-    update();
-  }
-  if (keyEvent->key() == Qt::Key_P)
-  {
-    for (auto&& curve : selectedItems())
-      if (is_curve)
-        c_curve->setDraw_control_points(!c_curve->getDraw_control_points());
-      else if (is_poly)
-        c_poly->setDraw_control_points(!c_poly->getDraw_control_points());
     update();
   }
   if (keyEvent->key() == Qt::Key_Up)
@@ -537,7 +524,11 @@ void CustomScene::finalizeFreehand()
   }
   if (draw_pts_.size() >= 2)
   {
-    addItem(new qCurve(Bezier::Curve::fromPolyline(draw_pts_)));
+    auto* curve = new qCurve(Bezier::Curve::fromPolyline(draw_pts_));
+    addItem(curve);
+    for (auto&& item : selectedItems())
+      item->setSelected(false);
+    curve->setSelected(true);
     emit modeFinished();
   }
   draw_pts_.clear();
@@ -555,8 +546,10 @@ void CustomScene::finalizeControlPoints()
   if (draw_pts_.size() >= 2)
   {
     auto* curve = new qCurve(Bezier::Curve(draw_pts_));
-    curve->setDraw_control_points(true);
     addItem(curve);
+    for (auto&& item : selectedItems())
+      item->setSelected(false);
+    curve->setSelected(true);
     emit modeFinished();
   }
   draw_pts_.clear();
@@ -569,9 +562,9 @@ void CustomScene::showHelp()
 Mouse controls:\n\
 Right click - project mouse pointer on all curves\n\
 Ctrl + Scroll - zoom in/out\n\
-Ctrl + Left click - select curves\n\
-Left click - deselect curves\n\
-Left click + drag control point - manipulate control point\n\
+Left click - select curve under cursor (Ctrl/Shift to add to selection)\n\
+Left click empty space - deselect\n\
+Left click + drag control point - manipulate control point (shown while selected)\n\
 \n\
 Drawing modes (toggle from the side panel):\n\
 Free-hand draw - drag to sketch a stroke, released as a fitted curve\n\
@@ -583,7 +576,6 @@ B - toggle bounding box display\n\
 I - toggle intesections display\n\
 E - toggle extrema display\n\
 C - toggle curvature display (of selected curves)\n\
-P - toggle control points display (of selected curves)\n\
 Key Up - raise the order (of selected curves)\n\
 Key Down - lower the order (of selected curves)\n\
 G - join multiple curves into polycurve\n\

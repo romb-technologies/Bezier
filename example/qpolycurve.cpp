@@ -5,10 +5,6 @@
 
 #include "Bezier/bezier.h"
 
-bool qPolyCurve::getDraw_control_points() const { return draw_control_points; }
-
-void qPolyCurve::setDraw_control_points(bool value) { draw_control_points = value; }
-
 bool qPolyCurve::getDraw_curvature_radious() const { return draw_curvature_radious; }
 
 void qPolyCurve::setDraw_curvature_radious(bool value) { draw_curvature_radious = value; }
@@ -34,7 +30,7 @@ void qPolyCurve::paint(QPainter* painter, const QStyleOptionGraphicsItem* option
     curve.lineTo(poly[k].x(), poly[k].y());
   painter->drawPath(curve);
 
-  if (draw_control_points)
+  if (isSelected()) // control points show while the polycurve is selected
   {
     const int d = 6;
     painter->setBrush(QBrush(Qt::blue, Qt::SolidPattern));
@@ -69,8 +65,15 @@ QRectF qPolyCurve::boundingRect() const
 {
   auto bbox = boundingBox();
   QRectF rect(QPointF(bbox.min().x(), bbox.min().y()), QPointF(bbox.max().x(), bbox.max().y()));
-  if (draw_control_points)
-    for (const auto& cp : controlPoints())
-      rect |= QRectF(cp.x() - 3, cp.y() - 3, 6, 6);
+  // Always cover the control points so toggling selection never leaves ghost handles.
+  for (const auto& cp : controlPoints())
+    rect |= QRectF(cp.x() - 3, cp.y() - 3, 6, 6);
   return rect;
+}
+
+QVariant qPolyCurve::itemChange(GraphicsItemChange change, const QVariant& value)
+{
+  if (change == ItemSelectedHasChanged)
+    update(); // selection toggles whether control points are drawn -> repaint
+  return QGraphicsItem::itemChange(change, value);
 }

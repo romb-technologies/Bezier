@@ -3,11 +3,7 @@
 #include <QPainter>
 #include <QPen>
 
-void qCurve::setDraw_control_points(bool value) { draw_control_points = value; }
-
 void qCurve::setDraw_curvature_radious(bool value) { draw_curvature_radious = value; }
-
-bool qCurve::getDraw_control_points() const { return draw_control_points; }
 
 bool qCurve::getDraw_curvature_radious() const { return draw_curvature_radious; }
 
@@ -43,7 +39,7 @@ void qCurve::paint(QPainter* painter, const QStyleOptionGraphicsItem* option, QW
     curve.lineTo(poly[k].x(), poly[k].y());
   painter->drawPath(curve);
 
-  if (draw_control_points)
+  if (isSelected()) // control points show while the curve is selected
   {
     const int d = 6;
     painter->setBrush(QBrush(Qt::blue, Qt::SolidPattern));
@@ -77,10 +73,18 @@ void qCurve::paint(QPainter* painter, const QStyleOptionGraphicsItem* option, QW
 
 QRectF qCurve::boundingRect() const
 {
+  // Always cover the control points (even when not drawn) so toggling selection never leaves
+  // ghost handles: the repaint region stays constant and large enough to erase them.
   auto bbox = boundingBox();
   QRectF rect(QPointF(bbox.min().x(), bbox.min().y()), QPointF(bbox.max().x(), bbox.max().y()));
-  if (draw_control_points)
-    for (const auto& cp : controlPoints())
-      rect |= QRectF(cp.x() - 3, cp.y() - 3, 6, 6);
+  for (const auto& cp : controlPoints())
+    rect |= QRectF(cp.x() - 3, cp.y() - 3, 6, 6);
   return rect;
+}
+
+QVariant qCurve::itemChange(GraphicsItemChange change, const QVariant& value)
+{
+  if (change == ItemSelectedHasChanged)
+    update(); // selection toggles whether control points are drawn -> repaint
+  return QGraphicsItem::itemChange(change, value);
 }
