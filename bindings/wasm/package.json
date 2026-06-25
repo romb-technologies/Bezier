@@ -17,7 +17,8 @@
   ],
   "scripts": {
     "build": "tsc",
-    "test": "node --test \"test/*.test.mjs\""
+    "test": "node --test \"test/*.test.mjs\"",
+    "bundle:demo": "mkdir -p example/dist && cp dist/index.js dist/runtime.js dist/bezier_wasm.mjs dist/bezier_wasm.wasm example/dist/"
   },
   "devDependencies": {
     "typescript": "^5.5.0"

@@ -1,0 +1,135 @@
+<!doctype html>
+<!-- Copyright 2026 Mirko Kokot. Licensed under the Apache License, Version 2.0. -->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Bezier — WebAssembly demo</title>
+    <style>
+      :root {
+        --accent: #1565c0;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+      }
+      body {
+        font-family: system-ui, sans-serif;
+        color: #222;
+        display: flex;
+        flex-direction: column;
+      }
+      header {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.5rem 0.9rem;
+        border-bottom: 1px solid #ddd;
+        flex-wrap: wrap;
+      }
+      header h1 {
+        font-size: 1rem;
+        margin: 0;
+        margin-right: auto;
+      }
+      header .readout {
+        font-variant-numeric: tabular-nums;
+        color: #555;
+        font-size: 0.85rem;
+      }
+      button {
+        padding: 0.3rem 0.7rem;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+        background: #f7f7f7;
+        cursor: pointer;
+      }
+      button:hover {
+        background: #eee;
+      }
+      #stage {
+        position: relative;
+        flex: 1;
+        min-height: 0;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+        touch-action: none;
+        background: #fff;
+      }
+      #help {
+        position: absolute;
+        inset: 0;
+        background: rgba(255, 255, 255, 0.96);
+        padding: 1.5rem 2rem;
+        overflow: auto;
+        display: none;
+      }
+      #help.show {
+        display: block;
+      }
+      #help h2 {
+        margin-top: 0;
+      }
+      #help table {
+        border-collapse: collapse;
+      }
+      #help kbd {
+        background: #eee;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        padding: 0.05rem 0.4rem;
+        font-family: ui-monospace, monospace;
+      }
+      #help td {
+        padding: 0.2rem 1rem 0.2rem 0;
+        vertical-align: top;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Bezier — WebAssembly demo</h1>
+      <button id="new">New curve (N)</button>
+      <button id="freehand">Freehand (F)</button>
+      <button id="delete">Delete (Del)</button>
+      <button id="reset">Reset (R)</button>
+      <button id="help-btn">Help (H)</button>
+      <span class="readout" id="readout"></span>
+    </header>
+
+    <div id="stage">
+      <canvas id="canvas"></canvas>
+      <div id="help">
+        <h2>Controls</h2>
+        <table>
+          <tr><td><kbd>Click</kbd> a curve</td><td>select it (<kbd>Shift</kbd>+click adds; empty space clears)</td></tr>
+          <tr><td><kbd>Drag</kbd> a handle</td><td>move a control point of a selected curve</td></tr>
+          <tr><td><kbd>Scroll</kbd></td><td>zoom in / out (centered on the cursor)</td></tr>
+          <tr><td><kbd>Drag</kbd> empty space</td><td>pan the view</td></tr>
+          <tr><td><kbd>0</kbd></td><td>reset zoom / pan</td></tr>
+          <tr><td><kbd>N</kbd></td><td>new curve: click to place control points, <kbd>Enter</kbd> to finish, <kbd>Esc</kbd> to cancel</td></tr>
+          <tr><td><kbd>F</kbd></td><td>freehand: drag to draw a stroke, release to fit a curve</td></tr>
+          <tr><td><kbd>Del</kbd> / <kbd>Backspace</kbd></td><td>delete selected curves</td></tr>
+          <tr><td><kbd>↑</kbd> / <kbd>↓</kbd></td><td>raise / lower order of selected</td></tr>
+          <tr><td><kbd>O</kbd> + <kbd>↑</kbd>/<kbd>↓</kbd></td><td>increase / decrease offset-curve distance (hold O)</td></tr>
+          <tr><td><kbd>B</kbd></td><td>toggle bounding boxes</td></tr>
+          <tr><td><kbd>E</kbd></td><td>toggle extrema</td></tr>
+          <tr><td><kbd>I</kbd></td><td>toggle intersections (between curves and self-intersections)</td></tr>
+          <tr><td><kbd>P</kbd></td><td>toggle projection: tangent / normal at cursor</td></tr>
+          <tr><td><kbd>J</kbd></td><td>fit-join exactly two selected curves into one</td></tr>
+          <tr><td><kbd>H</kbd> / <kbd>?</kbd></td><td>toggle this help</td></tr>
+          <tr><td><kbd>R</kbd></td><td>reset the scene</td></tr>
+        </table>
+      </div>
+    </div>
+
+    <script type="module" src="./demo.js"></script>
+  </body>
+</html>

@@ -1,4 +1,4 @@
-name: Documentation
+name: Documentation & demo
 
 on:
   push:
@@ -9,17 +9,46 @@ on:
 jobs:
   deploy-docs:
     runs-on: ubuntu-latest
-    
+
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
-    
+
     - name: Install Doxygen
       run: sudo apt-get update && sudo apt-get install -y doxygen graphviz
-    
+
     - name: Generate documentation
       run: doxygen Doxyfile
-    
+
+    # --- WASM demo: built and published under /demo on the same Pages site ---
+    - name: Install Eigen
+      run: sudo apt-get install -y libeigen3-dev
+
+    - name: Setup Node
+      uses: actions/setup-node@v4
+      with:
+        node-version: 20
+
+    - name: Setup Emscripten
+      uses: mymindstorm/setup-emsdk@v14
+
+    - name: Build WASM module
+      run: |
+        emcmake cmake -S bindings/wasm -B bindings/wasm/build
+        cmake --build bindings/wasm/build
+
+    - name: Build TS package and stage demo
+      working-directory: bindings/wasm
+      run: |
+        npm ci || npm install
+        npm run build
+        npm run bundle:demo
+
+    - name: Copy demo into docs site
+      run: |
+        mkdir -p docs/html/demo
+        cp -r bindings/wasm/example/* docs/html/demo/
+
     - name: Deploy to GitHub Pages
       uses: peaceiris/actions-gh-pages@v3
       with:

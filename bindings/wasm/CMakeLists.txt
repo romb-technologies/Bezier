@@ -3,6 +3,11 @@ project(bezier_wasm LANGUAGES CXX)
 
 # Configure with: emcmake cmake -S bindings/wasm -B bindings/wasm/build
 
+# Optimize by default — emcc is -O0 otherwise, which makes the Eigen math very slow.
+if(NOT CMAKE_BUILD_TYPE)
+  set(CMAKE_BUILD_TYPE Release CACHE STRING "" FORCE)
+endif()
+
 set(CORE ${CMAKE_CURRENT_SOURCE_DIR}/../..)
 set(CABI ${CMAKE_CURRENT_SOURCE_DIR}/../c-abi)
 
@@ -32,7 +37,7 @@ endif()
 #   (over-aligned) as non-destructible.
 # -include vector: core headers use std::vector via transitive includes that Emscripten's
 #   libc++ doesn't provide; force it without editing the core headers.
-target_compile_options(bezier_wasm PRIVATE -fexceptions -faligned-allocation -include vector)
+target_compile_options(bezier_wasm PRIVATE -O3 -fexceptions -faligned-allocation -include vector)
 
 # Build the exported-functions list straight from the shim header (every bz_* symbol),
 # plus the allocator — so it stays in sync without a hand-maintained ~60-name list.
@@ -45,6 +50,7 @@ foreach(_n ${_bz_names})
 endforeach()
 
 target_link_options(bezier_wasm PRIVATE
+  -O3                       # Emscripten runs wasm-opt at link time; needed for real speed
   -fexceptions
   -sMODULARIZE=1
   -sEXPORT_ES6=1
