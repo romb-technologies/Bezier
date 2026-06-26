@@ -14,12 +14,6 @@ namespace Ui
 class MainWindow;
 }
 
-inline QTextStream& qStdOut()
-{
-  static QTextStream ts(stdout);
-  return ts;
-}
-
 class CustomScene : public QGraphicsScene
 {
   Q_OBJECT
@@ -66,7 +60,6 @@ protected:
   void mousePressEvent(QGraphicsSceneMouseEvent* mouseEvent) Q_DECL_OVERRIDE;
   void mouseMoveEvent(QGraphicsSceneMouseEvent* mouseEvent) Q_DECL_OVERRIDE;
   void mouseReleaseEvent(QGraphicsSceneMouseEvent* mouseEvent) Q_DECL_OVERRIDE;
-  void mouseDoubleClickEvent(QGraphicsSceneMouseEvent* mouseEvent) Q_DECL_OVERRIDE { Q_UNUSED(mouseEvent) }
 
   void keyPressEvent(QKeyEvent* keyEvent) Q_DECL_OVERRIDE;
   void keyReleaseEvent(QKeyEvent* keyEvent) Q_DECL_OVERRIDE;
