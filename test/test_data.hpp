@@ -12,21 +12,21 @@ namespace TestData
 
 // Test curve control points
 constexpr std::array<std::pair<double, double>, 4> kCurvePts{
-    {{84.000, 162.000}, {246.000, 30.000}, {48.000, 236.000}, {180.000, 110.000}}};
+    {{84.0, 162.0}, {246.0, 30.0}, {48.0, 236.0}, {180.0, 110.0}}};
 
 constexpr std::array<std::pair<double, double>, 4> kRootsPts{
-    {{-50.000, -50.000}, {75.000, 48.000}, {64.000, 65.000}, {50.000, -50.000}}};
+    {{-50.0, -50.0}, {75.0, 48.0}, {64.0, 65.0}, {50.0, -50.0}}};
 
 constexpr std::array<std::pair<double, double>, 5> kIntersectPts{
-    {{180.000, 110.000}, {175.000, 160.000}, {60.000, 48.000}, {164.000, 165.000}, {124.000, 134.000}}};
+    {{180.0, 110.0}, {175.0, 160.0}, {60.0, 48.0}, {164.0, 165.0}, {124.0, 134.0}}};
 
 // First derivative control points
 constexpr std::array<std::pair<double, double>, 3> kExpectedFirstDerivative{
-    {{486.000, -396.000}, {-594.000, 618.000}, {396.000, -378.000}}};
+    {{486.0, -396.0}, {-594.0, 618.0}, {396.0, -378.0}}};
 
 // Second derivative control points
 constexpr std::array<std::pair<double, double>, 2> kExpectedSecondDerivative{
-    {{-2160.000, 2028.000}, {1980.000, -1992.000}}};
+    {{-2160.0, 2028.0}, {1980.0, -1992.0}}};
 
 // Helper to convert array to PointVector
 template <size_t N> inline PointVector toPointVector(const std::array<std::pair<double, double>, N>& pts)
