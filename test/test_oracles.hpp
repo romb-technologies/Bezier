@@ -6,6 +6,7 @@
 // test suite survives the planned v0.4.0 algorithm rework.
 
 #include <cmath>
+#include <vector>
 
 #include <Eigen/Dense>
 
@@ -26,7 +27,20 @@ namespace Oracles
 constexpr double kGeom = 1e-9;
 constexpr double kFit = 0.05;
 
+/// Inclusive parameter samples 0 = t_0 < ... < t_steps = 1 (steps+1 points).
+/// Index-based, so unlike `for (double t{}; t <= 1.0; t += step)` it always
+/// samples both endpoints exactly, regardless of float round-off.
+inline std::vector<double> sampleParams(unsigned steps)
+{
+  std::vector<double> ts(steps + 1);
+  for (unsigned i = 0; i <= steps; i++)
+    ts[i] = static_cast<double>(i) / steps;
+  return ts;
+}
+
 /// Pointwise de Casteljau evaluation of a Bezier curve given its control points.
+/// Precondition: cp is non-empty -- every call site in this suite passes real
+/// curve control points, so this is never exercised with cp = {}.
 inline Point deCasteljau(PointVector cp, double t)
 {
   for (size_t k = cp.size(); k > 1; k--)
@@ -62,7 +76,7 @@ inline PointVector derivativeControlPoints(const PointVector& cp)
   PointVector d;
   if (cp.size() < 2)
     return d;
-  const double n = static_cast<double>(cp.size() - 1);
+  double n = static_cast<double>(cp.size() - 1);
   d.reserve(cp.size() - 1);
   for (size_t i = 0; i + 1 < cp.size(); i++)
     d.emplace_back(n * (cp[i + 1] - cp[i]));

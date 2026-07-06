@@ -33,7 +33,7 @@ TEST_F(BezierTest, CurveControlPointsTest)
 
 TEST_F(BezierTest, CurveControlPointTest)
 {
-  Point point_expected = curvePointsAsVector().at(2);
+  Point point_expected = curvePointsAsVector()[2];
   Point point_curve = curve_.controlPoint(2);
   EXPECT_EQ(point_expected, point_curve) << "Curve control point at idx differs from expected";
 }
@@ -91,8 +91,7 @@ TEST_F(BezierTest, CurveCurvatureMatchesOracle)
   for (double t : {0.0, 0.25, 0.5, 0.75, 1.0})
   {
     EXPECT_NEAR(curve_.curvatureAt(t), Oracles::curvature(cp, t), 1e-9) << "kappa at t=" << t;
-    EXPECT_NEAR(curve_.curvatureDerivativeAt(t), Oracles::curvatureDerivative(cp, t), 1e-6)
-        << "kappa' at t=" << t;
+    EXPECT_NEAR(curve_.curvatureDerivativeAt(t), Oracles::curvatureDerivative(cp, t), 1e-6) << "kappa' at t=" << t;
   }
 }
 
@@ -109,7 +108,7 @@ TEST_F(BezierTest, CurveDerivativeTest)
 
 TEST_F(BezierTest, CurveNthDerivativeTest)
 {
-  const int N = 2;
+  int N = 2;
   PointVector expected = TestData::toPointVector(TestData::kExpectedSecondDerivative);
   PointVector derivative_control_points = curve_.derivative(N).controlPoints();
   ASSERT_EQ(expected.size(), derivative_control_points.size());
@@ -182,7 +181,7 @@ TEST_F(BezierTest, CurveBoundingBoxTest)
   EXPECT_LT(bbox.min().y(), bbox.max().y());
 
   // every sampled point lies inside the box
-  for (double t = 0.0; t <= 1.0; t += 0.1)
+  for (double t : Oracles::sampleParams(10))
   {
     Point p = curve_.valueAt(t);
     EXPECT_GE(p.x(), bbox.min().x() - Utils::epsilon) << "Point at t=" << t << " outside bbox";
@@ -265,7 +264,7 @@ TEST_F(BezierTest, CurveProjectPointTest)
 
   // No sampled point is closer than the projection
   double min_dist = (point - curve_.valueAt(t_projected)).norm();
-  for (double t = 0.0; t <= 1.0; t += 0.01)
+  for (double t : Oracles::sampleParams(100))
     EXPECT_GE((point - curve_.valueAt(t)).norm(), min_dist - Utils::epsilon) << "closer point at t=" << t;
 }
 
@@ -312,7 +311,7 @@ TEST_F(BezierTest, CurvePolylineContractTest)
 
   // Dense samples of the curve stay within flatness of the polyline
   double flatness = curve_.boundingBox().diagonal().norm() / 1000;
-  for (double t{}; t <= 1.0; t += 0.001)
+  for (double t : Oracles::sampleParams(1000))
     EXPECT_LE(Utils::dist(polyline, curve_.valueAt(t)), flatness + Utils::epsilon) << "Curve too far at t=" << t;
 }
 
@@ -322,7 +321,7 @@ TEST(CurveOracleTests, ValueAtMatchesDeCasteljau)
   {
     PointVector cp = makeControlPoints(order);
     Curve curve{cp};
-    for (double t{}; t <= 1.0; t += 0.1)
+    for (double t : Oracles::sampleParams(10))
     {
       Point expected = Oracles::deCasteljau(cp, t);
       Point actual = curve.valueAt(t);
@@ -371,7 +370,7 @@ TEST_F(BezierTest, CurveReverseTest)
 {
   Curve reversed{curve_};
   reversed.reverse();
-  for (double t{}; t <= 1.0; t += 0.05)
+  for (double t : Oracles::sampleParams(20))
   {
     Point expected = curve_.valueAt(1.0 - t);
     Point actual = reversed.valueAt(t);
@@ -382,14 +381,14 @@ TEST_F(BezierTest, CurveReverseTest)
 
 TEST_F(BezierTest, CurveSplitMultiTest)
 {
-  const ParamVector t_split{0.25, 0.6};
+  ParamVector t_split{0.25, 0.6};
   std::vector<Curve> pieces = curve_.splitCurve(t_split);
   ASSERT_EQ(pieces.size(), 3u);
 
   // Pieces map linearly onto the original parameter ranges
-  const std::array<std::pair<double, double>, 3> ranges{{{0.0, 0.25}, {0.25, 0.6}, {0.6, 1.0}}};
+  std::array<std::pair<double, double>, 3> ranges{{{0.0, 0.25}, {0.25, 0.6}, {0.6, 1.0}}};
   for (size_t k = 0; k < pieces.size(); k++)
-    for (double s{}; s <= 1.0; s += 0.125)
+    for (double s : Oracles::sampleParams(8))
     {
       Point expected = curve_.valueAt(ranges[k].first + s * (ranges[k].second - ranges[k].first));
       Point actual = pieces[k].valueAt(s);
@@ -423,7 +422,7 @@ TEST_F(BezierTest, CurveRaiseOrderPreservesShape)
   Curve raised{curve_};
   raised.raiseOrder();
   EXPECT_EQ(raised.order(), curve_.order() + 1);
-  for (double t{}; t <= 1.0; t += 0.05)
+  for (double t : Oracles::sampleParams(20))
   {
     Point expected = curve_.valueAt(t);
     Point actual = raised.valueAt(t);
@@ -479,8 +478,7 @@ TEST_F(BezierTest, CurveTangentNormalPropertiesTest)
 
     // tangent points along the derivative (same direction, not just parallel)
     Vector derivative = curve_.derivativeAt(t);
-    EXPECT_NEAR(tangent.x() * derivative.y() - tangent.y() * derivative.x(), 0.0,
-                Utils::epsilon * derivative.norm());
+    EXPECT_NEAR(tangent.x() * derivative.y() - tangent.y() * derivative.x(), 0.0, Utils::epsilon * derivative.norm());
     EXPECT_GT(tangent.dot(derivative), 0.0) << "tangent points against the curve at t=" << t;
   }
 }
@@ -491,11 +489,7 @@ TEST_F(BezierTest, CurveProjectPointRecoveryTest)
   for (double t : {0.1, 0.3, 0.5, 0.7, 0.9})
   {
     double projected = curve_.projectPoint(curve_.valueAt(t));
-    EXPECT_NEAR(curve_.distance(curve_.valueAt(t)), 0.0, 1e-6);
-    Point recovered = curve_.valueAt(projected);
-    Point original = curve_.valueAt(t);
-    EXPECT_NEAR(recovered.x(), original.x(), 1e-6) << "projection at t=" << t;
-    EXPECT_NEAR(recovered.y(), original.y(), 1e-6) << "projection at t=" << t;
+    EXPECT_NEAR(projected, t, Utils::epsilon) << "did not recover parameter t=" << t;
   }
 
   // Points beyond the endpoints project to the endpoints
@@ -579,7 +573,9 @@ TEST_F(BezierTest, CurveIntersectionsSharedEndpointTest)
   // Only transversal crossings are reported; a contact exactly at a shared
   // endpoint is not returned (see Curve::intersections).
   Point shared = curve_.endPoints().second;
-  Curve second{PointVector{shared, {shared.x() + 50, shared.y() + 80}, {shared.x() + 120, shared.y() + 10},
+  Curve second{PointVector{shared,
+                           {shared.x() + 50, shared.y() + 80},
+                           {shared.x() + 120, shared.y() + 10},
                            {shared.x() + 150, shared.y() + 90}}};
   for (const Point& p : curve_.intersections(second))
     EXPECT_GT((p - shared).norm(), Utils::epsilon) << "Endpoint contact should not be reported";

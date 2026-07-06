@@ -61,7 +61,7 @@ TEST(CoefficientsTest, SplitMatricesMatchDeCasteljau)
 {
   Eigen::MatrixX2d cp = curvePointsAsMatrix();
   PointVector cp_points = toPoints(cp);
-  const unsigned n = cp.rows();
+  unsigned n = cp.rows();
 
   // t = 0.5 exercises the cached path, t = 0.3 the uncached one
   for (double t_split : {0.5, 0.3})
@@ -69,7 +69,7 @@ TEST(CoefficientsTest, SplitMatricesMatchDeCasteljau)
     PointVector left = toPoints(Coefficients::leftSplit(n, t_split) * cp);
     PointVector right = toPoints(Coefficients::rightSplit(n, t_split) * cp);
 
-    for (double s{}; s <= 1.0; s += 0.125)
+    for (double s : Oracles::sampleParams(8))
     {
       Point left_expected = Oracles::deCasteljau(cp_points, s * t_split);
       Point left_actual = Oracles::deCasteljau(left, s);
@@ -111,13 +111,20 @@ TEST(CoefficientsTest, CacheIdempotence)
 TEST(CoefficientsTest, ConcurrentFactoryAccess)
 {
   // Hammer the cached factories from parallel tasks; meaningful failures
-  // surface under the sanitizer CI job (data races, torn cache writes)
+  // surface under the sanitizer CI job (data races, torn cache writes).
+  // kTasks comfortably oversubscribes typical CI core counts to maximize
+  // contention; kRepsPerTask repeats enough per task to catch a race without
+  // slowing the sanitizer job down; kOrderRange (orders 2..8) cycles every
+  // small order so multiple tasks land on the same cache entry concurrently.
+  constexpr unsigned kTasks = 16;
+  constexpr unsigned kRepsPerTask = 50;
+  constexpr unsigned kOrderRange = 7;
   std::vector<std::future<bool>> tasks;
-  for (unsigned task = 0; task < 16; task++)
+  for (unsigned task = 0; task < kTasks; task++)
     tasks.push_back(std::async(std::launch::async, [task]() {
-      for (unsigned rep = 0; rep < 50; rep++)
+      for (unsigned rep = 0; rep < kRepsPerTask; rep++)
       {
-        unsigned n = 2 + (task + rep) % 7;
+        unsigned n = 2 + (task + rep) % kOrderRange;
         if (Coefficients::bernstein(n).rows() != n || Coefficients::leftSplit(n).rows() != n ||
             Coefficients::rightSplit(n).rows() != n || Coefficients::raiseOrder(n).rows() != n + 1 ||
             Coefficients::lowerOrder(n).rows() != n - 1)

@@ -33,7 +33,7 @@ TEST_F(ApproxTest, FromPolylineFitsSourcePolyline)
   EXPECT_EQ(fitted.order(), curve_.order());
 
   // Sampled fitted points stay close to the source polyline
-  for (double t{}; t <= 1.0; t += 0.02)
+  for (double t : Oracles::sampleParams(50))
     EXPECT_LE(Utils::dist(polyline, fitted.valueAt(t)), fit_tolerance_) << "fit too far at t=" << t;
 
   // First and last polyline points are preserved
@@ -47,7 +47,7 @@ TEST_F(ApproxTest, FromPolylineEdgeCases)
   PointVector short_polyline = Utils::polylineSimplified(curve_.polyline(), 6);
   Curve automatic = Curve::fromPolyline(short_polyline);
   EXPECT_GE(automatic.order(), 1u);
-  for (double t{}; t <= 1.0; t += 0.1)
+  for (double t : Oracles::sampleParams(10))
     EXPECT_LE(Utils::dist(short_polyline, automatic.valueAt(t)), fit_tolerance_);
 
   // Fewer than two points is an error
@@ -76,7 +76,7 @@ TEST_F(ApproxTest, OffsetCurveStraightLine)
   for (double offset : {5.0, -5.0})
   {
     Curve offset_curve = Curve::offsetCurve(line, offset);
-    for (double t{}; t <= 1.0; t += 0.05)
+    for (double t : Oracles::sampleParams(20))
       EXPECT_NEAR(line.distance(offset_curve.valueAt(t)), std::fabs(offset), 1e-6)
           << "offset=" << offset << " t=" << t;
   }
@@ -85,12 +85,16 @@ TEST_F(ApproxTest, OffsetCurveStraightLine)
 TEST_F(ApproxTest, OffsetCurveGentleArc)
 {
   // Gentle arc with small offset: sampled distance to the source curve stays
-  // within a few percent of |d|
+  // within a tolerance of |d|. The bound isn't just fit error: offsetting a
+  // curved arc by a constant normal distance is itself only an approximate
+  // locus (curvature bends the true offset off that constant-distance curve),
+  // so kOffsetRelTol absorbs both effects, not just numerical slack.
+  constexpr double kOffsetRelTol = 0.05;
   Curve arc{PointVector{{0, 0}, {50, 10}, {100, 0}}};
-  const double offset{2.0};
+  double offset{2.0};
   Curve offset_curve = Curve::offsetCurve(arc, offset);
-  for (double t{}; t <= 1.0; t += 0.05)
-    EXPECT_NEAR(arc.distance(offset_curve.valueAt(t)), offset, 0.05 * offset) << "t=" << t;
+  for (double t : Oracles::sampleParams(20))
+    EXPECT_NEAR(arc.distance(offset_curve.valueAt(t)), offset, kOffsetRelTol * offset) << "t=" << t;
 }
 
 TEST_F(ApproxTest, OffsetCurveRespectsRequestedOrder)
@@ -119,12 +123,17 @@ TEST_F(ApproxTest, JoinCurvesSmoothPair)
 
   Curve joined = Curve::joinCurves(first, second);
 
-  // Endpoints of the result match the outer endpoints of the pair
-  EXPECT_LE((joined.endPoints().first - first.endPoints().first).norm(), fit_tolerance_);
-  EXPECT_LE((joined.endPoints().second - second.endPoints().second).norm(), fit_tolerance_);
+  // Endpoints of the result match the outer endpoints of the pair: fromPolyline
+  // solves a square interpolation system pinned at t=0 and t=1, so this is exact
+  // in principle. kJoinEndpointTol is not fit-quality slack (unlike fit_tolerance_
+  // below) -- it's the empirical numerical floor of the matrix-inverse + LM solve
+  // (observed ~1e-6 for this fixture), several orders tighter than fit_tolerance_.
+  constexpr double kJoinEndpointTol = 1e-4;
+  EXPECT_NEAR((joined.endPoints().first - first.endPoints().first).norm(), 0.0, kJoinEndpointTol);
+  EXPECT_NEAR((joined.endPoints().second - second.endPoints().second).norm(), 0.0, kJoinEndpointTol);
 
   // Sampled result stays near the original pair
-  for (double t{}; t <= 1.0; t += 0.02)
+  for (double t : Oracles::sampleParams(50))
   {
     Point p = joined.valueAt(t);
     EXPECT_LE(std::min(first.distance(p), second.distance(p)), fit_tolerance_) << "joined curve too far at t=" << t;

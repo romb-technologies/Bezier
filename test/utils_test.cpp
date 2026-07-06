@@ -46,7 +46,7 @@ TEST(UtilsTest, PowMatrixMatchesPlainLoop)
 {
   Eigen::VectorXd bases(4);
   bases << 0.0, 0.25, 1.0, -1.5;
-  const unsigned exp = 8;
+  unsigned exp = 8;
   Eigen::MatrixXd actual = Utils::powMatrix(bases, exp);
   ASSERT_EQ(actual.rows(), bases.size());
   ASSERT_EQ(actual.cols(), exp);
@@ -120,7 +120,7 @@ TEST(UtilsTest, MaxDeviationIsUpperBound)
 
     double bound = Utils::maxDeviation(cp);
     double true_deviation{};
-    for (double t{}; t <= 1.0; t += 0.001)
+    for (double t : Oracles::sampleParams(1000))
       true_deviation =
           std::max(true_deviation, Utils::dist(cp_vec.front(), cp_vec.back(), Oracles::deCasteljau(cp_vec, t)));
     EXPECT_GE(bound, true_deviation - 1e-12) << "order=" << order;

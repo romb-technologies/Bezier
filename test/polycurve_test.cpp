@@ -168,7 +168,7 @@ TEST_F(PolyCurveTest, PolylineContract)
 TEST_F(PolyCurveTest, SetControlPointGlobalIndex)
 {
   PolyCurve poly{poly_};
-  const Point marker{-999, -999};
+  Point marker{-999, -999};
 
   // Each cubic contributes 4 control points: global 5 -> subcurve 1 local 1
   poly.setControlPoint(5, marker);
