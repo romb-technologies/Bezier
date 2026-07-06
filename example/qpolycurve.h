@@ -10,7 +10,7 @@
 class qPolyCurve : public QGraphicsItem, public Bezier::PolyCurve
 {
 private:
-  bool draw_curvature_radious = false;
+  bool draw_curvature_radius = false;
 public:
   qPolyCurve(const std::deque<Bezier::Curve>& curve_list) : QGraphicsItem(), Bezier::PolyCurve(curve_list) {}
   qPolyCurve(const Bezier::Curve& curve) : QGraphicsItem(), Bezier::PolyCurve(std::deque<Bezier::Curve>{curve}) {}
@@ -20,8 +20,8 @@ public:
   QVariant itemChange(GraphicsItemChange change, const QVariant& value) Q_DECL_OVERRIDE;
   void prepareGeometryChange() { QGraphicsItem::prepareGeometryChange(); }
 
-  bool getDraw_curvature_radious() const;
-  void setDraw_curvature_radious(bool value);
+  bool getDraw_curvature_radius() const;
+  void setDraw_curvature_radius(bool value);
 };
 
 #endif // QPOLYCURVE_H

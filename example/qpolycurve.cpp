@@ -5,9 +5,9 @@
 
 #include "Bezier/bezier.h"
 
-bool qPolyCurve::getDraw_curvature_radious() const { return draw_curvature_radious; }
+bool qPolyCurve::getDraw_curvature_radius() const { return draw_curvature_radius; }
 
-void qPolyCurve::setDraw_curvature_radious(bool value) { draw_curvature_radious = value; }
+void qPolyCurve::setDraw_curvature_radius(bool value) { draw_curvature_radius = value; }
 
 int qPolyCurve::type() const { return QGraphicsItem::UserType + 2; }
 
@@ -46,7 +46,7 @@ void qPolyCurve::paint(QPainter* painter, const QStyleOptionGraphicsItem* option
     painter->drawEllipse(QRectF(points.back().x() - d / 2, points.back().y() - d / 2, d, d));
   }
 
-  if (draw_curvature_radious)
+  if (draw_curvature_radius)
   {
     painter->setPen(Qt::green);
     for (double t = 0; t <= size(); t += 1.0 / 500)

@@ -9,7 +9,7 @@
 class qCurve : public QGraphicsItem, public Bezier::Curve
 {
 private:
-  bool draw_curvature_radious = false;
+  bool draw_curvature_radius = false;
   bool locked = false;
 
 public:
@@ -23,8 +23,8 @@ public:
   QVariant itemChange(GraphicsItemChange change, const QVariant& value) Q_DECL_OVERRIDE;
 
   void prepareGeometryChange() { QGraphicsItem::prepareGeometryChange(); }
-  void setDraw_curvature_radious(bool value);
-  bool getDraw_curvature_radious() const;
+  void setDraw_curvature_radius(bool value);
+  bool getDraw_curvature_radius() const;
   bool getLocked() const;
   void setLocked(bool value);
 };

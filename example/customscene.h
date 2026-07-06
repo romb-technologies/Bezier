@@ -19,14 +19,14 @@ class CustomScene : public QGraphicsScene
   Q_OBJECT
 
 public:
-  enum class Mode
+  enum class InputMode
   {
     Normal,
     DrawFreehand,
     PlaceControlPoints
   };
 
-  void setMode(Mode mode);
+  void setInputMode(InputMode mode);
   void showHelp();
   double offset() const { return offset_; }
 
@@ -38,7 +38,7 @@ private:
   void finalizeFreehand();
   void finalizeControlPoints();
 
-  Mode mode_ = Mode::Normal;
+  InputMode input_mode_ = InputMode::Normal;
   Bezier::PointVector draw_pts_;
   QGraphicsPathItem* preview_ = nullptr;
 

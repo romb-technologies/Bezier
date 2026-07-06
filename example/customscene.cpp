@@ -86,7 +86,7 @@ void CustomScene::drawForeground(QPainter* painter, const QRectF& rect)
         }
   }
 
-  if (mode_ == Mode::PlaceControlPoints)
+  if (input_mode_ == InputMode::PlaceControlPoints)
   {
     painter->setPen(Qt::blue);
     painter->setBrush(QBrush(Qt::blue, Qt::SolidPattern));
@@ -100,13 +100,13 @@ void CustomScene::mousePressEvent(QGraphicsSceneMouseEvent* mouseEvent)
   const int sensitivity = 5;
   Bezier::Point p(mouseEvent->scenePos().x(), mouseEvent->scenePos().y());
 
-  if (mode_ == Mode::DrawFreehand && mouseEvent->button() == Qt::LeftButton)
+  if (input_mode_ == InputMode::DrawFreehand && mouseEvent->button() == Qt::LeftButton)
   {
     draw_pts_ = {p};
     updatePreview();
     return;
   }
-  if (mode_ == Mode::PlaceControlPoints)
+  if (input_mode_ == InputMode::PlaceControlPoints)
   {
     if (mouseEvent->button() == Qt::LeftButton)
     {
@@ -229,9 +229,9 @@ void CustomScene::mouseMoveEvent(QGraphicsSceneMouseEvent* mouseEvent)
 {
   Bezier::Point p(mouseEvent->scenePos().x(), mouseEvent->scenePos().y());
 
-  if (mode_ != Mode::Normal)
+  if (input_mode_ != InputMode::Normal)
   {
-    if (mode_ == Mode::DrawFreehand && (mouseEvent->buttons() & Qt::LeftButton))
+    if (input_mode_ == InputMode::DrawFreehand && (mouseEvent->buttons() & Qt::LeftButton))
     {
       draw_pts_.push_back(p);
       updatePreview();
@@ -292,12 +292,12 @@ void CustomScene::mouseMoveEvent(QGraphicsSceneMouseEvent* mouseEvent)
 
 void CustomScene::mouseReleaseEvent(QGraphicsSceneMouseEvent* mouseEvent)
 {
-  if (mode_ == Mode::DrawFreehand && mouseEvent->button() == Qt::LeftButton)
+  if (input_mode_ == InputMode::DrawFreehand && mouseEvent->button() == Qt::LeftButton)
   {
     finalizeFreehand();
     return;
   }
-  if (mode_ != Mode::Normal)
+  if (input_mode_ != InputMode::Normal)
     return;
 
   if (mouseEvent->button() == Qt::RightButton)
@@ -348,9 +348,9 @@ void CustomScene::keyPressEvent(QKeyEvent* keyEvent)
   {
     for (auto&& curve : selectedItems())
       if (is_curve)
-        c_curve->setDraw_curvature_radious(!c_curve->getDraw_curvature_radious());
+        c_curve->setDraw_curvature_radius(!c_curve->getDraw_curvature_radius());
       else if (is_poly)
-        c_poly->setDraw_curvature_radious(!c_poly->getDraw_curvature_radious());
+        c_poly->setDraw_curvature_radius(!c_poly->getDraw_curvature_radius());
     update();
   }
   if (keyEvent->key() == Qt::Key_Up)
@@ -420,9 +420,10 @@ void CustomScene::keyPressEvent(QKeyEvent* keyEvent)
   {
     for (auto&& curve : selectedItems())
     {
-      update(curve->sceneBoundingRect()); // repaint the vacated region (no-op update() misses the last item)
+      QRectF vacated = curve->sceneBoundingRect();
       removeItem(curve);
       delete curve;
+      update(vacated); // repaint the vacated region (bare update() misses the last item)
     }
   }
   if (keyEvent->key() == Qt::Key_L) {
@@ -485,7 +486,7 @@ void CustomScene::keyReleaseEvent(QKeyEvent* keyEvent)
     o_held_ = false;
 }
 
-void CustomScene::setMode(Mode mode)
+void CustomScene::setInputMode(InputMode mode)
 {
   draw_pts_.clear();
   if (preview_)
@@ -494,7 +495,7 @@ void CustomScene::setMode(Mode mode)
     delete preview_;
     preview_ = nullptr;
   }
-  mode_ = mode;
+  input_mode_ = mode;
   update();
 }
 
@@ -573,7 +574,7 @@ Control points - left click to place points, right click to finish\n\
 Keyboard shortcuts:\n\
 H - display help\n\
 B - toggle bounding box display\n\
-I - toggle intesections display\n\
+I - toggle intersections display\n\
 E - toggle extrema display\n\
 C - toggle curvature display (of selected curves)\n\
 Key Up - raise the order (of selected curves)\n\

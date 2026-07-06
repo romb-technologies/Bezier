@@ -3,9 +3,9 @@
 #include <QPainter>
 #include <QPen>
 
-void qCurve::setDraw_curvature_radious(bool value) { draw_curvature_radious = value; }
+void qCurve::setDraw_curvature_radius(bool value) { draw_curvature_radius = value; }
 
-bool qCurve::getDraw_curvature_radious() const { return draw_curvature_radious; }
+bool qCurve::getDraw_curvature_radius() const { return draw_curvature_radius; }
 
 bool qCurve::getLocked() const
 {
@@ -55,7 +55,7 @@ void qCurve::paint(QPainter* painter, const QStyleOptionGraphicsItem* option, QW
     painter->drawEllipse(QRectF(points.back().x() - d / 2, points.back().y() - d / 2, d, d));
   }
 
-  if (draw_curvature_radious)
+  if (draw_curvature_radius)
   {
     for (double t = 1.0 / 100; t <= 1.0; t += 1.0 / 200)
     {

@@ -69,19 +69,19 @@ void MainWindow::buildDashboard()
     if (on)
     {
       btn_cp_->setChecked(false);
-      scene->setMode(CustomScene::Mode::DrawFreehand);
+      scene->setInputMode(CustomScene::InputMode::DrawFreehand);
     }
     else if (!btn_cp_->isChecked())
-      scene->setMode(CustomScene::Mode::Normal);
+      scene->setInputMode(CustomScene::InputMode::Normal);
   });
   connect(btn_cp_, &QPushButton::toggled, this, [this](bool on) {
     if (on)
     {
       btn_draw_->setChecked(false);
-      scene->setMode(CustomScene::Mode::PlaceControlPoints);
+      scene->setInputMode(CustomScene::InputMode::PlaceControlPoints);
     }
     else if (!btn_draw_->isChecked())
-      scene->setMode(CustomScene::Mode::Normal);
+      scene->setInputMode(CustomScene::InputMode::Normal);
   });
   connect(btn_help, &QPushButton::clicked, this, [this] { scene->showHelp(); });
   connect(scene, &CustomScene::modeFinished, this, [this] {
