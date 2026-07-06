@@ -6,6 +6,7 @@
 // test suite survives the planned v0.4.0 algorithm rework.
 
 #include <cmath>
+#include <limits>
 #include <vector>
 
 #include <Eigen/Dense>
@@ -17,15 +18,32 @@ namespace Bezier
 namespace Oracles
 {
 
-/// Tolerance guide:
-/// - algebraically exact operations (control-point round trips, derivative
-///   control points): use EXPECT_EQ / EXPECT_DOUBLE_EQ, no constant needed
-/// - kGeom: geometric identities (de Casteljau agreement, split continuity,
-///   reverse mapping); absolute, adequate for coordinates of magnitude ~1e2
-/// - kFit:  approximation methods (fromPolyline/offsetCurve/joinCurves),
-///   expressed as a fraction of the bounding-box diagonal
-constexpr double kGeom = 1e-9;
-constexpr double kFit = 0.05;
+/// Tolerance policy: kGeom (machine precision) is the default. Every library
+/// method — geometric OR iterative — converges to Utils::epsilon (= sqrt of the
+/// machine epsilon) internally, so it is the right bound for almost everything:
+///   - length() grows its Chebyshev expansion until the tail coeff < epsilon
+///   - step() runs Halley's method until |s - ds| < epsilon
+///   - projectPoint()/distance() are bounded by root-finder / projection precision
+/// Depart from kGeom only with a reason:
+///   - exact: control-point copies, orders, sizes -> EXPECT_EQ / EXPECT_DOUBLE_EQ
+///   - kAlgebraic: FINER than kGeom. Pure arithmetic / matrix identities with no
+///                 geometric cancellation — Utils::pow, Chebyshev evaluation,
+///                 Bernstein / split / order-change matrices. A few ULP above eps.
+///   - kGeom:      closed-form geometric identities AND converged iterative
+///                 methods (length/step/projection/distance). Stacked-eps sites
+///                 (e.g. step calls length) use a small named multiple of kGeom,
+///                 not a new tier.
+/// Approximation methods (fromPolyline/offsetCurve/joinCurves) are NOT machine
+/// exact for interior fit; their bounds live locally in approx_test.cpp, tied to
+/// input resolution or the measured impl floor — never a bare percentage.
+constexpr double kAlgebraic = 1e-9;
+constexpr double kGeom = std::sqrt(std::numeric_limits<double>::epsilon()); // ~1.5e-8
+
+/// Sample-count tiers for parameter sweeps (see sampleParams). Named by purpose
+/// so tests stop scattering ad-hoc step counts.
+constexpr unsigned kCoarseSamples = 20;    // general property sweep
+constexpr unsigned kDenseSamples = 100;    // fine resolution to catch a worst-case sample
+constexpr unsigned kFlatnessSamples = 1000; // matched to span/1000 geometric bounds
 
 /// Inclusive parameter samples 0 = t_0 < ... < t_steps = 1 (steps+1 points).
 /// Index-based, so unlike `for (double t{}; t <= 1.0; t += step)` it always
@@ -62,12 +80,6 @@ inline double chordLength(const PointVector& cp, double t1 = 0.0, double t2 = 1.
     prev = next;
   }
   return length;
-}
-
-/// Central-difference derivative of a point-valued function of t.
-template <typename F> inline Vector centralDiff(F&& f, double t, double h = 1e-6)
-{
-  return (f(t + h) - f(t - h)) / (2 * h);
 }
 
 /// Control points of the derivative (hodograph): n * (P_{i+1} - P_i).

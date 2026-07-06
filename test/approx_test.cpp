@@ -9,21 +9,24 @@
 namespace Bezier
 {
 
-// Loose property tests for the approximation methods. They assert the
-// contract (fit quality relative to the bounding-box diagonal), not the
-// current Levenberg-Marquardt implementation, so they survive the planned
-// rewrite of these methods.
+// Property tests for the approximation methods. Parts that are exact by
+// construction — interpolated endpoints (fromPolyline pins t=0 and t=1), orders,
+// and the analytic straight-line offset — are asserted at machine precision. The
+// genuinely approximate interior fit of a curved shape is bounded by the input
+// polyline's own resolution or the measured implementation floor, never a bare
+// percentage of the bounding box. The measured floors are pinned to the current
+// Levenberg-Marquardt implementation and get revisited when it is reworked.
 
 class ApproxTest : public ::testing::Test
 {
 public:
-  ApproxTest() : curve_{curvePointsAsMatrix()}, fit_tolerance_{Oracles::kFit * curve_.boundingBox().diagonal().norm()}
+  ApproxTest() : curve_{curvePointsAsMatrix()}, polyline_flatness_{curve_.boundingBox().diagonal().norm() / 1000}
   {
   }
 
 protected:
   Curve curve_;
-  double fit_tolerance_;
+  double polyline_flatness_; // resolution of curve_.polyline(): default flatness is 0.1% of the bbox diagonal
 };
 
 TEST_F(ApproxTest, FromPolylineFitsSourcePolyline)
@@ -32,13 +35,15 @@ TEST_F(ApproxTest, FromPolylineFitsSourcePolyline)
   Curve fitted = Curve::fromPolyline(polyline, curve_.order());
   EXPECT_EQ(fitted.order(), curve_.order());
 
-  // Sampled fitted points stay close to the source polyline
-  for (double t : Oracles::sampleParams(50))
-    EXPECT_LE(Utils::dist(polyline, fitted.valueAt(t)), fit_tolerance_) << "fit too far at t=" << t;
+  // A same-order refit tracks the source polyline to within its own resolution
+  // (the fit cannot be asked to beat its input); measured worst ~0.9x flatness.
+  constexpr double kFitFactor = 1.5;
+  for (double t : Oracles::sampleParams(Oracles::kDenseSamples))
+    EXPECT_LE(Utils::dist(polyline, fitted.valueAt(t)), kFitFactor * polyline_flatness_) << "fit too far at t=" << t;
 
-  // First and last polyline points are preserved
-  EXPECT_LE((fitted.valueAt(0.0) - polyline.front()).norm(), fit_tolerance_);
-  EXPECT_LE((fitted.valueAt(1.0) - polyline.back()).norm(), fit_tolerance_);
+  // Endpoints are interpolated (t=0/1 pinned) -> match to solver precision (~1e-11)
+  EXPECT_NEAR((fitted.valueAt(0.0) - polyline.front()).norm(), 0.0, Oracles::kGeom);
+  EXPECT_NEAR((fitted.valueAt(1.0) - polyline.back()).norm(), 0.0, Oracles::kGeom);
 }
 
 TEST_F(ApproxTest, FromPolylineEdgeCases)
@@ -47,14 +52,18 @@ TEST_F(ApproxTest, FromPolylineEdgeCases)
   PointVector short_polyline = Utils::polylineSimplified(curve_.polyline(), 6);
   Curve automatic = Curve::fromPolyline(short_polyline);
   EXPECT_GE(automatic.order(), 1u);
-  for (double t : Oracles::sampleParams(10))
-    EXPECT_LE(Utils::dist(short_polyline, automatic.valueAt(t)), fit_tolerance_);
+
+  // The auto fit follows the deliberately coarse 6-point simplified polyline; the
+  // bound is the measured floor (~2.0) for this low-resolution input.
+  constexpr double kAutoFitTol = 3.0;
+  for (double t : Oracles::sampleParams(Oracles::kCoarseSamples))
+    EXPECT_LE(Utils::dist(short_polyline, automatic.valueAt(t)), kAutoFitTol);
 
   // Fewer than two points is an error
   EXPECT_THROW(Curve::fromPolyline(PointVector{}), std::logic_error);
   EXPECT_THROW(Curve::fromPolyline(PointVector{{1, 1}}), std::logic_error);
 
-  // Two points produce the order-1 curve through both
+  // Two points produce the order-1 curve through both (exact copy)
   Curve segment = Curve::fromPolyline(PointVector{{1, 2}, {5, 6}});
   EXPECT_EQ(segment.order(), 1u);
   EXPECT_EQ(segment.endPoints().first, Point(1, 2));
@@ -71,30 +80,29 @@ TEST_F(ApproxTest, FromPolylineAutoOrderOnRealisticPolyline)
 
 TEST_F(ApproxTest, OffsetCurveStraightLine)
 {
-  // Analytic case: offsetting a straight line shifts it by exactly |d|
+  // Analytic case: offsetting a line yields an exact parallel segment (fromPolyline
+  // of two points), so the distance to the source is exactly |d| to projection precision.
   Curve line{PointVector{{0, 0}, {100, 0}}};
   for (double offset : {5.0, -5.0})
   {
     Curve offset_curve = Curve::offsetCurve(line, offset);
-    for (double t : Oracles::sampleParams(20))
-      EXPECT_NEAR(line.distance(offset_curve.valueAt(t)), std::fabs(offset), 1e-6)
+    for (double t : Oracles::sampleParams(Oracles::kCoarseSamples))
+      EXPECT_NEAR(line.distance(offset_curve.valueAt(t)), std::fabs(offset), Oracles::kGeom)
           << "offset=" << offset << " t=" << t;
   }
 }
 
 TEST_F(ApproxTest, OffsetCurveGentleArc)
 {
-  // Gentle arc with small offset: sampled distance to the source curve stays
-  // within a tolerance of |d|. The bound isn't just fit error: offsetting a
-  // curved arc by a constant normal distance is itself only an approximate
-  // locus (curvature bends the true offset off that constant-distance curve),
-  // so kOffsetRelTol absorbs both effects, not just numerical slack.
-  constexpr double kOffsetRelTol = 0.05;
+  // Offsetting a curved arc by a constant normal distance is only an approximate
+  // locus (curvature bends the true offset off the constant-distance curve), plus
+  // fit error. Bound is the measured deviation (~0.056, ~3% of |d|) of the impl.
+  constexpr double kOffsetArcTol = 0.07;
   Curve arc{PointVector{{0, 0}, {50, 10}, {100, 0}}};
   double offset{2.0};
   Curve offset_curve = Curve::offsetCurve(arc, offset);
-  for (double t : Oracles::sampleParams(20))
-    EXPECT_NEAR(arc.distance(offset_curve.valueAt(t)), offset, kOffsetRelTol * offset) << "t=" << t;
+  for (double t : Oracles::sampleParams(Oracles::kCoarseSamples))
+    EXPECT_NEAR(arc.distance(offset_curve.valueAt(t)), offset, kOffsetArcTol) << "t=" << t;
 }
 
 TEST_F(ApproxTest, OffsetCurveRespectsRequestedOrder)
@@ -123,20 +131,19 @@ TEST_F(ApproxTest, JoinCurvesSmoothPair)
 
   Curve joined = Curve::joinCurves(first, second);
 
-  // Endpoints of the result match the outer endpoints of the pair: fromPolyline
-  // solves a square interpolation system pinned at t=0 and t=1, so this is exact
-  // in principle. kJoinEndpointTol is not fit-quality slack (unlike fit_tolerance_
-  // below) -- it's the empirical numerical floor of the matrix-inverse + LM solve
-  // (observed ~1e-6 for this fixture), several orders tighter than fit_tolerance_.
-  constexpr double kJoinEndpointTol = 1e-4;
-  EXPECT_NEAR((joined.endPoints().first - first.endPoints().first).norm(), 0.0, kJoinEndpointTol);
-  EXPECT_NEAR((joined.endPoints().second - second.endPoints().second).norm(), 0.0, kJoinEndpointTol);
+  // Endpoints are interpolated by fromPolyline (t=0/1 pinned); the default order-6
+  // solve is ill-conditioned, so they match only to the measured Bernstein/
+  // Vandermonde floor (~1.3e-6) -- still 100x tighter than the old 1e-4.
+  constexpr double kApproxEndpoint = 1e-5;
+  EXPECT_NEAR((joined.endPoints().first - first.endPoints().first).norm(), 0.0, kApproxEndpoint);
+  EXPECT_NEAR((joined.endPoints().second - second.endPoints().second).norm(), 0.0, kApproxEndpoint);
 
-  // Sampled result stays near the original pair
-  for (double t : Oracles::sampleParams(50))
+  // The joined order-6 curve approximates the two-cubic chain to a measured floor (~2.2).
+  constexpr double kJoinFitTol = 3.0;
+  for (double t : Oracles::sampleParams(Oracles::kDenseSamples))
   {
     Point p = joined.valueAt(t);
-    EXPECT_LE(std::min(first.distance(p), second.distance(p)), fit_tolerance_) << "joined curve too far at t=" << t;
+    EXPECT_LE(std::min(first.distance(p), second.distance(p)), kJoinFitTol) << "joined curve too far at t=" << t;
   }
 }
 

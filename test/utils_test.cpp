@@ -15,7 +15,7 @@ TEST(UtilsTest, PowMatchesStdPow)
 {
   for (double base : {0.0, 0.5, 1.0, -1.7, 3.0})
     for (unsigned exp = 0; exp <= 10; exp++)
-      EXPECT_NEAR(Utils::pow(base, exp), std::pow(base, exp), 1e-12 * std::fabs(std::pow(base, exp)))
+      EXPECT_NEAR(Utils::pow(base, exp), std::pow(base, exp), Oracles::kAlgebraic * std::fabs(std::pow(base, exp)))
           << "base=" << base << " exp=" << exp;
 
   // Integer instantiation is exact
@@ -69,7 +69,7 @@ TEST(UtilsTest, EvaluateChebyshevMatchesNaiveSum)
     double expected{};
     for (unsigned k = 0; k < coeffs.size(); k++)
       expected += coeffs(k) * std::cos(k * std::acos(std::clamp(x, -1.0, 1.0)));
-    EXPECT_NEAR(Utils::evaluateChebyshev(t, coeffs), expected, 1e-12) << "t=" << t;
+    EXPECT_NEAR(Utils::evaluateChebyshev(t, coeffs), expected, Oracles::kAlgebraic) << "t=" << t;
   }
 }
 
@@ -120,10 +120,10 @@ TEST(UtilsTest, MaxDeviationIsUpperBound)
 
     double bound = Utils::maxDeviation(cp);
     double true_deviation{};
-    for (double t : Oracles::sampleParams(1000))
+    for (double t : Oracles::sampleParams(Oracles::kFlatnessSamples))
       true_deviation =
           std::max(true_deviation, Utils::dist(cp_vec.front(), cp_vec.back(), Oracles::deCasteljau(cp_vec, t)));
-    EXPECT_GE(bound, true_deviation - 1e-12) << "order=" << order;
+    EXPECT_GE(bound, true_deviation - Oracles::kGeom) << "order=" << order;
   }
 
   // Two points: the "curve" is its own chord

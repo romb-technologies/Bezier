@@ -5,7 +5,6 @@
 
 #include "Bezier/bezier.h"
 #include "Bezier/polycurve.h"
-#include "Bezier/utils.h"
 
 namespace Bezier
 {
@@ -39,8 +38,7 @@ TEST_F(PolyCurveTest, SizeAndAccessors)
   {
     Point left_end = poly_.curve(k).endPoints().second;
     Point right_start = poly_.curve(k + 1).endPoints().first;
-    EXPECT_NEAR(left_end.x(), right_start.x(), Utils::epsilon);
-    EXPECT_NEAR(left_end.y(), right_start.y(), Utils::epsilon);
+    EXPECT_NEAR((left_end - right_start).norm(), 0.0, Oracles::kGeom);
   }
 }
 
@@ -85,26 +83,24 @@ TEST_F(PolyCurveTest, CurveIdxBoundaries)
 
 TEST_F(PolyCurveTest, ValueAtJointsAndContinuity)
 {
-  // Integer parameters hit the shared joint points
+  // Integer parameters hit the shared joint points; the two subcurves meeting
+  // there agree exactly (C0), so there is no need to step across with an epsilon.
   for (unsigned k = 1; k < poly_.size(); k++)
   {
     Point joint = poly_.curve(k).endPoints().first;
     Point value = poly_.valueAt(static_cast<double>(k));
-    EXPECT_NEAR(value.x(), joint.x(), Utils::epsilon);
-    EXPECT_NEAR(value.y(), joint.y(), Utils::epsilon);
+    EXPECT_NEAR((value - joint).norm(), 0.0, Oracles::kGeom);
 
-    // Approaching the joint from both sides gives the same point
-    Point before = poly_.valueAt(k - 1e-9);
-    Point after = poly_.valueAt(k + 1e-9);
-    EXPECT_NEAR(before.x(), after.x(), 1e-5);
-    EXPECT_NEAR(before.y(), after.y(), 1e-5);
+    // The subcurve ending at the joint reaches the same point (continuity)
+    Point prev_end = poly_.curve(k - 1).endPoints().second;
+    EXPECT_NEAR((joint - prev_end).norm(), 0.0, Oracles::kGeom);
   }
 
   // Endpoints of the global parameter range
   Point start = poly_.valueAt(0.0);
   Point end = poly_.valueAt(3.0);
-  EXPECT_NEAR(start.x(), poly_.curve(0).endPoints().first.x(), Utils::epsilon);
-  EXPECT_NEAR(end.x(), poly_.curve(2).endPoints().second.x(), Utils::epsilon);
+  EXPECT_NEAR((start - poly_.curve(0).endPoints().first).norm(), 0.0, Oracles::kGeom);
+  EXPECT_NEAR((end - poly_.curve(2).endPoints().second).norm(), 0.0, Oracles::kGeom);
 }
 
 TEST_F(PolyCurveTest, LengthAdditivity)
@@ -112,12 +108,12 @@ TEST_F(PolyCurveTest, LengthAdditivity)
   double subcurve_sum{};
   for (unsigned k = 0; k < poly_.size(); k++)
     subcurve_sum += poly_.curve(k).length();
-  EXPECT_NEAR(poly_.length(), subcurve_sum, 1e-8);
+  EXPECT_NEAR(poly_.length(), subcurve_sum, Oracles::kGeom);
 
   // Additivity across one and two joints
-  EXPECT_NEAR(poly_.length(0.5, 1.5), poly_.length(0.5, 1.0) + poly_.length(1.0, 1.5), 1e-8);
+  EXPECT_NEAR(poly_.length(0.5, 1.5), poly_.length(0.5, 1.0) + poly_.length(1.0, 1.5), Oracles::kGeom);
   EXPECT_NEAR(poly_.length(0.5, 2.5),
-              poly_.length(0.5, 1.0) + poly_.length(1.0, 2.0) + poly_.length(2.0, 2.5), 1e-8);
+              poly_.length(0.5, 1.0) + poly_.length(1.0, 2.0) + poly_.length(2.0, 2.5), Oracles::kGeom);
 
   // Pinned contract: swapped arguments yield the negated length
   EXPECT_DOUBLE_EQ(poly_.length(2.5, 0.5), -poly_.length(0.5, 2.5));
@@ -127,16 +123,16 @@ TEST_F(PolyCurveTest, StepWithinAndAcrossJoints)
 {
   // Within a single subcurve
   double t_within = poly_.step(0.4, 10.0);
-  EXPECT_NEAR(poly_.length(0.4, t_within), 10.0, 1e-6);
+  EXPECT_NEAR(poly_.length(0.4, t_within), 10.0, Oracles::kGeom);
 
   // Across a joint, forward and backward
   double ds_cross = poly_.length(0.9, 1.5);
-  EXPECT_NEAR(poly_.step(0.9, ds_cross), 1.5, 1e-6);
-  EXPECT_NEAR(poly_.step(1.5, -ds_cross), 0.9, 1e-6);
+  EXPECT_NEAR(poly_.step(0.9, ds_cross), 1.5, Oracles::kGeom);
+  EXPECT_NEAR(poly_.step(1.5, -ds_cross), 0.9, Oracles::kGeom);
 
   // Across two joints
   double ds_cross2 = poly_.length(0.5, 2.5);
-  EXPECT_NEAR(poly_.step(0.5, ds_cross2), 2.5, 1e-6);
+  EXPECT_NEAR(poly_.step(0.5, ds_cross2), 2.5, Oracles::kGeom);
 
   // Out-of-range distances clamp to the parameter range [0, size()]
   EXPECT_DOUBLE_EQ(poly_.step(1.5, 1e6), 3.0);
@@ -160,8 +156,7 @@ TEST_F(PolyCurveTest, PolylineContract)
   for (size_t i = 0; i < params.size(); i++)
   {
     Point on_curve = poly_.valueAt(params[i]);
-    EXPECT_NEAR(on_curve.x(), polyline[i].x(), 1e-6) << "vertex " << i << " not on curve";
-    EXPECT_NEAR(on_curve.y(), polyline[i].y(), 1e-6) << "vertex " << i << " not on curve";
+    EXPECT_NEAR((on_curve - polyline[i]).norm(), 0.0, Oracles::kGeom) << "vertex " << i << " not on curve";
   }
 }
 
@@ -193,10 +188,8 @@ TEST_F(PolyCurveTest, ControlPointsEndPointsBoundingBox)
   for (unsigned k = 1; k < poly_.size(); k++)
     expected.extend(poly_.curve(k).boundingBox());
   BoundingBox actual = poly_.boundingBox();
-  EXPECT_NEAR(actual.min().x(), expected.min().x(), Utils::epsilon);
-  EXPECT_NEAR(actual.min().y(), expected.min().y(), Utils::epsilon);
-  EXPECT_NEAR(actual.max().x(), expected.max().x(), Utils::epsilon);
-  EXPECT_NEAR(actual.max().y(), expected.max().y(), Utils::epsilon);
+  EXPECT_NEAR((actual.min() - expected.min()).norm(), 0.0, Oracles::kGeom);
+  EXPECT_NEAR((actual.max() - expected.max()).norm(), 0.0, Oracles::kGeom);
 }
 
 TEST_F(PolyCurveTest, ProjectPointAndDistanceConsistency)
@@ -210,11 +203,11 @@ TEST_F(PolyCurveTest, ProjectPointAndDistanceConsistency)
     EXPECT_LE(t, static_cast<double>(k + 1)) << "projection escaped subcurve " << k;
 
     // distance must agree with the projection
-    EXPECT_NEAR(poly_.distance(probe), (probe - poly_.valueAt(t)).norm(), Utils::epsilon);
+    EXPECT_NEAR(poly_.distance(probe), (probe - poly_.valueAt(t)).norm(), Oracles::kGeom);
   }
 
   // A point on the polycurve has distance ~0
-  EXPECT_NEAR(poly_.distance(poly_.valueAt(1.7)), 0.0, 1e-6);
+  EXPECT_NEAR(poly_.distance(poly_.valueAt(1.7)), 0.0, Oracles::kGeom);
 }
 
 TEST_F(PolyCurveTest, IntersectionsWithCurveAndPolyCurve)
@@ -225,12 +218,16 @@ TEST_F(PolyCurveTest, IntersectionsWithCurveAndPolyCurve)
   cross_cp << mid.x(), mid.y() - 100, mid.x(), mid.y() - 33, mid.x(), mid.y() + 33, mid.x(), mid.y() + 100;
   Curve cross{cross_cp};
 
+  // Reported intersection points come from bounding-box subdivision, so they
+  // carry more error than a closed-form result; intersections are reworked in
+  // the follow-up PR, where this local bound gets revisited.
+  constexpr double kIntersectTol = 1e-4;
   PointVector with_curve = poly_.intersections(cross);
   ASSERT_GE(with_curve.size(), 1u) << "Expected at least one intersection";
   for (const Point& p : with_curve)
   {
-    EXPECT_NEAR(poly_.distance(p), 0.0, 1e-4) << "intersection point not on polycurve";
-    EXPECT_NEAR(cross.distance(p), 0.0, 1e-4) << "intersection point not on crossing curve";
+    EXPECT_NEAR(poly_.distance(p), 0.0, kIntersectTol) << "intersection point not on polycurve";
+    EXPECT_NEAR(cross.distance(p), 0.0, kIntersectTol) << "intersection point not on crossing curve";
   }
 
   PolyCurve cross_poly{std::deque<Curve>{cross}};

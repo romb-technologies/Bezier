@@ -55,11 +55,17 @@ TEST_F(BezierTest, CurvePolylineFlatnessTest)
 
 TEST_F(BezierTest, CurveLengthMonotonicTest)
 {
-  // length(t) starts at 0 and increases; full length equals length(1)
+  // length(t) starts at 0 and strictly increases; full length equals length(1)
   // (absolute value is checked against the chord-length oracle elsewhere)
-  EXPECT_NEAR(curve_.length(0.0), 0.0, Utils::epsilon);
-  EXPECT_LT(curve_.length(0.25), curve_.length(0.5));
-  EXPECT_LT(curve_.length(0.5), curve_.length(0.75));
+  EXPECT_NEAR(curve_.length(0.0), 0.0, Oracles::kGeom);
+  double prev = 0.0;
+  for (double t : Oracles::sampleParams(Oracles::kCoarseSamples))
+  {
+    double len = curve_.length(t);
+    if (t > 0.0)
+      EXPECT_GT(len, prev) << "length not strictly increasing at t=" << t;
+    prev = len;
+  }
   EXPECT_DOUBLE_EQ(curve_.length(), curve_.length(1.0));
 }
 
@@ -80,8 +86,7 @@ TEST_F(BezierTest, CurveValueAtMultipleParamsTest)
   for (size_t i = 0; i < t_vals.size(); i++)
   {
     Point expected = Oracles::deCasteljau(cp, t_vals[i]);
-    EXPECT_NEAR(points(i, 0), expected.x(), Oracles::kGeom) << "t=" << t_vals[i];
-    EXPECT_NEAR(points(i, 1), expected.y(), Oracles::kGeom) << "t=" << t_vals[i];
+    EXPECT_NEAR((points.row(i).transpose() - expected).norm(), 0.0, Oracles::kGeom) << "t=" << t_vals[i];
   }
 }
 
@@ -90,8 +95,9 @@ TEST_F(BezierTest, CurveCurvatureMatchesOracle)
   PointVector cp = curve_.controlPoints();
   for (double t : {0.0, 0.25, 0.5, 0.75, 1.0})
   {
-    EXPECT_NEAR(curve_.curvatureAt(t), Oracles::curvature(cp, t), 1e-9) << "kappa at t=" << t;
-    EXPECT_NEAR(curve_.curvatureDerivativeAt(t), Oracles::curvatureDerivative(cp, t), 1e-6) << "kappa' at t=" << t;
+    EXPECT_NEAR(curve_.curvatureAt(t), Oracles::curvature(cp, t), Oracles::kGeom) << "kappa at t=" << t;
+    EXPECT_NEAR(curve_.curvatureDerivativeAt(t), Oracles::curvatureDerivative(cp, t), Oracles::kGeom)
+        << "kappa' at t=" << t;
   }
 }
 
@@ -129,7 +135,7 @@ TEST_F(BezierTest, CurveRootsTest)
 
     // a root lies on one of the axes
     Point p = curve_roots_.valueAt(root);
-    EXPECT_TRUE(std::abs(p.x()) < Utils::epsilon || std::abs(p.y()) < Utils::epsilon)
+    EXPECT_TRUE(std::abs(p.x()) < Oracles::kGeom || std::abs(p.y()) < Oracles::kGeom)
         << "root t=" << root << " not on an axis: (" << p.x() << ", " << p.y() << ")";
   }
 
@@ -147,7 +153,7 @@ TEST_F(BezierTest, CurveExtremaTest)
 
     // one derivative component vanishes at an axis-aligned extremum
     Vector deriv = curve_roots_.derivativeAt(t);
-    EXPECT_TRUE(std::abs(deriv.x()) < Utils::epsilon || std::abs(deriv.y()) < Utils::epsilon)
+    EXPECT_TRUE(std::abs(deriv.x()) < Oracles::kGeom || std::abs(deriv.y()) < Oracles::kGeom)
         << "extremum t=" << t << " derivative not axis-aligned: (" << deriv.x() << ", " << deriv.y() << ")";
   }
 
@@ -171,23 +177,23 @@ TEST_F(BezierTest, CurveBoundingBoxTest)
   for (double t : curve_.extrema())
   {
     Point p = curve_.valueAt(t);
-    EXPECT_GE(p.x(), bbox.min().x() - Utils::epsilon) << "extremum outside bbox";
-    EXPECT_LE(p.x(), bbox.max().x() + Utils::epsilon) << "extremum outside bbox";
-    EXPECT_GE(p.y(), bbox.min().y() - Utils::epsilon) << "extremum outside bbox";
-    EXPECT_LE(p.y(), bbox.max().y() + Utils::epsilon) << "extremum outside bbox";
+    EXPECT_GE(p.x(), bbox.min().x() - Oracles::kGeom) << "extremum outside bbox";
+    EXPECT_LE(p.x(), bbox.max().x() + Oracles::kGeom) << "extremum outside bbox";
+    EXPECT_GE(p.y(), bbox.min().y() - Oracles::kGeom) << "extremum outside bbox";
+    EXPECT_LE(p.y(), bbox.max().y() + Oracles::kGeom) << "extremum outside bbox";
   }
 
   EXPECT_LT(bbox.min().x(), bbox.max().x());
   EXPECT_LT(bbox.min().y(), bbox.max().y());
 
   // every sampled point lies inside the box
-  for (double t : Oracles::sampleParams(10))
+  for (double t : Oracles::sampleParams(Oracles::kCoarseSamples))
   {
     Point p = curve_.valueAt(t);
-    EXPECT_GE(p.x(), bbox.min().x() - Utils::epsilon) << "Point at t=" << t << " outside bbox";
-    EXPECT_LE(p.x(), bbox.max().x() + Utils::epsilon) << "Point at t=" << t << " outside bbox";
-    EXPECT_GE(p.y(), bbox.min().y() - Utils::epsilon) << "Point at t=" << t << " outside bbox";
-    EXPECT_LE(p.y(), bbox.max().y() + Utils::epsilon) << "Point at t=" << t << " outside bbox";
+    EXPECT_GE(p.x(), bbox.min().x() - Oracles::kGeom) << "Point at t=" << t << " outside bbox";
+    EXPECT_LE(p.x(), bbox.max().x() + Oracles::kGeom) << "Point at t=" << t << " outside bbox";
+    EXPECT_GE(p.y(), bbox.min().y() - Oracles::kGeom) << "Point at t=" << t << " outside bbox";
+    EXPECT_LE(p.y(), bbox.max().y() + Oracles::kGeom) << "Point at t=" << t << " outside bbox";
   }
 }
 
@@ -200,11 +206,14 @@ TEST_F(BezierTest, CurveIntersectionsTest)
   EXPECT_GE(intersections.size(), 1) << "Too few intersections found";
   EXPECT_LE(intersections.size(), 9) << "Too many intersections found";
 
-  // Every reported point lies on both curves
+  // Reported intersection points come from bounding-box subdivision, so they
+  // carry more error than a closed-form result; intersections are reworked in
+  // the follow-up PR, where this local bound gets revisited.
+  constexpr double kIntersectTol = 1e-4;
   for (const Point& p : intersections)
   {
-    EXPECT_NEAR(curve_.distance(p), 0.0, 1e-4);
-    EXPECT_NEAR(curve_with_intersections.distance(p), 0.0, 1e-4);
+    EXPECT_NEAR(curve_.distance(p), 0.0, kIntersectTol);
+    EXPECT_NEAR(curve_with_intersections.distance(p), 0.0, kIntersectTol);
   }
 }
 
@@ -215,12 +224,10 @@ TEST_F(BezierTest, CurveSplitTest)
   // halves meet at the split point and keep the original order
   Point left_end = split_curves.first.endPoints().second;
   Point right_start = split_curves.second.endPoints().first;
-  EXPECT_NEAR(left_end.x(), right_start.x(), Utils::epsilon);
-  EXPECT_NEAR(left_end.y(), right_start.y(), Utils::epsilon);
+  EXPECT_NEAR((left_end - right_start).norm(), 0.0, Oracles::kGeom);
 
   Point original_mid = curve_.valueAt(0.5);
-  EXPECT_NEAR(left_end.x(), original_mid.x(), Utils::epsilon);
-  EXPECT_NEAR(left_end.y(), original_mid.y(), Utils::epsilon);
+  EXPECT_NEAR((left_end - original_mid).norm(), 0.0, Oracles::kGeom);
 
   EXPECT_EQ(split_curves.first.order(), curve_.order());
   EXPECT_EQ(split_curves.second.order(), curve_.order());
@@ -228,31 +235,25 @@ TEST_F(BezierTest, CurveSplitTest)
   auto orig_endpoints = curve_.endPoints();
   auto left_start = split_curves.first.endPoints().first;
   auto right_end = split_curves.second.endPoints().second;
-  EXPECT_NEAR(left_start.x(), orig_endpoints.first.x(), Utils::epsilon);
-  EXPECT_NEAR(left_start.y(), orig_endpoints.first.y(), Utils::epsilon);
-  EXPECT_NEAR(right_end.x(), orig_endpoints.second.x(), Utils::epsilon);
-  EXPECT_NEAR(right_end.y(), orig_endpoints.second.y(), Utils::epsilon);
+  EXPECT_NEAR((left_start - orig_endpoints.first).norm(), 0.0, Oracles::kGeom);
+  EXPECT_NEAR((right_end - orig_endpoints.second).norm(), 0.0, Oracles::kGeom);
 
   // each half reparametrizes the matching slice of the original
   auto p1 = split_curves.first.valueAt(0.0);
   auto p2 = curve_.valueAt(0.0);
-  EXPECT_NEAR(p1.x(), p2.x(), Utils::epsilon);
-  EXPECT_NEAR(p1.y(), p2.y(), Utils::epsilon);
+  EXPECT_NEAR((p1 - p2).norm(), 0.0, Oracles::kGeom);
 
   p1 = split_curves.first.valueAt(0.5);
   p2 = curve_.valueAt(0.25);
-  EXPECT_NEAR(p1.x(), p2.x(), Utils::epsilon);
-  EXPECT_NEAR(p1.y(), p2.y(), Utils::epsilon);
+  EXPECT_NEAR((p1 - p2).norm(), 0.0, Oracles::kGeom);
 
   p1 = split_curves.second.valueAt(0.5);
   p2 = curve_.valueAt(0.75);
-  EXPECT_NEAR(p1.x(), p2.x(), Utils::epsilon);
-  EXPECT_NEAR(p1.y(), p2.y(), Utils::epsilon);
+  EXPECT_NEAR((p1 - p2).norm(), 0.0, Oracles::kGeom);
 
   p1 = split_curves.second.valueAt(1.0);
   p2 = curve_.valueAt(1.0);
-  EXPECT_NEAR(p1.x(), p2.x(), Utils::epsilon);
-  EXPECT_NEAR(p1.y(), p2.y(), Utils::epsilon);
+  EXPECT_NEAR((p1 - p2).norm(), 0.0, Oracles::kGeom);
 }
 
 TEST_F(BezierTest, CurveProjectPointTest)
@@ -264,8 +265,8 @@ TEST_F(BezierTest, CurveProjectPointTest)
 
   // No sampled point is closer than the projection
   double min_dist = (point - curve_.valueAt(t_projected)).norm();
-  for (double t : Oracles::sampleParams(100))
-    EXPECT_GE((point - curve_.valueAt(t)).norm(), min_dist - Utils::epsilon) << "closer point at t=" << t;
+  for (double t : Oracles::sampleParams(Oracles::kDenseSamples))
+    EXPECT_GE((point - curve_.valueAt(t)).norm(), min_dist - Oracles::kGeom) << "closer point at t=" << t;
 }
 
 TEST_F(BezierTest, CurveDistanceTest)
@@ -276,7 +277,7 @@ TEST_F(BezierTest, CurveDistanceTest)
 
   // distance == ‖point − valueAt(projectPoint)‖
   double expected_distance = (point - curve_.valueAt(curve_.projectPoint(point))).norm();
-  EXPECT_NEAR(distance, expected_distance, Utils::epsilon);
+  EXPECT_NEAR(distance, expected_distance, Oracles::kGeom);
 }
 
 // ---------------------------------------------------------------------------
@@ -305,14 +306,13 @@ TEST_F(BezierTest, CurvePolylineContractTest)
   for (size_t i = 0; i < params.size(); i++)
   {
     Point on_curve = curve_.valueAt(params[i]);
-    EXPECT_NEAR(on_curve.x(), polyline[i].x(), 1e-6) << "Polyline vertex " << i << " not on curve";
-    EXPECT_NEAR(on_curve.y(), polyline[i].y(), 1e-6) << "Polyline vertex " << i << " not on curve";
+    EXPECT_NEAR((on_curve - polyline[i]).norm(), 0.0, Oracles::kGeom) << "Polyline vertex " << i << " not on curve";
   }
 
   // Dense samples of the curve stay within flatness of the polyline
   double flatness = curve_.boundingBox().diagonal().norm() / 1000;
-  for (double t : Oracles::sampleParams(1000))
-    EXPECT_LE(Utils::dist(polyline, curve_.valueAt(t)), flatness + Utils::epsilon) << "Curve too far at t=" << t;
+  for (double t : Oracles::sampleParams(Oracles::kFlatnessSamples))
+    EXPECT_LE(Utils::dist(polyline, curve_.valueAt(t)), flatness + Oracles::kGeom) << "Curve too far at t=" << t;
 }
 
 TEST(CurveOracleTests, ValueAtMatchesDeCasteljau)
@@ -321,12 +321,11 @@ TEST(CurveOracleTests, ValueAtMatchesDeCasteljau)
   {
     PointVector cp = makeControlPoints(order);
     Curve curve{cp};
-    for (double t : Oracles::sampleParams(10))
+    for (double t : Oracles::sampleParams(Oracles::kCoarseSamples))
     {
       Point expected = Oracles::deCasteljau(cp, t);
       Point actual = curve.valueAt(t);
-      EXPECT_NEAR(actual.x(), expected.x(), Oracles::kGeom) << "order=" << order << " t=" << t;
-      EXPECT_NEAR(actual.y(), expected.y(), Oracles::kGeom) << "order=" << order << " t=" << t;
+      EXPECT_NEAR((actual - expected).norm(), 0.0, Oracles::kGeom) << "order=" << order << " t=" << t;
     }
   }
 }
@@ -335,21 +334,21 @@ TEST_F(BezierTest, CurveLengthMatchesChordLengthOracle)
 {
   // Fixture cubic
   double oracle = Oracles::chordLength(curve_.controlPoints());
-  EXPECT_NEAR(curve_.length(), oracle, 1e-6 * oracle);
+  EXPECT_NEAR(curve_.length(), oracle, Oracles::kGeom * oracle);
 
   // Partial lengths
-  EXPECT_NEAR(curve_.length(0.3), Oracles::chordLength(curve_.controlPoints(), 0.0, 0.3), 1e-6 * oracle);
-  EXPECT_NEAR(curve_.length(0.2, 0.8), Oracles::chordLength(curve_.controlPoints(), 0.2, 0.8), 1e-6 * oracle);
+  EXPECT_NEAR(curve_.length(0.3), Oracles::chordLength(curve_.controlPoints(), 0.0, 0.3), Oracles::kGeom * oracle);
+  EXPECT_NEAR(curve_.length(0.2, 0.8), Oracles::chordLength(curve_.controlPoints(), 0.2, 0.8), Oracles::kGeom * oracle);
 
   // Straight line: length equals the chord exactly
   Curve line{PointVector{{0, 0}, {3, 4}}};
-  EXPECT_NEAR(line.length(), 5.0, Utils::epsilon);
+  EXPECT_NEAR(line.length(), 5.0, Oracles::kGeom);
 
   // Symmetric quadratic — regression guard for the master-branch Chebyshev
   // truncation bug (even coefficients vanish); v4 must get this right
   Curve symmetric{PointVector{{0, 0}, {1, 2}, {2, 0}}};
   double symmetric_oracle = Oracles::chordLength(symmetric.controlPoints());
-  EXPECT_NEAR(symmetric.length(), symmetric_oracle, 1e-6 * symmetric_oracle);
+  EXPECT_NEAR(symmetric.length(), symmetric_oracle, Oracles::kGeom * symmetric_oracle);
 }
 
 TEST_F(BezierTest, CurveStepLengthRoundTripTest)
@@ -358,7 +357,7 @@ TEST_F(BezierTest, CurveStepLengthRoundTripTest)
     for (double ds : {5.0, 35.0, -5.0, -15.0})
     {
       double new_t = curve_.step(t, ds);
-      EXPECT_NEAR(curve_.length(t, new_t), ds, 1e-6) << "Round trip failed for t=" << t << " ds=" << ds;
+      EXPECT_NEAR(curve_.length(t, new_t), ds, Oracles::kGeom) << "Round trip failed for t=" << t << " ds=" << ds;
     }
 
   // Out-of-range distances clamp to the curve ends
@@ -370,12 +369,11 @@ TEST_F(BezierTest, CurveReverseTest)
 {
   Curve reversed{curve_};
   reversed.reverse();
-  for (double t : Oracles::sampleParams(20))
+  for (double t : Oracles::sampleParams(Oracles::kCoarseSamples))
   {
     Point expected = curve_.valueAt(1.0 - t);
     Point actual = reversed.valueAt(t);
-    EXPECT_NEAR(actual.x(), expected.x(), Oracles::kGeom) << "reverse mismatch at t=" << t;
-    EXPECT_NEAR(actual.y(), expected.y(), Oracles::kGeom) << "reverse mismatch at t=" << t;
+    EXPECT_NEAR((actual - expected).norm(), 0.0, Oracles::kGeom) << "reverse mismatch at t=" << t;
   }
 }
 
@@ -388,12 +386,11 @@ TEST_F(BezierTest, CurveSplitMultiTest)
   // Pieces map linearly onto the original parameter ranges
   std::array<std::pair<double, double>, 3> ranges{{{0.0, 0.25}, {0.25, 0.6}, {0.6, 1.0}}};
   for (size_t k = 0; k < pieces.size(); k++)
-    for (double s : Oracles::sampleParams(8))
+    for (double s : Oracles::sampleParams(Oracles::kCoarseSamples))
     {
       Point expected = curve_.valueAt(ranges[k].first + s * (ranges[k].second - ranges[k].first));
       Point actual = pieces[k].valueAt(s);
-      EXPECT_NEAR(actual.x(), expected.x(), 1e-8) << "piece " << k << " s=" << s;
-      EXPECT_NEAR(actual.y(), expected.y(), 1e-8) << "piece " << k << " s=" << s;
+      EXPECT_NEAR((actual - expected).norm(), 0.0, Oracles::kGeom) << "piece " << k << " s=" << s;
     }
 
   // C0 continuity between adjacent pieces
@@ -401,8 +398,7 @@ TEST_F(BezierTest, CurveSplitMultiTest)
   {
     Point left = pieces[k].endPoints().second;
     Point right = pieces[k + 1].endPoints().first;
-    EXPECT_NEAR(left.x(), right.x(), 1e-8);
-    EXPECT_NEAR(left.y(), right.y(), 1e-8);
+    EXPECT_NEAR((left - right).norm(), 0.0, Oracles::kGeom);
   }
 
   // Unsorted input produces the same pieces
@@ -422,12 +418,11 @@ TEST_F(BezierTest, CurveRaiseOrderPreservesShape)
   Curve raised{curve_};
   raised.raiseOrder();
   EXPECT_EQ(raised.order(), curve_.order() + 1);
-  for (double t : Oracles::sampleParams(20))
+  for (double t : Oracles::sampleParams(Oracles::kCoarseSamples))
   {
     Point expected = curve_.valueAt(t);
     Point actual = raised.valueAt(t);
-    EXPECT_NEAR(actual.x(), expected.x(), 1e-8) << "raiseOrder changed shape at t=" << t;
-    EXPECT_NEAR(actual.y(), expected.y(), 1e-8) << "raiseOrder changed shape at t=" << t;
+    EXPECT_NEAR((actual - expected).norm(), 0.0, Oracles::kGeom) << "raiseOrder changed shape at t=" << t;
   }
 
   // Lowering the raised curve recovers the original control points
@@ -437,8 +432,7 @@ TEST_F(BezierTest, CurveRaiseOrderPreservesShape)
   PointVector round_trip = raised.controlPoints();
   for (size_t i = 0; i < original.size(); i++)
   {
-    EXPECT_NEAR(round_trip[i].x(), original[i].x(), 1e-8);
-    EXPECT_NEAR(round_trip[i].y(), original[i].y(), 1e-8);
+    EXPECT_NEAR((round_trip[i] - original[i]).norm(), 0.0, Oracles::kGeom);
   }
 }
 
@@ -448,16 +442,17 @@ TEST(CurveOrderTests, LowerOrderThrowsOnFirstOrderCurve)
   EXPECT_THROW(line.lowerOrder(), std::logic_error);
 }
 
-TEST_F(BezierTest, CurveDerivativeAtMatchesCentralDiff)
+TEST_F(BezierTest, CurveDerivativeAtMatchesHodograph)
 {
-  auto f = [this](double t) { return curve_.valueAt(t); };
+  // Compare against the exact derivative (hodograph evaluated by de Casteljau),
+  // not a finite difference: closed-form vs closed-form holds to machine precision.
+  PointVector cp = curve_.controlPoints();
+  PointVector hodograph = Oracles::derivativeControlPoints(cp);
   for (double t : {0.1, 0.3, 0.5, 0.7, 0.9})
   {
-    Vector expected = Oracles::centralDiff(f, t);
+    Vector expected = Oracles::deCasteljau(hodograph, t);
     Vector actual = curve_.derivativeAt(t);
-    // central difference is O(h^2) accurate; derivative magnitudes are ~1e2
-    EXPECT_NEAR(actual.x(), expected.x(), 1e-3) << "derivative mismatch at t=" << t;
-    EXPECT_NEAR(actual.y(), expected.y(), 1e-3) << "derivative mismatch at t=" << t;
+    EXPECT_NEAR((actual - expected).norm(), 0.0, Oracles::kGeom) << "derivative mismatch at t=" << t;
   }
 }
 
@@ -468,17 +463,16 @@ TEST_F(BezierTest, CurveTangentNormalPropertiesTest)
     Vector tangent = curve_.tangentAt(t);
     Vector normal = curve_.normalAt(t);
 
-    EXPECT_NEAR(tangent.norm(), 1.0, Utils::epsilon) << "tangent not unit at t=" << t;
-    EXPECT_NEAR(normal.norm(), 1.0, Utils::epsilon) << "normal not unit at t=" << t;
-    EXPECT_NEAR(tangent.dot(normal), 0.0, Utils::epsilon) << "tangent/normal not orthogonal at t=" << t;
+    EXPECT_NEAR(tangent.norm(), 1.0, Oracles::kGeom) << "tangent not unit at t=" << t;
+    EXPECT_NEAR(normal.norm(), 1.0, Oracles::kGeom) << "normal not unit at t=" << t;
+    EXPECT_NEAR(tangent.dot(normal), 0.0, Oracles::kGeom) << "tangent/normal not orthogonal at t=" << t;
 
     // normal is the tangent rotated +90 degrees
-    EXPECT_NEAR(normal.x(), -tangent.y(), Utils::epsilon);
-    EXPECT_NEAR(normal.y(), tangent.x(), Utils::epsilon);
+    EXPECT_NEAR((normal - Vector(-tangent.y(), tangent.x())).norm(), 0.0, Oracles::kGeom);
 
     // tangent points along the derivative (same direction, not just parallel)
     Vector derivative = curve_.derivativeAt(t);
-    EXPECT_NEAR(tangent.x() * derivative.y() - tangent.y() * derivative.x(), 0.0, Utils::epsilon * derivative.norm());
+    EXPECT_NEAR(tangent.x() * derivative.y() - tangent.y() * derivative.x(), 0.0, Oracles::kGeom * derivative.norm());
     EXPECT_GT(tangent.dot(derivative), 0.0) << "tangent points against the curve at t=" << t;
   }
 }
@@ -489,7 +483,7 @@ TEST_F(BezierTest, CurveProjectPointRecoveryTest)
   for (double t : {0.1, 0.3, 0.5, 0.7, 0.9})
   {
     double projected = curve_.projectPoint(curve_.valueAt(t));
-    EXPECT_NEAR(projected, t, Utils::epsilon) << "did not recover parameter t=" << t;
+    EXPECT_NEAR(projected, t, Oracles::kGeom) << "did not recover parameter t=" << t;
   }
 
   // Points beyond the endpoints project to the endpoints
@@ -507,13 +501,11 @@ TEST_F(BezierTest, CurveApplyContinuityC1Test)
   // C1: position and first derivative match the locked curve's end
   Point pos_expected = curve_.valueAt(1.0);
   Point pos_actual = continued.valueAt(0.0);
-  EXPECT_NEAR(pos_actual.x(), pos_expected.x(), 1e-8);
-  EXPECT_NEAR(pos_actual.y(), pos_expected.y(), 1e-8);
+  EXPECT_NEAR((pos_actual - pos_expected).norm(), 0.0, Oracles::kGeom);
 
   Vector der_expected = curve_.derivativeAt(1.0);
   Vector der_actual = continued.derivativeAt(0.0);
-  EXPECT_NEAR(der_actual.x(), der_expected.x(), 1e-6);
-  EXPECT_NEAR(der_actual.y(), der_expected.y(), 1e-6);
+  EXPECT_NEAR((der_actual - der_expected).norm(), 0.0, Oracles::kGeom);
 }
 
 TEST_F(BezierTest, CurveApplyContinuityG1Test)
@@ -525,13 +517,11 @@ TEST_F(BezierTest, CurveApplyContinuityG1Test)
   // G1: position matches; first derivative is scaled by beta
   Point pos_expected = curve_.valueAt(1.0);
   Point pos_actual = continued.valueAt(0.0);
-  EXPECT_NEAR(pos_actual.x(), pos_expected.x(), 1e-8);
-  EXPECT_NEAR(pos_actual.y(), pos_expected.y(), 1e-8);
+  EXPECT_NEAR((pos_actual - pos_expected).norm(), 0.0, Oracles::kGeom);
 
   Vector der_expected = beta * curve_.derivativeAt(1.0);
   Vector der_actual = continued.derivativeAt(0.0);
-  EXPECT_NEAR(der_actual.x(), der_expected.x(), 1e-6);
-  EXPECT_NEAR(der_actual.y(), der_expected.y(), 1e-6);
+  EXPECT_NEAR((der_actual - der_expected).norm(), 0.0, Oracles::kGeom);
 }
 
 TEST_F(BezierTest, CurveCopySemanticsTest)
@@ -578,7 +568,7 @@ TEST_F(BezierTest, CurveIntersectionsSharedEndpointTest)
                            {shared.x() + 120, shared.y() + 10},
                            {shared.x() + 150, shared.y() + 90}}};
   for (const Point& p : curve_.intersections(second))
-    EXPECT_GT((p - shared).norm(), Utils::epsilon) << "Endpoint contact should not be reported";
+    EXPECT_GT((p - shared).norm(), Oracles::kGeom) << "Endpoint contact should not be reported";
 }
 
 TEST_F(BezierTest, CurveApplyContinuityRaisesOrderTest)
@@ -588,7 +578,7 @@ TEST_F(BezierTest, CurveApplyContinuityRaisesOrderTest)
   Curve continued{curve_roots_};
   ASSERT_NO_THROW(continued.applyContinuity(curve_, {1.0, 1.0, 1.0, 1.0}));
   EXPECT_GE(continued.order(), 4u);
-  EXPECT_TRUE(continued.valueAt(0.0).isApprox(curve_.valueAt(1.0), Utils::epsilon));
+  EXPECT_TRUE(continued.valueAt(0.0).isApprox(curve_.valueAt(1.0), Oracles::kGeom));
 }
 
 TEST(CurveLengthTests, DegenerateCurveHasZeroLength)
@@ -596,7 +586,7 @@ TEST(CurveLengthTests, DegenerateCurveHasZeroLength)
   Curve degenerate{PointVector{{10, 10}, {10, 10}, {10, 10}, {10, 10}}};
   double length{};
   ASSERT_NO_THROW(length = degenerate.length());
-  EXPECT_NEAR(length, 0.0, Utils::epsilon);
+  EXPECT_NEAR(length, 0.0, Oracles::kGeom);
 }
 
 TEST(CurveCuspTests, StepReturnsFiniteParameter)
@@ -616,7 +606,7 @@ TEST(CurveCuspTests, NormalIsFiniteUnitVector)
   Vector normal = cusped.normalAt(0.5);
   ASSERT_TRUE(std::isfinite(normal.x()));
   ASSERT_TRUE(std::isfinite(normal.y()));
-  EXPECT_NEAR(normal.norm(), 1.0, Utils::epsilon);
+  EXPECT_NEAR(normal.norm(), 1.0, Oracles::kGeom);
 }
 
 } // namespace Bezier

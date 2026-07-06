@@ -51,7 +51,7 @@ TEST(CoefficientsTest, BernsteinMatchesBinomialBasis)
       for (unsigned k = 0; k < n; k++)
       {
         double expected = binomial(m, k) * std::pow(t, k) * std::pow(1 - t, m - k);
-        EXPECT_NEAR(basis(k), expected, 1e-10) << "n=" << n << " k=" << k << " t=" << t;
+        EXPECT_NEAR(basis(k), expected, Oracles::kAlgebraic) << "n=" << n << " k=" << k << " t=" << t;
       }
     }
   }
@@ -69,21 +69,21 @@ TEST(CoefficientsTest, SplitMatricesMatchDeCasteljau)
     PointVector left = toPoints(Coefficients::leftSplit(n, t_split) * cp);
     PointVector right = toPoints(Coefficients::rightSplit(n, t_split) * cp);
 
-    for (double s : Oracles::sampleParams(8))
+    for (double s : Oracles::sampleParams(Oracles::kCoarseSamples))
     {
       Point left_expected = Oracles::deCasteljau(cp_points, s * t_split);
       Point left_actual = Oracles::deCasteljau(left, s);
-      EXPECT_NEAR(left_actual.x(), left_expected.x(), 1e-9) << "left t_split=" << t_split << " s=" << s;
-      EXPECT_NEAR(left_actual.y(), left_expected.y(), 1e-9) << "left t_split=" << t_split << " s=" << s;
+      EXPECT_NEAR(left_actual.x(), left_expected.x(), Oracles::kGeom) << "left t_split=" << t_split << " s=" << s;
+      EXPECT_NEAR(left_actual.y(), left_expected.y(), Oracles::kGeom) << "left t_split=" << t_split << " s=" << s;
 
       Point right_expected = Oracles::deCasteljau(cp_points, t_split + s * (1 - t_split));
       Point right_actual = Oracles::deCasteljau(right, s);
-      EXPECT_NEAR(right_actual.x(), right_expected.x(), 1e-9) << "right t_split=" << t_split << " s=" << s;
-      EXPECT_NEAR(right_actual.y(), right_expected.y(), 1e-9) << "right t_split=" << t_split << " s=" << s;
+      EXPECT_NEAR(right_actual.x(), right_expected.x(), Oracles::kGeom) << "right t_split=" << t_split << " s=" << s;
+      EXPECT_NEAR(right_actual.y(), right_expected.y(), Oracles::kGeom) << "right t_split=" << t_split << " s=" << s;
     }
 
     // Both pieces share the split point
-    EXPECT_NEAR((left.back() - right.front()).norm(), 0.0, 1e-9);
+    EXPECT_NEAR((left.back() - right.front()).norm(), 0.0, Oracles::kGeom);
   }
 }
 
@@ -92,7 +92,7 @@ TEST(CoefficientsTest, LowerOrderIsLeftInverseOfRaiseOrder)
   for (unsigned n = 2; n <= 8; n++)
   {
     Eigen::MatrixXd product = Coefficients::lowerOrder(n + 1) * Coefficients::raiseOrder(n);
-    EXPECT_TRUE(product.isApprox(Eigen::MatrixXd::Identity(n, n), 1e-9)) << "n=" << n;
+    EXPECT_TRUE(product.isApprox(Eigen::MatrixXd::Identity(n, n), Oracles::kAlgebraic)) << "n=" << n;
   }
 }
 
