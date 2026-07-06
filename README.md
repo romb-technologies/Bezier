@@ -80,18 +80,16 @@ Build options (default `OFF`):
 | `BUILD_TESTING` | Build the unit tests |
 | `BUILD_EXAMPLE` | Build the Qt5 example application |
 
-### ROS 2
-
-The package is a plain CMake package (`build_type: cmake`) that builds with colcon — no system-wide installation needed. Clone it into the `src` folder of your colcon workspace and build:
-
-```sh
-colcon build --packages-select bezier
-```
-
 ## Example application
 
 A small Qt5 based program written as a playground for manipulating Bezier curves.
-Build it with `-DBUILD_EXAMPLE=ON` and run `build/example/bezier_example`.
+Enable it at configure time, then build and run:
+
+```sh
+cmake -B build -DBUILD_EXAMPLE=ON
+cmake --build build
+./build/example/bezier_example
+```
 
 A side panel shows live data (curve counts, selected curve order and length, offset)
 and provides drawing tools:
@@ -103,6 +101,14 @@ and provides drawing tools:
 Curves can be selected, reshaped via their control points, split, joined, offset,
 have their order raised/lowered, and inspected (bounding box, intersections,
 extrema, curvature). See the help dialog for the full list of shortcuts.
+
+## ROS 2
+
+The package is a plain CMake package (`build_type: cmake`) that builds with colcon — no system-wide installation needed. Clone it into the `src` folder of your colcon workspace and build:
+
+```sh
+colcon build --packages-select bezier
+```
 
 ## Dependencies
 
