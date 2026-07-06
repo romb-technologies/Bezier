@@ -44,10 +44,10 @@ inline Eigen::MatrixXd bernstein(unsigned n)
   auto fun = [n]() -> Eigen::MatrixXd {
     Eigen::MatrixXd coeffs = Eigen::MatrixXd::Zero(n, n);
     double rn = 1.0; // C(n-1, k) row factor
-    for (unsigned k = 0; k < n; ++k)
+    for (unsigned k = 0; k < n; k++)
     {
       double c = 1.0; // C(k,0)
-      for (unsigned i = 0; i <= k; ++i)
+      for (unsigned i = 0; i <= k; i++)
       {
         coeffs(k, i) = ((k - i) & 1u ? -1.0 : 1.0) * c * rn;
         c = c * (k - i) / (i + 1); // C(k,i+1)
@@ -68,10 +68,10 @@ inline Eigen::MatrixXd leftSplit(unsigned n, double t = 0.5)
     Eigen::RowVectorXd tp = Utils::powVector(t, n);     // [t^0 .. t^{n-1}]
     Eigen::RowVectorXd ct = Utils::powVector(1 - t, n); // [(1-t)^0 .. (1-t)^{n-1}]
     Eigen::MatrixXd L = Eigen::MatrixXd::Zero(n, n);
-    for (unsigned k = 0; k < n; ++k)
+    for (unsigned k = 0; k < n; k++)
     {
       double c = 1.0; // C(k,0)
-      for (unsigned i = 0; i <= k; ++i)
+      for (unsigned i = 0; i <= k; i++)
       {
         L(k, i) = c * tp(i) * ct(k - i);
         c = c * (k - i) / (i + 1); // C(k,i+1)
