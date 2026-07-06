@@ -305,7 +305,7 @@ public:
   /*!
    * \brief Fit a Bezier approximation of the curve offset by a given distance
    * \param curve Source curve
-   * \param offset Offset distance (negative offsets toward the inner/concave side)
+   * \param offset Offset distance (positive to the left of the curve's direction, negative to the right)
    * \param order Order of the resulting curve; 0 selects it automatically
    * \return Offset curve
    */
@@ -317,6 +317,7 @@ public:
    * \param curve2 Second curve
    * \param order Order of the resulting curve; 0 selects it automatically
    * \return Joined curve
+   * \note Curves need not be contiguous; a gap between them is bridged by the fit.
    */
   static Curve joinCurves(const Curve& curve1, const Curve& curve2, unsigned order = 0);
 
