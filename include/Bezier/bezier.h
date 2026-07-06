@@ -121,7 +121,7 @@ public:
    * \brief Compute exact arc length using Chebyshev polynomials
    * \param t Curve parameter to which length is computed
    * \return Arc length from start to parameter t
-   * \warning CAN THROW: t must be within [0.0, 1.0]
+   * \throws std::logic_error if t is outside [0.0, 1.0]
    */
   double length(double t) const;
 
@@ -130,6 +130,7 @@ public:
    * \param t1 Curve parameter from which length is computed
    * \param t2 Curve parameter to which length is computed
    * \return Arc length between parameters t1 and t2
+   * \throws std::logic_error if t1 or t2 is outside [0.0, 1.0]
    */
   double length(double t1, double t2) const;
 
@@ -138,6 +139,7 @@ public:
    * \param t Curve parameter
    * \param ds Distance to iterate
    * \return New parameter t
+   * \throws std::logic_error if t is outside [0.0, 1.0]
    */
   double step(double t, double ds) const;
 
@@ -166,8 +168,8 @@ public:
    * \brief Lower the curve order by 1
    *
    * If current shape cannot be described by lower order, it will be best approximation
-   * \warning CAN THROW: Cannot be called for curves of 1st order
    * \warning Resets cached data
+   * \throws std::logic_error if the curve is already 1st order
    */
   void lowerOrder();
 
@@ -329,6 +331,7 @@ public:
    * \param polyline Polyline vertices to approximate
    * \param order Order of the fitted curve; 0 selects it automatically
    * \return Fitted curve
+   * \throws std::logic_error if the polyline has fewer than two points
    */
   static Curve fromPolyline(const PointVector& polyline, unsigned order = 0);
 
