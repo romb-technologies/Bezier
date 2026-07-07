@@ -3,6 +3,11 @@ project(bezier
   LANGUAGES CXX
   VERSION 0.3.2)
 
+# Default to an optimized build unless the user (or a multi-config generator) sets it
+if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+  set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type" FORCE)
+endif()
+
 find_package(Eigen3 REQUIRED)
 
 set(Bezier_SRC
@@ -22,12 +27,7 @@ set(Bezier_INC
 # Options
 option(BUILD_SHARED_LIBS "Build shared library (.so) instead of static one (.a)" OFF)
 option(BUILD_TESTING "Build the testing tree." OFF)
-
-# Tests subdirectory
-if(BUILD_TESTING)
-  enable_testing()
-  add_subdirectory(test)
-endif()
+option(BUILD_EXAMPLE "Build the Qt example application." OFF)
 
 # build rules
 
@@ -58,3 +58,14 @@ install(TARGETS bezier
 install(EXPORT bezier-export DESTINATION "lib/cmake/Bezier" FILE BezierConfig.cmake)
 
 add_library(bezier::bezier ALIAS bezier)
+
+# Tests subdirectory
+if(BUILD_TESTING)
+  enable_testing()
+  add_subdirectory(test)
+endif()
+
+# Example subdirectory
+if(BUILD_EXAMPLE)
+  add_subdirectory(example)
+endif()

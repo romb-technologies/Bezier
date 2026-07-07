@@ -1,5 +1,6 @@
 #include "customscene.h"
 
+#include <QGraphicsPathItem>
 #include <QGraphicsSceneMouseEvent>
 #include <QKeyEvent>
 #include <QMessageBox>
@@ -55,12 +56,67 @@ void CustomScene::drawForeground(QPainter* painter, const QRectF& rect)
           painter->drawEllipse(QPointF(dot.x(), dot.y()), 3, 3);
       }
   }
+
+  if (offset_ != 0.0)
+  {
+    painter->setPen(QPen(Qt::darkGreen, 0, Qt::DashLine));
+    for (auto&& curve : items())
+    {
+      if (!is_curve)
+        continue;
+      auto poly = Bezier::Curve::offsetCurve(*c_curve, offset_).polyline();
+      QPainterPath path;
+      path.moveTo(poly[0].x(), poly[0].y());
+      for (uint k = 1; k < poly.size(); k++)
+        path.lineTo(poly[k].x(), poly[k].y());
+      painter->drawPath(path);
+    }
+  }
+
+  if (draw_extrema_)
+  {
+    painter->setPen(Qt::magenta);
+    painter->setBrush(QBrush(Qt::magenta, Qt::SolidPattern));
+    for (auto&& curve : items())
+      if (is_curve)
+        for (double t : c_curve->extrema())
+        {
+          auto e = c_curve->valueAt(t);
+          painter->drawEllipse(QPointF(e.x(), e.y()), 4, 4);
+        }
+  }
+
+  if (input_mode_ == InputMode::PlaceControlPoints)
+  {
+    painter->setPen(Qt::blue);
+    painter->setBrush(QBrush(Qt::blue, Qt::SolidPattern));
+    for (const auto& cp : draw_pts_)
+      painter->drawEllipse(QPointF(cp.x(), cp.y()), 3, 3);
+  }
 }
 
 void CustomScene::mousePressEvent(QGraphicsSceneMouseEvent* mouseEvent)
 {
   const int sensitivity = 5;
   Bezier::Point p(mouseEvent->scenePos().x(), mouseEvent->scenePos().y());
+
+  if (input_mode_ == InputMode::DrawFreehand && mouseEvent->button() == Qt::LeftButton)
+  {
+    draw_pts_ = {p};
+    updatePreview();
+    return;
+  }
+  if (input_mode_ == InputMode::PlaceControlPoints)
+  {
+    if (mouseEvent->button() == Qt::LeftButton)
+    {
+      draw_pts_.push_back(p);
+      updatePreview();
+    }
+    else if (mouseEvent->button() == Qt::RightButton)
+      finalizeControlPoints();
+    return;
+  }
   if (mouseEvent->button() == Qt::RightButton)
   {
     dot = addEllipse(QRectF(QPointF(p.x(), p.y()), QSizeF(6, 6)), QPen(Qt::yellow), QBrush(Qt::red, Qt::SolidPattern));
@@ -75,7 +131,7 @@ void CustomScene::mousePressEvent(QGraphicsSceneMouseEvent* mouseEvent)
         tan.insert(curve, addLine(QLineF(QPointF(p1.x(), p1.y()) - 150 * QPointF(tan1.x(), tan1.y()),
                                          QPointF(p1.x(), p1.y()) + 150 * QPointF(tan1.x(), tan1.y())),
                                   QPen(Qt::blue)));
-        auto t2 = c_curve->iterateByLength(t1, 50);
+        auto t2 = c_curve->step(t1, 50);
         auto a = c_curve->valueAt(t2);
         byLength.insert(curve, addEllipse(QRectF(QPointF(a.x() - 3, a.y() - 3), QSizeF(6, 6)), QPen(Qt::yellow), QBrush(Qt::red, Qt::SolidPattern)));
       }
@@ -88,7 +144,7 @@ void CustomScene::mousePressEvent(QGraphicsSceneMouseEvent* mouseEvent)
         tan.insert(curve, addLine(QLineF(QPointF(p1.x(), p1.y()) - 150 * QPointF(tan1.x(), tan1.y()),
                                          QPointF(p1.x(), p1.y()) + 150 * QPointF(tan1.x(), tan1.y())),
                                   QPen(Qt::blue)));
-        auto t2 = c_poly->iterateByLength(t1, 50);
+        auto t2 = c_poly->step(t1, 50);
         auto a = c_poly->valueAt(t2);
         byLength.insert(curve, addEllipse(QRectF(QPointF(a.x() - 3, a.y() - 3), QSizeF(6, 6)), QPen(Qt::yellow), QBrush(Qt::red, Qt::SolidPattern)));
       }
@@ -97,68 +153,52 @@ void CustomScene::mousePressEvent(QGraphicsSceneMouseEvent* mouseEvent)
   }
   if (mouseEvent->button() == Qt::LeftButton)
   {
+    // 1) Grab a control point of an already-selected curve (control points show on selection)
     for (auto&& curve : items())
     {
-      if (!is_curve && !is_poly)
+      if (!curve->isSelected())
         continue;
-
-      if (mouseEvent->modifiers().testFlag(Qt::ControlModifier))
-      {
-        if (is_curve)
-        {
-          double t = c_curve->projectPoint(p);
-          auto pt = c_curve->valueAt(t);
-          if ((pt - p).norm() < 10)
-            curve->setSelected(true);
-        }
-        if (is_poly)
-        {
-          double t = c_poly->projectPoint(p);
-          auto pt = c_poly->valueAt(t);
-          if ((pt - p).norm() < 10)
-            curve->setSelected(true);
-        }
-      }
+      Bezier::PointVector pv;
+      if (is_curve)
+        pv = c_curve->controlPoints();
+      else if (is_poly)
+        pv = c_poly->controlPoints();
       else
+        continue;
+      for (uint k = 0; k < pv.size(); k++)
+        if ((pv[k] - p).norm() < sensitivity)
+        {
+          update_cp = true;
+          cp_to_update = std::make_pair(curve, k);
+        }
+      if (update_cp)
+        break;
+    }
+    if (update_cp)
+      return;
+
+    // 2) Otherwise select the curve under the cursor; Ctrl/Shift adds to the selection
+    bool additive = mouseEvent->modifiers().testFlag(Qt::ControlModifier) ||
+                    mouseEvent->modifiers().testFlag(Qt::ShiftModifier);
+    QGraphicsItem* hit = nullptr;
+    for (auto&& curve : items())
+    {
+      if (is_curve && (c_curve->valueAt(c_curve->projectPoint(p)) - p).norm() < 10)
       {
-        for (auto&& item : selectedItems())
-          item->setSelected(false);
-        if (is_curve)
-        {
-          auto pv = c_curve->controlPoints();
-          for (uint k = 0; k < pv.size(); k++)
-            if ((pv[k] - p).norm() < sensitivity && c_curve->getDraw_control_points())
-            {
-              update_cp = true;
-              cp_to_update = std::make_pair(curve, k);
-            }
-        }
-        if (is_poly)
-        {
-          auto pv = c_poly->controlPoints();
-          for (uint k = 0; k < pv.size(); k++)
-            if ((pv[k] - p).norm() < sensitivity && c_poly->getDraw_control_points())
-            {
-              update_cp = true;
-              cp_to_update = std::make_pair(curve, k);
-            }
-        }
-        if (update_cp)
-          break;
-        if (is_curve)
-        {
-          double t = c_curve->projectPoint(p);
-          auto pt = c_curve->valueAt(t);
-          auto ep = c_curve->endPoints();
-          if ((pt - p).norm() < 10 && (pt - ep.first).norm() > 20 && (pt - ep.second).norm() > 20)
-          {
-            update_curvature = true;
-            t_to_update = std::make_pair(c_curve, t);
-            break;
-          }
-        }
+        hit = curve;
+        break;
+      }
+      if (is_poly && (c_poly->valueAt(c_poly->projectPoint(p)) - p).norm() < 10)
+      {
+        hit = curve;
+        break;
       }
     }
+    if (!additive)
+      for (auto&& item : selectedItems())
+        item->setSelected(false);
+    if (hit)
+      hit->setSelected(true);
   }
   if (mouseEvent->button() == Qt::MiddleButton)
   {
@@ -188,6 +228,18 @@ void CustomScene::mousePressEvent(QGraphicsSceneMouseEvent* mouseEvent)
 void CustomScene::mouseMoveEvent(QGraphicsSceneMouseEvent* mouseEvent)
 {
   Bezier::Point p(mouseEvent->scenePos().x(), mouseEvent->scenePos().y());
+
+  if (input_mode_ != InputMode::Normal)
+  {
+    if (input_mode_ == InputMode::DrawFreehand && (mouseEvent->buttons() & Qt::LeftButton))
+    {
+      draw_pts_.push_back(p);
+      updatePreview();
+    }
+    QGraphicsScene::mouseMoveEvent(mouseEvent);
+    return;
+  }
+
   if (show_projection)
   {
     dot->setRect(QRectF(QPointF(p.x() - 3, p.y() - 3), QSizeF(6, 6)));
@@ -202,7 +254,7 @@ void CustomScene::mouseMoveEvent(QGraphicsSceneMouseEvent* mouseEvent)
         line[curve]->setLine(QLineF(QPointF(p.x(), p.y()), QPointF(p_c.x(), p_c.y())));
         tan[curve]->setLine(QLineF(QPointF(p1.x(), p1.y()) - 500 * QPointF(tan1.x(), tan1.y()),
                                    QPointF(p1.x(), p1.y()) + 500 * QPointF(tan1.x(), tan1.y())));
-        auto t2 = c_curve->iterateByLength(t1, 50);
+        auto t2 = c_curve->step(t1, 50);
         auto a = c_curve->valueAt(t2);
         byLength[curve]->setRect(QRectF(QPointF(a.x() - 3, a.y() - 3), QSizeF(6, 6)));
       }
@@ -214,7 +266,7 @@ void CustomScene::mouseMoveEvent(QGraphicsSceneMouseEvent* mouseEvent)
         line[curve]->setLine(QLineF(QPointF(p.x(), p.y()), QPointF(p1.x(), p1.y())));
         tan[curve]->setLine(QLineF(QPointF(p1.x(), p1.y()) - 500 * QPointF(tan1.x(), tan1.y()),
                                    QPointF(p1.x(), p1.y()) + 500 * QPointF(tan1.x(), tan1.y())));
-        auto t2 = c_poly->iterateByLength(t1, 50);
+        auto t2 = c_poly->step(t1, 50);
         auto a = c_poly->valueAt(t2);
         byLength[curve]->setRect(QRectF(QPointF(a.x() - 3, a.y() - 3), QSizeF(6, 6)));
       }
@@ -235,25 +287,19 @@ void CustomScene::mouseMoveEvent(QGraphicsSceneMouseEvent* mouseEvent)
     }
     update();
   }
-  if (update_curvature)
-  {
-    try
-    {
-      t_to_update.first->prepareGeometryChange();
-      t_to_update.first->manipulateCurvature(t_to_update.second, p);
-      update();
-    }
-    catch (char const* err)
-    {
-      update_curvature = false;
-      QMessageBox::warning(nullptr, "Warning", QString().sprintf("%s", err));
-    }
-  }
   QGraphicsScene::mouseMoveEvent(mouseEvent);
 }
 
 void CustomScene::mouseReleaseEvent(QGraphicsSceneMouseEvent* mouseEvent)
 {
+  if (input_mode_ == InputMode::DrawFreehand && mouseEvent->button() == Qt::LeftButton)
+  {
+    finalizeFreehand();
+    return;
+  }
+  if (input_mode_ != InputMode::Normal)
+    return;
+
   if (mouseEvent->button() == Qt::RightButton)
   {
     if (show_projection)
@@ -275,71 +321,46 @@ void CustomScene::mouseReleaseEvent(QGraphicsSceneMouseEvent* mouseEvent)
   if (mouseEvent->button() == Qt::LeftButton)
   {
     update_cp = false;
-    update_curvature = false;
   }
 }
 
 void CustomScene::keyPressEvent(QKeyEvent* keyEvent)
 {
-  if (keyEvent->key() == 72) // key H
-  {
-    QMessageBox::information(nullptr, "Help", "\
-Mouse controls:\n\
-Right click - project mouse pointer on all curves\n\
-Ctrl + Scroll - zoom in/out\n\
-Ctrl + Left click - select curves\n\
-Left click - deselect curves\n\
-Left click + drag control point - manipulate control point\n\
-Left click + drag curve - manipulate curve (only for 2nd and 3rd order)\n\
-\n\
-Keyboard shortcuts:\n\
-H - display help\n\
-B - toggle bounding box display\n\
-I - toggle intesections display\n\
-C - toggle curvature display (of selected curves)\n\
-P - toggle control points display (of selected curves)\n\
-Key Up - raise the order (of selected curves)\n\
-Key Down - lower the order (of selected curves)\n\
-Key + - join multiple curves into polycurve\n\
-Delete - delete curve/polycurve");
-  }
+  if (keyEvent->key() == Qt::Key_H)
+    showHelp();
 
-  if (keyEvent->key() == 66) // key B
+  if (keyEvent->key() == Qt::Key_B)
   {
     draw_box_ = !draw_box_;
     update();
   }
-  if (keyEvent->key() == 73) // key I
+  if (keyEvent->key() == Qt::Key_I)
   {
     draw_inter_ = !draw_inter_;
     update();
   }
-  if (keyEvent->key() == 67) // key C
+  if (keyEvent->key() == Qt::Key_E)
+  {
+    draw_extrema_ = !draw_extrema_;
+    update();
+  }
+  if (keyEvent->key() == Qt::Key_C)
   {
     for (auto&& curve : selectedItems())
       if (is_curve)
-        c_curve->setDraw_curvature_radious(!c_curve->getDraw_curvature_radious());
+        c_curve->setDraw_curvature_radius(!c_curve->getDraw_curvature_radius());
       else if (is_poly)
-        c_poly->setDraw_curvature_radious(!c_poly->getDraw_curvature_radious());
+        c_poly->setDraw_curvature_radius(!c_poly->getDraw_curvature_radius());
     update();
   }
-  if (keyEvent->key() == 80) // key P
+  if (keyEvent->key() == Qt::Key_Up)
   {
     for (auto&& curve : selectedItems())
       if (is_curve)
-        c_curve->setDraw_control_points(!c_curve->getDraw_control_points());
-      else if (is_poly)
-        c_poly->setDraw_control_points(!c_poly->getDraw_control_points());
+        c_curve->raiseOrder();
     update();
   }
-  if (keyEvent->key() == 16777235) // key UP
-  {
-    for (auto&& curve : selectedItems())
-      if (is_curve)
-        c_curve->elevateOrder();
-    update();
-  }
-  if (keyEvent->key() == 16777237) // key DOWN
+  if (keyEvent->key() == Qt::Key_Down)
   {
     for (auto&& curve : selectedItems())
       if (is_curve)
@@ -347,13 +368,25 @@ Delete - delete curve/polycurve");
         {
           c_curve->lowerOrder();
         }
-        catch (char const* err)
+        catch (const std::exception& err)
         {
-          QMessageBox::warning(nullptr, "Warning", QString().sprintf("%s", err));
+          QMessageBox::warning(nullptr, "Warning", err.what());
         }
     update();
   }
-  if (keyEvent->key() == 43) // key +
+  if (keyEvent->key() == Qt::Key_O)
+    o_held_ = true;
+  if (o_held_ && (keyEvent->key() == Qt::Key_Plus || keyEvent->key() == Qt::Key_Equal))
+  {
+    offset_ += 5;
+    update();
+  }
+  if (o_held_ && keyEvent->key() == Qt::Key_Minus)
+  {
+    offset_ -= 5;
+    update();
+  }
+  if (keyEvent->key() == Qt::Key_G) // join selected curves into a polycurve
   {
     qPolyCurve* new_poly = nullptr;
     for (auto&& curve : selectedItems())
@@ -369,13 +402,29 @@ Delete - delete curve/polycurve");
       addItem(new_poly);
     update();
   }
-  if (keyEvent->key() == 16777223) // Delete
+  if (keyEvent->key() == Qt::Key_J) // fit a single new curve through two selected curves
+  {
+    if (selectedItems().size() == 2 && is_curve_item(selectedItems().first()) &&
+        is_curve_item(selectedItems().last()))
+    {
+      auto* c1 = c_curve_item(selectedItems().first());
+      auto* c2 = c_curve_item(selectedItems().last());
+      auto* joined = new qCurve(Bezier::Curve::joinCurves(*c1, *c2));
+      removeItem(c1);
+      removeItem(c2);
+      addItem(joined);
+      update();
+    }
+  }
+  if (keyEvent->key() == Qt::Key_Delete)
   {
     for (auto&& curve : selectedItems())
     {
+      QRectF vacated = curve->sceneBoundingRect();
       removeItem(curve);
+      delete curve;
+      update(vacated); // repaint the vacated region (bare update() misses the last item)
     }
-    update();
   }
   if (keyEvent->key() == Qt::Key_L) {
       for (auto&& curve : selectedItems()) {
@@ -404,10 +453,10 @@ Delete - delete curve/polycurve");
 
       if (curve_locked != nullptr && curve_unlocked != nullptr) {
           while (curve_locked->order() < 5) {
-              curve_locked->elevateOrder();
+              curve_locked->raiseOrder();
           }
           while (curve_unlocked->order() < 5) {
-              curve_unlocked->elevateOrder();
+              curve_unlocked->raiseOrder();
           }
 
           std::vector<double> beta_coeffs = {1, 0, 0};
@@ -429,4 +478,109 @@ Delete - delete curve/polycurve");
   //    }
   //    update();
   //  }
+}
+
+void CustomScene::keyReleaseEvent(QKeyEvent* keyEvent)
+{
+  if (keyEvent->key() == Qt::Key_O && !keyEvent->isAutoRepeat())
+    o_held_ = false;
+}
+
+void CustomScene::setInputMode(InputMode mode)
+{
+  draw_pts_.clear();
+  if (preview_)
+  {
+    removeItem(preview_);
+    delete preview_;
+    preview_ = nullptr;
+  }
+  input_mode_ = mode;
+  update();
+}
+
+void CustomScene::updatePreview()
+{
+  if (draw_pts_.empty())
+    return;
+  QPainterPath path;
+  path.moveTo(draw_pts_[0].x(), draw_pts_[0].y());
+  for (uint k = 1; k < draw_pts_.size(); k++)
+    path.lineTo(draw_pts_[k].x(), draw_pts_[k].y());
+
+  if (preview_)
+    preview_->setPath(path);
+  else
+    preview_ = addPath(path, QPen(Qt::darkGray, 0, Qt::DashLine));
+  update();
+}
+
+void CustomScene::finalizeFreehand()
+{
+  if (preview_)
+  {
+    removeItem(preview_);
+    delete preview_;
+    preview_ = nullptr;
+  }
+  if (draw_pts_.size() >= 2)
+  {
+    auto* curve = new qCurve(Bezier::Curve::fromPolyline(draw_pts_));
+    addItem(curve);
+    for (auto&& item : selectedItems())
+      item->setSelected(false);
+    curve->setSelected(true);
+    emit modeFinished();
+  }
+  draw_pts_.clear();
+  update();
+}
+
+void CustomScene::finalizeControlPoints()
+{
+  if (preview_)
+  {
+    removeItem(preview_);
+    delete preview_;
+    preview_ = nullptr;
+  }
+  if (draw_pts_.size() >= 2)
+  {
+    auto* curve = new qCurve(Bezier::Curve(draw_pts_));
+    addItem(curve);
+    for (auto&& item : selectedItems())
+      item->setSelected(false);
+    curve->setSelected(true);
+    emit modeFinished();
+  }
+  draw_pts_.clear();
+  update();
+}
+
+void CustomScene::showHelp()
+{
+  QMessageBox::information(nullptr, "Help", "\
+Mouse controls:\n\
+Right click - project mouse pointer on all curves\n\
+Ctrl + Scroll - zoom in/out\n\
+Left click - select curve under cursor (Ctrl/Shift to add to selection)\n\
+Left click empty space - deselect\n\
+Left click + drag control point - manipulate control point (shown while selected)\n\
+\n\
+Drawing modes (toggle from the side panel):\n\
+Free-hand draw - drag to sketch a stroke, released as a fitted curve\n\
+Control points - left click to place points, right click to finish\n\
+\n\
+Keyboard shortcuts:\n\
+H - display help\n\
+B - toggle bounding box display\n\
+I - toggle intersections display\n\
+E - toggle extrema display\n\
+C - toggle curvature display (of selected curves)\n\
+Key Up - raise the order (of selected curves)\n\
+Key Down - lower the order (of selected curves)\n\
+G - join multiple curves into polycurve\n\
+J - fit a single new curve through two selected curves\n\
+O + +/- - increase/decrease offset distance (shown for all curves when != 0)\n\
+Delete - delete curve/polycurve");
 }

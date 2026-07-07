@@ -5,13 +5,9 @@
 
 #include "Bezier/bezier.h"
 
-bool qPolyCurve::getDraw_control_points() const { return draw_control_points; }
+bool qPolyCurve::getDraw_curvature_radius() const { return draw_curvature_radius; }
 
-void qPolyCurve::setDraw_control_points(bool value) { draw_control_points = value; }
-
-bool qPolyCurve::getDraw_curvature_radious() const { return draw_curvature_radious; }
-
-void qPolyCurve::setDraw_curvature_radious(bool value) { draw_curvature_radious = value; }
+void qPolyCurve::setDraw_curvature_radius(bool value) { draw_curvature_radius = value; }
 
 int qPolyCurve::type() const { return QGraphicsItem::UserType + 2; }
 
@@ -34,7 +30,7 @@ void qPolyCurve::paint(QPainter* painter, const QStyleOptionGraphicsItem* option
     curve.lineTo(poly[k].x(), poly[k].y());
   painter->drawPath(curve);
 
-  if (draw_control_points)
+  if (isSelected()) // control points show while the polycurve is selected
   {
     const int d = 6;
     painter->setBrush(QBrush(Qt::blue, Qt::SolidPattern));
@@ -50,7 +46,7 @@ void qPolyCurve::paint(QPainter* painter, const QStyleOptionGraphicsItem* option
     painter->drawEllipse(QRectF(points.back().x() - d / 2, points.back().y() - d / 2, d, d));
   }
 
-  if (draw_curvature_radious)
+  if (draw_curvature_radius)
   {
     painter->setPen(Qt::green);
     for (double t = 0; t <= size(); t += 1.0 / 500)
@@ -58,8 +54,8 @@ void qPolyCurve::paint(QPainter* painter, const QStyleOptionGraphicsItem* option
       painter->setPen(QColor(static_cast<int>(std::fabs(255 * (0.5 - t / size()))),
                              static_cast<int>(255 * t / size()), static_cast<int>(255 * (1 - t / size()))));
       auto p = valueAt(t);
-      auto n1 = p + normalAt(t, false) * curvatureDerivativeAt(t);
-      auto n2 = p - normalAt(t, false) * curvatureDerivativeAt(t);
+      auto n1 = p + normalAt(t) * curvatureDerivativeAt(t);
+      auto n2 = p - normalAt(t) * curvatureDerivativeAt(t);
       painter->drawLine(QLineF(n1.x(), n1.y(), n2.x(), n2.y()));
     }
   }
@@ -68,5 +64,16 @@ void qPolyCurve::paint(QPainter* painter, const QStyleOptionGraphicsItem* option
 QRectF qPolyCurve::boundingRect() const
 {
   auto bbox = boundingBox();
-  return QRectF(QPointF(bbox.min().x(), bbox.min().y()), QPointF(bbox.max().x(), bbox.max().y()));
+  QRectF rect(QPointF(bbox.min().x(), bbox.min().y()), QPointF(bbox.max().x(), bbox.max().y()));
+  // Always cover the control points so toggling selection never leaves ghost handles.
+  for (const auto& cp : controlPoints())
+    rect |= QRectF(cp.x() - 3, cp.y() - 3, 6, 6);
+  return rect;
+}
+
+QVariant qPolyCurve::itemChange(GraphicsItemChange change, const QVariant& value)
+{
+  if (change == ItemSelectedHasChanged)
+    update(); // selection toggles whether control points are drawn -> repaint
+  return QGraphicsItem::itemChange(change, value);
 }
