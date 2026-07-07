@@ -2,6 +2,8 @@
 #include "test_oracles.hpp"
 
 #include <cmath>
+#include <future>
+#include <vector>
 
 #include <gtest/gtest.h>
 
@@ -607,6 +609,27 @@ TEST(CurveCuspTests, NormalIsFiniteUnitVector)
   ASSERT_TRUE(std::isfinite(normal.x()));
   ASSERT_TRUE(std::isfinite(normal.y()));
   EXPECT_NEAR(normal.norm(), 1.0, Oracles::kGeom);
+}
+
+TEST(CurveThreadSafetyTest, ConcurrentConstAccess)
+{
+  // Many threads lazily fill the same const curve's cache; meaningful failures
+  // (data races on cache_) surface under the ThreadSanitizer job.
+  const Curve curve{curvePointsAsMatrix()};
+  std::vector<std::future<void>> tasks;
+  for (int t = 0; t < 8; t++)
+    tasks.push_back(std::async(std::launch::async, [&curve]() {
+      for (int rep = 0; rep < 50; rep++)
+      {
+        (void)curve.length();
+        (void)curve.boundingBox();
+        (void)curve.polyline();
+        (void)curve.projectPoint(Point{100, 150});
+      }
+    }));
+  for (auto& task : tasks)
+    task.get();
+  EXPECT_GT(curve.length(), 0.0);
 }
 
 } // namespace Bezier

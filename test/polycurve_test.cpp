@@ -1,6 +1,8 @@
 #include "test_data.hpp"
 #include "test_oracles.hpp"
 
+#include <stdexcept>
+
 #include <gtest/gtest.h>
 
 #include "Bezier/bezier.h"
@@ -79,6 +81,18 @@ TEST_F(PolyCurveTest, CurveIdxBoundaries)
   EXPECT_EQ(poly_.curveIdx(2.7), 2u);
   // t == size() maps to the last subcurve
   EXPECT_EQ(poly_.curveIdx(3.0), 2u);
+  // out-of-range parameters clamp to the first / last subcurve
+  EXPECT_EQ(poly_.curveIdx(-1.0), 0u);
+  EXPECT_EQ(poly_.curveIdx(1e9), poly_.size() - 1);
+}
+
+TEST(PolyCurveEmptyTest, AccessThrows)
+{
+  PolyCurve empty;
+  EXPECT_THROW(empty.curveIdx(0.0), std::logic_error);
+  EXPECT_THROW(empty.valueAt(0.0), std::logic_error);
+  EXPECT_THROW(empty.endPoints(), std::logic_error);
+  EXPECT_THROW(empty.length(), std::logic_error);
 }
 
 TEST_F(PolyCurveTest, ValueAtJointsAndContinuity)
@@ -115,7 +129,9 @@ TEST_F(PolyCurveTest, LengthAdditivity)
   EXPECT_NEAR(poly_.length(0.5, 2.5),
               poly_.length(0.5, 1.0) + poly_.length(1.0, 2.0) + poly_.length(2.0, 2.5), Oracles::kGeom);
 
-  // Pinned contract: swapped arguments yield the negated length
+  // Pinned contract: swapped arguments yield the negated length, across both the
+  // adjacent-subcurve branch (idx1+1==idx2) and the multi-subcurve accumulate branch
+  EXPECT_DOUBLE_EQ(poly_.length(1.5, 0.5), -poly_.length(0.5, 1.5));
   EXPECT_DOUBLE_EQ(poly_.length(2.5, 0.5), -poly_.length(0.5, 2.5));
 }
 

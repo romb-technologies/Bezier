@@ -18,6 +18,7 @@
 #define BEZIER_H
 
 #include <memory>
+#include <mutex>
 #include <optional>
 
 #include "declarations.h"
@@ -50,9 +51,9 @@ public:
   Curve(const PointVector& points);
 
   Curve(const Curve& curve);
-  Curve(Curve&&) = default;
-  Curve& operator=(const Curve&);
-  Curve& operator=(Curve&&) = default;
+  Curve(Curve&& curve) noexcept;
+  Curve& operator=(const Curve& curve);
+  Curve& operator=(Curve&& curve) noexcept;
 
   /*!
    * \brief Get order of the curve (Nth order curve is described with N+1 points);
@@ -308,6 +309,9 @@ public:
   static Curve fromPolyline(const PointVector& polyline, unsigned order = 0);
 
 private:
+  /// Swap value (control points + cache), leaving each curve its own mutex
+  void swap(Curve& other) noexcept;
+
   /// Number of control points (order + 1)
   unsigned N_{};
   /// N x 2 matrix where each row corresponds to control Point
@@ -315,6 +319,12 @@ private:
 
   struct Cache
   {
+    Cache() = default;
+    Cache(const Cache& other); // deep-copies derivative; rest are value types
+    Cache(Cache&&) = default;
+    Cache& operator=(const Cache& other);
+    Cache& operator=(Cache&&) = default;
+
     std::unique_ptr<const Curve> derivative;                    /*! Derivative stored for later use */
     std::optional<ParamVector> roots;                           /*! Roots stored for later use */
     std::optional<BoundingBox> bounding_box;                    /*! Bounding box stored for later use */
@@ -328,6 +338,7 @@ private:
     void clear();
   };
   mutable Cache cache_;
+  mutable std::recursive_mutex cache_mutex_;
 };
 
 } // namespace Bezier

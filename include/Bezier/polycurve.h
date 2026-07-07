@@ -297,5 +297,9 @@ protected:
   std::deque<Curve> curves_;
 };
 
+// Declared here (defined in polycurve.cpp) so cross-TU use isn't ill-formed (IFNDR)
+template <> PointVector PolyCurve::intersections<Curve>(const Curve& curve) const;
+template <> PointVector PolyCurve::intersections<PolyCurve>(const PolyCurve& poly_curve) const;
+
 } // namespace Bezier
 #endif // POLYCURVE_H

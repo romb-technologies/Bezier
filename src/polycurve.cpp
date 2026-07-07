@@ -1,7 +1,9 @@
 #include "Bezier/polycurve.h"
 #include "Bezier/utils.h"
 
+#include <algorithm>
 #include <numeric>
+#include <stdexcept>
 
 using namespace Bezier;
 namespace bu = Bezier::Utils;
@@ -24,7 +26,9 @@ unsigned PolyCurve::size() const { return curves_.size(); }
 
 unsigned PolyCurve::curveIdx(double t) const
 {
-  unsigned idx = t;
+  if (curves_.empty())
+    throw std::logic_error{"PolyCurve has no subcurves."};
+  unsigned idx = std::clamp(t, 0.0, static_cast<double>(size()));
   return idx - (idx == size());
 }
 
@@ -105,7 +109,7 @@ double PolyCurve::length(double t1, double t2) const
   if (idx1 == idx2)
     return sign * curves_[idx1].length(t1 - idx1, t2 - idx2);
   if (idx1 + 1 == idx2)
-    return sign * curves_[idx1].length(t1 - idx1, 1.0) + curves_[idx2].length(t2 - idx2);
+    return sign * (curves_[idx1].length(t1 - idx1, 1.0) + curves_[idx2].length(t2 - idx2));
 
   return sign * std::accumulate(curves_.begin() + idx1 + 1, curves_.begin() + idx2,
                                 curves_[idx1].length(t1 - idx1, 1.0) + curves_[idx2].length(t2 - idx2),
@@ -148,6 +152,8 @@ double PolyCurve::step(double t, double ds) const
 
 std::pair<Point, Point> PolyCurve::endPoints() const
 {
+  if (curves_.empty())
+    throw std::logic_error{"PolyCurve has no subcurves."};
   return std::make_pair(curves_[0].endPoints().first, curves_[size() - 1].endPoints().second);
 }
 
