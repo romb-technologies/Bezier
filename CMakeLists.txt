@@ -21,6 +21,13 @@ set(Bezier_INC
 
 # Options
 option(BUILD_SHARED_LIBS "Build shared library (.so) instead of static one (.a)" OFF)
+option(BUILD_TESTING "Build the testing tree." OFF)
+
+# Tests subdirectory
+if(BUILD_TESTING)
+  enable_testing()
+  add_subdirectory(test)
+endif()
 
 # build rules
 
@@ -43,7 +50,6 @@ set_target_properties(bezier PROPERTIES
   PUBLIC_HEADER "${Bezier_INC}"
 )
 target_compile_features(bezier PUBLIC cxx_std_17)
-target_compile_options(bezier PRIVATE -O3 -DNDEBUG)
 
 # install rules
 install(TARGETS bezier

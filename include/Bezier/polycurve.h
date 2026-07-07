@@ -223,20 +223,18 @@ public:
   double curvatureDerivativeAt(double t) const;
 
   /*!
-   * \brief Get the tangent of the polycurve for a given t
+   * \brief Get the unit tangent of the polycurve for a given t
    * \param t A Polyurve parameter
-   * \param normalize If the resulting tangent should be normalized
-   * \return Tangent of a polycurve for a given t
+   * \return Unit tangent of a polycurve for a given t
    */
-  Vector tangentAt(double t, bool normalize = true) const;
+  Vector tangentAt(double t) const;
 
   /*!
-   * \brief Get the normal of the polycurve for a given t
+   * \brief Get the unit normal of the polycurve for a given t
    * \param t A Polyurve parameter
-   * \param normalize If the resulting normal should be normalized
-   * \return Normal of a polycurve for given t
+   * \return Unit normal of a polycurve for given t
    */
-  Vector normalAt(double t, bool normalize = true) const;
+  Vector normalAt(double t) const;
 
   /*!
    * \brief Get value of a derivative for a given t

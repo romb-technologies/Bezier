@@ -194,20 +194,21 @@ public:
   double curvatureDerivativeAt(double t) const;
 
   /*!
-   * \brief Get the tangent of the curve for a given t
+   * \brief Get the unit tangent of the curve for a given t
    * \param t Curve parameter
-   * \param normalize If the resulting tangent should be normalized
-   * \return Tangent of a curve for a given t
+   * \return Unit tangent of a curve for a given t
+   * \note At a cusp (zero velocity) the direction is taken from the first
+   * non-vanishing derivative; it is the zero vector only if the curve is a point.
    */
-  Vector tangentAt(double t, bool normalize = true) const;
+  Vector tangentAt(double t) const;
 
   /*!
-   * \brief Get the normal of the curve for a given t
+   * \brief Get the unit normal of the curve for a given t
    * \param t Curve parameter
-   * \param normalize If the resulting normal should be normalized
-   * \return Normal of a curve for given t
+   * \return Unit normal of a curve for given t
+   * \note See tangentAt regarding behaviour at a cusp.
    */
-  Vector normalAt(double t, bool normalize = true) const;
+  Vector normalAt(double t) const;
 
   /*!
    * \brief Get the derivative of a curve
@@ -274,6 +275,8 @@ public:
    * \brief Get the points of intersection with another curve
    * \param curve Curve to intersect with
    * \return A vector af points of intersection between curves
+   * \note Only transversal crossings are reported; contacts that lie exactly at
+   * a shared endpoint or tangential (non-crossing) touches are not returned.
    */
   PointVector intersections(const Curve& curve) const;
 
