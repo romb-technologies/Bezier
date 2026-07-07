@@ -4,7 +4,6 @@
 #include "Bezier/utils.h"
 
 #include <unsupported/Eigen/FFT>
-#include <unsupported/Eigen/LevenbergMarquardt>
 
 #include <numeric>
 
@@ -290,8 +289,18 @@ double Curve::curvatureAt(double t) const
 {
   Vector d1 = derivativeAt(t);
   Vector d2 = derivativeAt(2, t);
+  if (double d1n = d1.norm(); d1n >= bu::epsilon)
+    return bu::cross(d1, d2) / bu::pow(d1n, 3); // regular point (a straight curve gives 0)
 
-  return bu::cross(d1, d2) / bu::pow(d1.norm(), 3);
+  // Cusp: curvature is unbounded -> signed infinity (radius of curvature -> 0)
+  // Stationary: curvature is zero (radius of curvature -> inf)
+  for (unsigned a{2}; a <= order(); a++)
+    if (Vector da = derivativeAt(a, t); da.squaredNorm() > bu::epsilon)
+    {
+      double turn = bu::cross(da, derivativeAt(a + 1, t));
+      return std::fabs(turn) > bu::epsilon ? std::copysign(std::numeric_limits<double>::infinity(), turn) : 0.0;
+    }
+  return 0.0;
 }
 
 double Curve::curvatureDerivativeAt(double t) const
@@ -299,15 +308,17 @@ double Curve::curvatureDerivativeAt(double t) const
   Vector d1 = derivativeAt(t);
   Vector d2 = derivativeAt(2, t);
   Vector d3 = derivativeAt(3, t);
-
-  return (d1.squaredNorm() * bu::cross(d1, d3) - 3 * d1.dot(d2) * bu::cross(d1, d2)) / bu::pow(d1.norm(), 5);
+  double d1n = d1.norm();
+  return d1n < bu::epsilon
+             ? 0.0
+             : (d1.squaredNorm() * bu::cross(d1, d3) - 3 * d1.dot(d2) * bu::cross(d1, d2)) / bu::pow(d1n, 5);
 }
 
 Vector Curve::tangentAt(double t) const
 {
   // tangent direction is the first non-vanishing derivative (zero only if the curve is a point)
   for (unsigned k{1}; k <= order(); k++)
-    if (Vector d = derivativeAt(k, t); d.squaredNorm() > bu::epsilon * bu::epsilon)
+    if (Vector d = derivativeAt(k, t); d.squaredNorm() > bu::epsilon)
       return d.normalized();
   return Vector(0, 0);
 }
@@ -394,10 +405,14 @@ PointVector Curve::intersections(const Curve& curve) const
     cp_pairs.emplace_back(control_points_, curve.control_points_);
   else
   {
-    // If self-similar, split curve into subcurves at extremas and compare each pair of distinct subcurves
-    auto subcurves = splitCurve(extrema());
+    // If self-similar, split curve into subcurves at extremas and compare each pair of non-adjacent subcurves
+    auto t = extrema();
+    std::sort(t.begin(), t.end());
+    t.erase(std::unique(t.begin(), t.end(), [](double a, double b) { return std::abs(a - b) < bu::epsilon; }),
+            t.end()); // collapse repeated extrema (cusps)
+    auto subcurves = splitCurve(t);
     for (unsigned k{}; k < subcurves.size(); k++)
-      for (unsigned i{k + 1}; i < subcurves.size(); i++)
+      for (unsigned i{k + 2}; i < subcurves.size(); i++)
         cp_pairs.emplace_back(subcurves[k].control_points_, subcurves[i].control_points_);
   }
 
@@ -421,9 +436,14 @@ PointVector Curve::intersections(const Curve& curve) const
     double oc = bu::cross(a2 - a1, b1 - a1);
     double od = bu::cross(a2 - a1, b2 - a1);
 
-    // If intersection exists, insert it into solution vector
-    if (oa * ob < 0 && oc * od < 0)
-      intersections.emplace_back((a1 * ob - a2 * oa) / (ob - oa));
+    // If intersection is detected and unique, insert it
+    if (oa * ob <= 0 && oc * od <= 0 && ob != oa)
+    {
+      Point p = (a1 * ob - a2 * oa) / (ob - oa);
+      if (std::none_of(intersections.begin(), intersections.end(),
+                       [&p](const Point& q) { return (p - q).norm() < bu::epsilon; }))
+        intersections.emplace_back(p);
+    }
   };
 
   while (!cp_pairs.empty())
@@ -565,123 +585,9 @@ Curve Curve::fromPolyline(const PointVector& polyline, unsigned order)
     return out;
   };
 
-  // VarPro fitter: softmax-reparameterised footpoints, ridge-regularised control-point solve, analytic Jacobian.
-  auto fit = [](const PointVector& pts, unsigned ord) -> Curve {
-    const unsigned M = pts.size();
-    const unsigned N = std::min<unsigned>(ord + 1, M);
-    if (N < 3)
-      return Curve(PointVector{pts.front(), pts.back()}); // a 2-point (order-1) fit is just the chord
-
-    Eigen::MatrixX2d P(M, 2);
-    for (unsigned k{}; k < M; k++)
-      P.row(k) = pts[k];
-
-    // Ridge VarPro: the control-point solve is regularised, min ||Phi C - Y||^2 + lambda ||C-Cref||^2,
-    // by augmenting the system with [Phi; sqrt(lambda) I] and [Y; sqrt(lambda) Cref]. This bounds the
-    // surplus high-order control points (the over-order Runge blow-up) and makes Phi full column rank.
-    // Residuals therefore have 2*(M + NF) rows (M geometric + NF regularisation, per coordinate).
-    struct CostFunctor : Eigen::DenseFunctor<double>
-    {
-      const Eigen::MatrixX2d& P;
-      const unsigned N, M, NF;
-      mutable Eigen::VectorXd cu_, t_; // cached u (M-2), derived t (M)
-      mutable Eigen::MatrixXd Phi_;
-      mutable Eigen::MatrixX2d Y_;
-      mutable Eigen::ColPivHouseholderQR<Eigen::MatrixXd> qr_;
-      double sqlam_;          // sqrt(ridge lambda)
-      Eigen::MatrixX2d Cref_; // straight-chord reference for the interior control points (NF x 2)
-
-      CostFunctor(const Eigen::MatrixX2d& P_, unsigned N_)
-          : DenseFunctor<double>(P_.rows() - 2, 2 * (P_.rows() + N_ - 2)), P(P_), N(N_), M(P_.rows()), NF(N_ - 2)
-      {
-        t_.resize(M);
-        t_(0) = 0.0;
-        Phi_.resize(M + NF, NF);
-        Y_.resize(M + NF, 2);
-        Cref_.resize(NF, 2);
-        for (unsigned k{}; k < NF; k++)
-          Cref_.row(k) = P.row(0) + double(k + 1) / (N - 1) * (P.row(M - 1) - P.row(0));
-        sqlam_ = std::sqrt(1e-5); // lambda=1e-5: keeps Phi full-rank and damps Runge blow-up without biasing the fit
-        qr_.setThreshold(1e-7);
-      }
-
-      void prepare(const Eigen::VectorXd& u) const
-      {
-        if (cu_.size() == u.size() && cu_ == u)
-          return;
-        // M-1 interval log-gaps = [u (free), 0 (anchored last)]; softmax for overflow-safety.
-        const double lmax = std::max(u.maxCoeff(), 0.0);
-        Eigen::VectorXd g(M - 1);
-        g << (u.array() - lmax).exp().matrix(), std::exp(-lmax);     // softmax-normalised
-        std::partial_sum(g.data(), g.data() + M - 1, t_.data() + 1); // cumulative gaps
-        t_ /= t_(M - 1);                                             // normalise -> t_(M-1) = 1 exactly
-        Eigen::MatrixXd A = bu::powMatrix(t_, N) * bc::bernstein(N);
-        // Augment with the ridge rows: Phi_ = [Phi; sqrt(lambda) I], Y_ = [Y; sqrt(lambda) Cref].
-        Phi_ << A.middleCols(1, NF), sqlam_ * Eigen::MatrixXd::Identity(NF, NF);
-        Y_ << P - A.col(0) * P.row(0) - A.col(N - 1) * P.row(M - 1), sqlam_ * Cref_;
-        qr_.compute(Phi_);
-        cu_ = u;
-      }
-
-      int operator()(const Eigen::VectorXd& u, Eigen::VectorXd& fvec) const
-      {
-        prepare(u);
-        // (I - P_U) Y_aug residuals, x/y interleaved: top M geometric, bottom NF ridge
-        Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, 2, Eigen::RowMajor>>(fvec.data(), M + NF, 2) =
-            Phi_ * qr_.solve(Y_) - Y_;
-        return 0;
-      }
-
-      int df(const Eigen::VectorXd& u, Eigen::MatrixXd& jac) const
-      {
-        prepare(u);
-        Eigen::MatrixX2d cp(N, 2);
-        cp << P.row(0), qr_.solve(Y_), P.row(M - 1); // ridge-regularised interior CPs
-        Curve curve(cp);
-
-        // Geometric Jacobian w.r.t. the interior t, augmented (2*(M+NF) x (M-2)). Only the top M rows
-        // depend on t directly (via C'(t_l)); the (I-P_U) of the augmented system carries the ridge.
-        Eigen::MatrixXd Jt(values(), M - 2);
-        Eigen::MatrixXd Ur = qr_.householderQ() * Eigen::MatrixXd::Identity(M + NF, qr_.rank());
-        for (unsigned l{1}; l + 1 < M; l++)
-        {
-          Eigen::VectorXd proj = -Ur * Ur.row(l).transpose(); // (I - P_U) e_l in the augmented space
-          proj(l) += 1.0;
-          Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, 2, Eigen::RowMajor>>(Jt.col(l - 1).data(), M + NF, 2) =
-              proj * curve.derivativeAt(t_(l)).transpose();
-        }
-
-        // Chain rule over the M-2 free gaps (j = 1..M-2; the anchored last gap is not a variable):
-        // W[l-1,j-1] = (t_j - t_{j-1})([j<=l] - t_l), then J_u = Jt * W  (2*(M+NF) x (M-2)).
-        Eigen::MatrixXd W(M - 2, M - 2);
-        for (unsigned l{1}; l + 1 < M; l++)
-          for (unsigned j{1}; j + 1 < M; j++)
-            W(l - 1, j - 1) = (t_(j) - t_(j - 1)) * ((j <= l ? 1.0 : 0.0) - t_(l));
-
-        jac = Jt * W;
-        return 0;
-      }
-    };
-
-    // Centripetal initialisation: u_j = 0.5 * log(|dP_{j+1}| / |dP_last|), relative to the anchored last interval.
-    const double d_last = std::max((P.row(M - 1) - P.row(M - 2)).norm(), 1e-12);
-    Eigen::VectorXd u(M - 2);
-    for (Eigen::Index j{}; j + 2 < M; j++)
-      u(j) = 0.5 * std::log(std::max((P.row(j + 1) - P.row(j)).norm(), 1e-12) / d_last);
-
-    CostFunctor functor(P, N);
-    Eigen::LevenbergMarquardt<CostFunctor> lm(functor);
-    lm.minimize(u);
-    functor.prepare(u);
-
-    Eigen::MatrixX2d cp(N, 2);
-    cp << P.row(0), functor.qr_.solve(functor.Y_), P.row(M - 1);
-    return Curve(cp);
-  };
-
   // Fixed order: fit its 3N most-significant points.
   if (order != 0)
-    return fit(reducedPolyline(3 * (order + 1)), order);
+    return bu::fitBezier(reducedPolyline(3 * (order + 1)), order);
 
   // Automatic order selection: for each candidate order fit its 3N most-significant points (Visvalingam-Whyatt)
   // and score a floored BIC (M*ln(RSS/M) + 2*(n-1)*ln(M)) over the full polyline; pick the minimum (cap 12).
@@ -701,7 +607,7 @@ Curve Curve::fromPolyline(const PointVector& polyline, unsigned order)
   double best_bic = std::numeric_limits<double>::max();
   for (unsigned n{1}; n <= MAX_AUTO_ORDER && n < M; n++)
   {
-    Curve curve = fit(reducedPolyline(3 * (n + 1)), n);
+    Curve curve = bu::fitBezier(reducedPolyline(3 * (n + 1)), n);
     double rss{};
     for (const Point& p : polyline)
       rss += bu::pow(curve.distance(p), 2);

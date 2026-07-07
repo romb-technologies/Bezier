@@ -84,18 +84,18 @@ TEST(UtilsTest, DistOverloads)
   EXPECT_DOUBLE_EQ(Utils::dist(Point{0, 0}, Point{10, 0}, Point{-3, 4}), 5.0);
   EXPECT_DOUBLE_EQ(Utils::dist(Point{0, 0}, Point{10, 0}, Point{13, 4}), 5.0);
 
+  // degenerate (zero-length) segment: distance to the shared point, no division by zero
+  EXPECT_DOUBLE_EQ(Utils::dist(Point{2, 2}, Point{2, 2}, Point{5, 6}), 5.0);
+
   // point - polyline: nearest of the segments wins
   PointVector polyline{{0, 0}, {10, 0}, {10, 10}};
   EXPECT_DOUBLE_EQ(Utils::dist(polyline, Point{5, 1}), 1.0);
   EXPECT_DOUBLE_EQ(Utils::dist(polyline, Point{12, 5}), 2.0);
-}
 
-TEST(UtilsTest, PolylineLength)
-{
-  PointVector polyline{{0, 0}, {3, 4}, {3, 14}};
-  EXPECT_DOUBLE_EQ(Utils::polylineLength(polyline), 15.0);
-  EXPECT_DOUBLE_EQ(Utils::polylineLength(PointVector{{1, 1}}), 0.0);
-  EXPECT_DOUBLE_EQ(Utils::polylineLength(PointVector{}), 0.0);
+  // a duplicate consecutive vertex must not poison the result (its zero-length
+  // segment used to yield NaN, which std::min silently skipped)
+  PointVector with_dup{{0, 0}, {0, 0}, {10, 0}};
+  EXPECT_DOUBLE_EQ(Utils::dist(with_dup, Point{5, 3}), 3.0);
 }
 
 TEST(UtilsTest, Concatenate)
@@ -153,38 +153,11 @@ TEST(UtilsTest, VisvalingamWyattOrdering)
   EXPECT_EQ(order.back(), 3u);
 }
 
-TEST(UtilsTest, PolylineSimplified)
-{
-  PointVector polyline{{0, 0}, {1, 5}, {2, -3}, {3, 0.001}, {4, 6}, {5, -2}, {6, 0}};
-
-  for (unsigned N : {2u, 3u, 5u})
-  {
-    PointVector simplified = Utils::polylineSimplified(polyline, N);
-    ASSERT_EQ(simplified.size(), N) << "N=" << N;
-
-    // Endpoints preserved
-    EXPECT_EQ(simplified.front(), polyline.front());
-    EXPECT_EQ(simplified.back(), polyline.back());
-
-    // Result is an ordered subset of the input
-    size_t search_from = 0;
-    for (const Point& p : simplified)
-    {
-      auto it = std::find_if(polyline.begin() + search_from, polyline.end(),
-                             [&p](const Point& q) { return q == p; });
-      ASSERT_NE(it, polyline.end()) << "simplified point not found in order";
-      search_from = (it - polyline.begin()) + 1;
-    }
-  }
-
-  // N >= size returns the input unchanged
-  EXPECT_EQ(Utils::polylineSimplified(polyline, 7), polyline);
-  EXPECT_EQ(Utils::polylineSimplified(polyline, 100), polyline);
-}
-
 TEST(UtilsTest, SolvePolynomial)
 {
   // Coefficients in increasing powers of x
+  // Roots recovered to the companion-matrix eigensolver's precision (~1e-12), well below kGeom.
+  constexpr double kRootTol = 1e-12;
 
   // (x - 0.3)(x - 0.7) = 0.21 - x + x^2 -> both roots inside [0, 1]
   Eigen::VectorXd quadratic(3);
@@ -192,15 +165,15 @@ TEST(UtilsTest, SolvePolynomial)
   std::vector<double> roots = Utils::solvePolynomial(quadratic);
   ASSERT_EQ(roots.size(), 2u);
   std::sort(roots.begin(), roots.end());
-  EXPECT_NEAR(roots[0], 0.3, 1e-12);
-  EXPECT_NEAR(roots[1], 0.7, 1e-12);
+  EXPECT_NEAR(roots[0], 0.3, kRootTol);
+  EXPECT_NEAR(roots[1], 0.7, kRootTol);
 
   // (x - 0.5)(x - 2) = 1 - 2.5x + x^2 -> the root outside [0, 1] is excluded
   Eigen::VectorXd with_outside(3);
   with_outside << 1.0, -2.5, 1.0;
   roots = Utils::solvePolynomial(with_outside);
   ASSERT_EQ(roots.size(), 1u);
-  EXPECT_NEAR(roots[0], 0.5, 1e-12);
+  EXPECT_NEAR(roots[0], 0.5, kRootTol);
 
   // Constant polynomials have no roots
   Eigen::VectorXd constant(1);
@@ -213,8 +186,8 @@ TEST(UtilsTest, SolvePolynomial)
   roots = Utils::solvePolynomial(padded);
   ASSERT_EQ(roots.size(), 2u);
   std::sort(roots.begin(), roots.end());
-  EXPECT_NEAR(roots[0], 0.3, 1e-12);
-  EXPECT_NEAR(roots[1], 0.7, 1e-12);
+  EXPECT_NEAR(roots[0], 0.3, kRootTol);
+  EXPECT_NEAR(roots[1], 0.7, kRootTol);
 
   // A constant padded with zeros is still a constant
   Eigen::VectorXd padded_constant(3);

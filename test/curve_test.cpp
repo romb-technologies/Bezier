@@ -1,6 +1,7 @@
 #include "test_data.hpp"
 #include "test_oracles.hpp"
 
+#include <algorithm>
 #include <cmath>
 #include <future>
 #include <vector>
@@ -126,6 +127,19 @@ TEST_F(BezierTest, CurveNthDerivativeTest)
   }
 }
 
+TEST_F(BezierTest, DerivativesBeyondOrderAreZero)
+{
+  // A cubic's derivatives past order 3 are the zero vector (the documented "infinite -> zero"
+  // contract), not an error. curvatureAt's cusp chase relies on this terminating the chain.
+  ASSERT_EQ(curve_.order(), 3u);
+  for (double t : {0.0, 0.3, 0.7, 1.0})
+  {
+    EXPECT_FALSE(curve_.derivativeAt(3, t).isZero()) << "3rd derivative is a non-zero constant at t=" << t;
+    EXPECT_TRUE(curve_.derivativeAt(4, t).isZero()) << "4th derivative not zero at t=" << t;
+    EXPECT_TRUE(curve_.derivativeAt(8, t).isZero()) << "8th derivative not zero at t=" << t;
+  }
+}
+
 TEST_F(BezierTest, CurveRootsTest)
 {
   std::vector<double> curve_roots = curve_roots_.roots();
@@ -217,6 +231,42 @@ TEST_F(BezierTest, CurveIntersectionsTest)
     EXPECT_NEAR(curve_.distance(p), 0.0, kIntersectTol);
     EXPECT_NEAR(curve_with_intersections.distance(p), 0.0, kIntersectTol);
   }
+}
+
+TEST_F(BezierTest, CurveSelfIntersectionNoGhostTest)
+{
+  // A looping cubic with one real self-intersection; adjacent subcurves must not be compared.
+  Eigen::MatrixX2d cp(4, 2);
+  cp << 100, 100, 400, 300, 100, 300, 300, 100;
+  Curve curve{cp};
+
+  PointVector self = curve.intersections(curve);
+  ASSERT_EQ(self.size(), 1u) << "Expected exactly one self-intersection (no ghosts at extrema)";
+
+  const Point& p = self.front();
+  // Reported intersections come from bbox subdivision, so a contact point carries more
+  // error than a closed-form result (same bound as CurveIntersectionsTest).
+  constexpr double kIntersectTol = 1e-4;
+  EXPECT_NEAR(curve.distance(p), 0.0, kIntersectTol) << "Reported point is not on the curve";
+
+  // genuine crossing: curve passes through p at two well-separated parameters
+  constexpr double kContactRadius = 2.0; // geometric neighbourhood of the crossing point
+  ParamVector hits;
+  for (double t : Oracles::sampleParams(Oracles::kFlatnessSamples))
+    if ((curve.valueAt(t) - p).norm() < kContactRadius)
+      hits.push_back(t);
+  ASSERT_FALSE(hits.empty());
+  EXPECT_GT(hits.back() - hits.front(), 0.1) << "Reported point is a junction artifact, not a real crossing";
+}
+
+TEST_F(BezierTest, CurveCuspNoSelfIntersectionTest)
+{
+  // A cuspidal cubic (x' and y' vanish at t=0.5) does not cross itself.
+  Eigen::MatrixX2d cp(4, 2);
+  cp << 0, 0, 300, 300, 0, 300, 300, 0;
+  Curve curve{cp};
+
+  EXPECT_TRUE(curve.intersections(curve).empty()) << "Cusp must not be reported as a self-intersection";
 }
 
 TEST_F(BezierTest, CurveSplitTest)
@@ -526,6 +576,37 @@ TEST_F(BezierTest, CurveApplyContinuityG1Test)
   EXPECT_NEAR((der_actual - der_expected).norm(), 0.0, Oracles::kGeom);
 }
 
+TEST_F(BezierTest, CurveApplyContinuityC2Test)
+{
+  // C2 (beta = {1, 0}): position, first and second derivatives all match the locked curve's end
+  Curve continued{curve_roots_};
+  continued.applyContinuity(curve_, {1.0, 0.0});
+
+  // Position and both derivatives match the locked curve's end as geometric-continuity
+  // identities (cf. RaisesOrderTest at kGeom); the assignment is exact, so all pass easily.
+  EXPECT_TRUE(continued.valueAt(0.0).isApprox(curve_.valueAt(1.0), Oracles::kGeom));
+  EXPECT_TRUE(continued.derivativeAt(0.0).isApprox(curve_.derivativeAt(1.0), Oracles::kGeom));
+  EXPECT_TRUE(continued.derivativeAt(2, 0.0).isApprox(curve_.derivativeAt(2, 1.0), Oracles::kGeom));
+}
+
+TEST_F(BezierTest, CurveApplyContinuityG2Test)
+{
+  // G2 geometric-continuity equations for beta = {b1, b2}:
+  //   C'(0)  = b1 * C'(1)
+  //   C''(0) = b1^2 * C''(1) + b2 * C'(1)
+  constexpr double b1 = 1.5, b2 = 2.0;
+  Curve continued{curve_roots_};
+  continued.applyContinuity(curve_, {b1, b2});
+
+  Vector d1 = curve_.derivativeAt(1.0);
+  Vector d2 = curve_.derivativeAt(2, 1.0);
+
+  // Geometric-continuity identities (see C2Test); the assignment is exact, all pass at kGeom.
+  EXPECT_TRUE(continued.valueAt(0.0).isApprox(curve_.valueAt(1.0), Oracles::kGeom));
+  EXPECT_TRUE(continued.derivativeAt(0.0).isApprox(b1 * d1, Oracles::kGeom));
+  EXPECT_TRUE(continued.derivativeAt(2, 0.0).isApprox(b1 * b1 * d2 + b2 * d1, Oracles::kGeom));
+}
+
 TEST_F(BezierTest, CurveCopySemanticsTest)
 {
   double original_length = curve_.length();
@@ -562,15 +643,19 @@ TEST_F(BezierTest, CurveLengthReversedArgsContractTest)
 
 TEST_F(BezierTest, CurveIntersectionsSharedEndpointTest)
 {
-  // Only transversal crossings are reported; a contact exactly at a shared
-  // endpoint is not returned (see Curve::intersections).
+  // A contact exactly at a shared endpoint is reported (see Curve::intersections).
   Point shared = curve_.endPoints().second;
   Curve second{PointVector{shared,
                            {shared.x() + 50, shared.y() + 80},
                            {shared.x() + 120, shared.y() + 10},
                            {shared.x() + 150, shared.y() + 90}}};
-  for (const Point& p : curve_.intersections(second))
-    EXPECT_GT((p - shared).norm(), Oracles::kGeom) << "Endpoint contact should not be reported";
+  // Reported intersections come from bbox subdivision, so a contact point carries
+  // more error than a closed-form result (same bound as CurveIntersectionsTest).
+  constexpr double kIntersectTol = 1e-4;
+  PointVector intersections = curve_.intersections(second);
+  EXPECT_TRUE(std::any_of(intersections.begin(), intersections.end(),
+                          [&shared](const Point& p) { return (p - shared).norm() < kIntersectTol; }))
+      << "Shared endpoint contact should be reported";
 }
 
 TEST_F(BezierTest, CurveApplyContinuityRaisesOrderTest)
@@ -591,6 +676,32 @@ TEST(CurveLengthTests, DegenerateCurveHasZeroLength)
   EXPECT_NEAR(length, 0.0, Oracles::kGeom);
 }
 
+TEST(CurveDegenerateTests, PolylineOnCollapsedCurveTerminates)
+{
+  // All control points coincident: a zero-length chord used to feed NaN into
+  // maxDeviation, so polyline() subdivided forever. The 60s ctest TIMEOUT guards
+  // the regression; here we also check the result is sane and finite.
+  Curve collapsed{PointVector{{10, 10}, {10, 10}, {10, 10}, {10, 10}}};
+
+  PointVector polyline;
+  ASSERT_NO_THROW(polyline = collapsed.polyline());
+  ASSERT_GE(polyline.size(), 2u);
+  for (const Point& v : polyline)
+    EXPECT_NEAR((v - Point{10, 10}).norm(), 0.0, Utils::epsilon);
+
+  // polyline and its parameters still correspond 1:1 and span [0, 1]
+  ParamVector params = collapsed.polylineParams();
+  ASSERT_EQ(params.size(), polyline.size());
+  EXPECT_DOUBLE_EQ(params.front(), 0.0);
+  EXPECT_DOUBLE_EQ(params.back(), 1.0);
+
+  // offsetCurve fits the polyline internally, so it must stay finite too
+  PointVector offset_cps;
+  ASSERT_NO_THROW(offset_cps = Curve::offsetCurve(collapsed, 5.0).controlPoints());
+  for (const Point& cp : offset_cps)
+    EXPECT_TRUE(std::isfinite(cp.x()) && std::isfinite(cp.y()));
+}
+
 TEST(CurveCuspTests, StepReturnsFiniteParameter)
 {
   // Genuine cusp at t = 0.5 (velocity is (300(1-2t)^2, 300(1-2t)))
@@ -609,6 +720,27 @@ TEST(CurveCuspTests, NormalIsFiniteUnitVector)
   ASSERT_TRUE(std::isfinite(normal.x()));
   ASSERT_TRUE(std::isfinite(normal.y()));
   EXPECT_NEAR(normal.norm(), 1.0, Oracles::kGeom);
+}
+
+TEST(CurveCuspTests, CurvatureAtCusp)
+{
+  // At a genuine cusp curvature is unbounded: curvatureAt returns the signed-infinity limit
+  // (radius of curvature -> 0), never NaN. curvatureDerivativeAt has no two-sided limit
+  // there, so it stays a finite 0 by convention.
+  Curve cusped{PointVector{{0, 0}, {100, 100}, {0, 100}, {100, 0}}};
+  double k = cusped.curvatureAt(0.5);
+  EXPECT_TRUE(std::isinf(k));
+  EXPECT_GT(k, 0.0) << "two-sided limit is +inf for this cusp";
+  EXPECT_NEAR(cusped.curvatureDerivativeAt(0.5), 0.0, Utils::epsilon);
+
+  // A straight cubic is flat: finite zero via the regular branch
+  Curve line{PointVector{{0, 0}, {1, 1}, {2, 2}, {3, 3}}};
+  EXPECT_NEAR(line.curvatureAt(0.5), 0.0, Utils::epsilon);
+  EXPECT_NEAR(line.curvatureDerivativeAt(0.5), 0.0, Utils::epsilon);
+
+  // A collapsed (point) curve does not turn: finite zero, not infinity
+  Curve collapsed{PointVector{{5, 5}, {5, 5}, {5, 5}, {5, 5}}};
+  EXPECT_NEAR(collapsed.curvatureAt(0.5), 0.0, Utils::epsilon);
 }
 
 TEST(CurveThreadSafetyTest, ConcurrentConstAccess)

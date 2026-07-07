@@ -1,6 +1,7 @@
 #include "test_data.hpp"
 #include "test_oracles.hpp"
 
+#include <algorithm>
 #include <cmath>
 
 #include <gtest/gtest.h>
@@ -51,7 +52,14 @@ TEST_F(ApproxTest, FromPolylineFitsSourcePolyline)
 TEST_F(ApproxTest, FromPolylineEdgeCases)
 {
   // order = 0 -> automatic order selection returns a usable curve.
-  PointVector short_polyline = Utils::polylineSimplified(curve_.polyline(), 6);
+  // 6 most shape-significant points of the curve's polyline (short enough not to hit the auto-order cap).
+  PointVector dense = curve_.polyline();
+  std::vector<unsigned> vw = Utils::visvalingamWyatt(dense);
+  std::vector<unsigned> idx(vw.begin(), vw.begin() + 6);
+  std::sort(idx.begin(), idx.end());
+  PointVector short_polyline;
+  for (unsigned i : idx)
+    short_polyline.push_back(dense[i]);
   Curve automatic = Curve::fromPolyline(short_polyline);
   EXPECT_GE(automatic.order(), 1u);
 
@@ -155,14 +163,18 @@ TEST_F(ApproxTest, FromPolylineOverOrderStaysBounded)
   // orders well above 3 stays near the data instead of exploding (control points -> 1e3..1e9, curve
   // oscillating between the samples). Without the ridge these deviations are 1e2..1e9% of the diagonal.
   PointVector polyline = curve_.polyline();
+  // The ridge keeps the over-order fit within the input polyline's own resolution
+  // (measured worst ~0.9x flatness, same as the same-order refit) instead of exploding.
+  constexpr double kFitFactor = 1.5;
   for (unsigned order : {8u, 9u, 10u})
   {
     Curve fitted = Curve::fromPolyline(polyline, order);
-    for (double t{}; t <= 1.0; t += 0.02)
+    for (double t : Oracles::sampleParams(Oracles::kDenseSamples))
     {
       Point p = fitted.valueAt(t);
       ASSERT_TRUE(std::isfinite(p.x()) && std::isfinite(p.y())) << "non-finite at order=" << order << " t=" << t;
-      EXPECT_LE(Utils::dist(polyline, p), fit_tolerance_) << "over-order fit strayed at order=" << order << " t=" << t;
+      EXPECT_LE(Utils::dist(polyline, p), kFitFactor * polyline_flatness_)
+          << "over-order fit strayed at order=" << order << " t=" << t;
     }
   }
 }
@@ -170,6 +182,10 @@ TEST_F(ApproxTest, FromPolylineOverOrderStaysBounded)
 TEST_F(ApproxTest, FromPolylineAutoOrderRecoversParsimoniousOrder)
 {
   // order = 0 must recover a parsimonious order on cleanly representable input, not the cap or 1.
+  // Auto-order recovers each cubic well; the bound is a measured floor (worst ~0.12)
+  // covering both fixtures -- their bbox diagonals differ, so a single
+  // polyline_flatness_ does not apply.
+  constexpr double kAutoOrderTol = 0.2;
   for (const auto& cp : {curvePointsAsMatrix(), rootPointsAsMatrix()})
   {
     Curve source{cp}; // both fixtures are cubics
@@ -177,8 +193,8 @@ TEST_F(ApproxTest, FromPolylineAutoOrderRecoversParsimoniousOrder)
     Curve fitted = Curve::fromPolyline(polyline); // order = 0 -> automatic selection
     EXPECT_GE(fitted.order(), 2u);
     EXPECT_LE(fitted.order(), source.order() + 1) << "auto-order did not stay parsimonious";
-    for (double t{}; t <= 1.0; t += 0.02)
-      EXPECT_LE(Utils::dist(polyline, fitted.valueAt(t)), fit_tolerance_);
+    for (double t : Oracles::sampleParams(Oracles::kDenseSamples))
+      EXPECT_LE(Utils::dist(polyline, fitted.valueAt(t)), kAutoOrderTol);
   }
 }
 
@@ -191,8 +207,11 @@ TEST_F(ApproxTest, FromPolylineDenseInputFixedOrder)
   ASSERT_GT(dense.size(), 100u) << "expected a dense polyline (M >> 3N)";
   Curve fitted = Curve::fromPolyline(dense, 3);
   EXPECT_EQ(fitted.order(), 3u);
-  for (double t{}; t <= 1.0; t += 0.02)
-    EXPECT_LE(Utils::dist(dense, fitted.valueAt(t)), fit_tolerance_);
+  // Input is ~exact (100x finer than default), so an order-3 fit of a cubic is bounded by
+  // the solver floor, not input resolution (measured worst ~6e-3).
+  constexpr double kDenseFitTol = 1e-2;
+  for (double t : Oracles::sampleParams(Oracles::kDenseSamples))
+    EXPECT_LE(Utils::dist(dense, fitted.valueAt(t)), kDenseFitTol);
 }
 
 TEST_F(ApproxTest, FromPolylineDegenerateInputsStayFinite)

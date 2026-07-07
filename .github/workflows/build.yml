@@ -60,3 +60,27 @@ jobs:
     - name: Run tests
       working-directory: build
       run: ctest --output-on-failure --verbose
+
+  thread-sanitizer:
+    runs-on: ubuntu-24.04
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libeigen3-dev libgtest-dev cmake g++
+
+    - name: Configure CMake
+      run: >
+        cmake -B build -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTING=ON
+        -DCMAKE_CXX_FLAGS="-fsanitize=thread -fno-omit-frame-pointer -g"
+
+    - name: Build
+      run: cmake --build build -j$(nproc)
+
+    - name: Run tests
+      working-directory: build
+      run: ctest --output-on-failure --verbose
