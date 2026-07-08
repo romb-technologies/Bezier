@@ -267,13 +267,15 @@ public:
    */
   BoundingBox boundingBox() const;
 
+  ///@{
   /*!
    * \brief Get the points of intersection with another curve or polycurve
-   * \param curve Curve to intersect with
+   * \param curve Curve or polycurve to intersect with
    * \return A vector of points of intersection between curves
    */
   PointVector intersections(const Curve& curve) const;
-  PointVector intersections(const PolyCurve& poly_curve) const;
+  PointVector intersections(const PolyCurve& curve) const;
+  ///@}
 
   /*!
    * \brief Get the parameter t where polycurve is closest to given point

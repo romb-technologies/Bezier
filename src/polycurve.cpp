@@ -240,11 +240,11 @@ PointVector PolyCurve::intersections(const Curve& curve) const
   return points;
 }
 
-PointVector PolyCurve::intersections(const PolyCurve& poly_curve) const
+PointVector PolyCurve::intersections(const PolyCurve& curve) const
 {
   PointVector points;
-  for (const auto& curve : curves_)
-    points = bu::concatenate(std::move(points), poly_curve.intersections(curve));
+  for (const auto& curve2 : curves_)
+    points = bu::concatenate(std::move(points), curve.intersections(curve2));
   return points;
 }
 
