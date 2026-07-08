@@ -13,7 +13,7 @@ using namespace Bezier;
 namespace bu = Bezier::Utils;
 namespace bc = Bezier::Coefficients;
 
-std::vector<unsigned> Bezier::Utils::visvalingamWyatt(const PointVector& polyline)
+std::vector<unsigned> Bezier::Utils::visvalingamWhyatt(const PointVector& polyline)
 {
   // Vector of indices sorted by contribution to the polyline shape (first and last contribute the most by default)
   // Initialized with all indices, taking care to put the first and the last at the start
