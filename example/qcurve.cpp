@@ -7,17 +7,17 @@ void qCurve::setDraw_curvature_radius(bool value) { draw_curvature_radius = valu
 
 bool qCurve::getDraw_curvature_radius() const { return draw_curvature_radius; }
 
-bool qCurve::getLocked() const
-{
-    return locked;
-}
+int qCurve::type() const { return Type; }
 
-void qCurve::setLocked(bool value)
+const Bezier::PointVector& qCurve::offsetPolyline(double offset)
 {
-    locked = value;
+  if (offset_polyline_.empty() || offset != offset_value_)
+  {
+    offset_value_ = offset;
+    offset_polyline_ = Bezier::Curve::offsetCurve(*this, offset).polyline();
+  }
+  return offset_polyline_;
 }
-
-int qCurve::type() const { return QGraphicsItem::UserType + 1; }
 
 void qCurve::paint(QPainter* painter, const QStyleOptionGraphicsItem* option, QWidget* widget)
 {
@@ -30,7 +30,7 @@ void qCurve::paint(QPainter* painter, const QStyleOptionGraphicsItem* option, QW
 
   QPen pen;
   pen.setStyle(isSelected() ? Qt::DashDotLine : Qt::SolidLine);
-  pen.setColor(getLocked() ? Qt::red : Qt::black);
+  pen.setColor(Qt::black);
   painter->setPen(pen);
   QPainterPath curve;
   auto poly = polyline();

@@ -4,7 +4,6 @@
 #include <QGraphicsScene>
 
 #include "qcurve.h"
-#include "qpolycurve.h"
 #include "qgraphicsviewzoom.h"
 
 class QGraphicsPathItem;
@@ -26,9 +25,13 @@ public:
     PlaceControlPoints
   };
 
+  explicit CustomScene(QObject* parent = nullptr);
+
   void setInputMode(InputMode mode);
   void showHelp();
   double offset() const { return offset_; }
+  /// Selected items in the order they were selected (selectedItems() is unordered)
+  const QList<QGraphicsItem*>& selectionOrder() const { return selection_order_; }
 
 signals:
   void modeFinished();
@@ -54,6 +57,7 @@ private:
   std::pair<QGraphicsItem*, uint> cp_to_update;
   bool o_held_ = false;
   double offset_ = 0.0;
+  QList<QGraphicsItem*> selection_order_;
 
 protected:
   void drawForeground(QPainter* painter, const QRectF& rect) Q_DECL_OVERRIDE;
