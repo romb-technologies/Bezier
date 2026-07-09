@@ -118,7 +118,7 @@ inline double maxDeviation(const Eigen::MatrixX2d& cp)
 }
 
 /// Sort indices of polyline points by their contribution to the polyline shape
-std::vector<unsigned> visvalingamWyatt(const PointVector& polyline);
+std::vector<unsigned> visvalingamWhyatt(const PointVector& polyline);
 
 /// Find solutions to polynomial equation (limited to [0, 1])
 std::vector<double> solvePolynomial(const Eigen::VectorXd& polynomial);

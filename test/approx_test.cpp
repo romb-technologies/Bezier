@@ -54,7 +54,7 @@ TEST_F(ApproxTest, FromPolylineEdgeCases)
   // order = 0 -> automatic order selection returns a usable curve.
   // 6 most shape-significant points of the curve's polyline (short enough not to hit the auto-order cap).
   PointVector dense = curve_.polyline();
-  std::vector<unsigned> vw = Utils::visvalingamWyatt(dense);
+  std::vector<unsigned> vw = Utils::visvalingamWhyatt(dense);
   std::vector<unsigned> idx(vw.begin(), vw.begin() + 6);
   std::sort(idx.begin(), idx.end());
   PointVector short_polyline;

@@ -41,14 +41,14 @@ public:
   /*!
    * \brief Create the Bezier curve
    * \param points Nx2 matrix where each row is one of N control points that define the curve
-   * \note Requires at least one control point
+   * \warning Requires at least one control point; undefined behavior otherwise (not enforced)
    */
   Curve(Eigen::MatrixX2d points);
 
   /*!
    * \brief Create the Bezier curve
    * \param points A vector of control points that define the curve
-   * \note Requires at least one control point
+   * \warning Requires at least one control point; undefined behavior otherwise (not enforced)
    */
   Curve(const PointVector& points);
 
@@ -139,12 +139,14 @@ public:
    * \param t Curve parameter
    * \param ds Distance to iterate
    * \return New parameter t
+   * \note Result saturates at t = 0.0 / t = 1.0 if ds walks off the curve
    * \throws std::logic_error if t is outside [0.0, 1.0]
    */
   double step(double t, double ds) const;
 
   /*!
    * \brief Reverse order of control points
+   * \warning Resets cached data
    */
   void reverse();
 
@@ -153,6 +155,7 @@ public:
    * \param idx Index of chosen control point
    * \param point New control point
    * \note idx must be in range [0, order()]
+   * \warning Resets cached data
    */
   void setControlPoint(unsigned idx, const Point& point);
 
@@ -221,6 +224,8 @@ public:
   /*!
    * \brief Get the derivative of a curve
    * \return Derivative curve
+   * \warning The returned reference lives in this curve's cache; it is
+   * invalidated by any mutation, assignment or move of this curve.
    */
   const Curve& derivative() const;
 
@@ -228,6 +233,8 @@ public:
    * \brief Get the nth derivative of a curve
    * \param n Desired number of derivative
    * \return Derivative curve
+   * \warning The returned reference lives in this curve's cache; it is
+   * invalidated by any mutation, assignment or move of this curve.
    */
   const Curve& derivative(unsigned n) const;
 
@@ -266,7 +273,7 @@ public:
 
   /*!
    * \brief Split the curve into subcurves at multiple parameters
-   * \param t Vector of curve parameters at which to split the curve
+   * \param t_vector Vector of curve parameters at which to split the curve
    * \return A vector of subcurves
    */
   std::vector<Curve> splitCurve(const ParamVector& t_vector) const;
@@ -303,8 +310,12 @@ public:
 
   /*!
    * \brief Apply geometric continuity based on another curve
+   *
+   * Glues the start of this curve to the end of the given curve.
    * \param curve Curve on which calculations are based
    * \param beta_coeffs Beta-constraints used to calculate continuity. Size defines continuity order.
+   * \note Raises the order of this curve if it has too few control points for the requested continuity
+   * \warning Resets cached data
    */
   void applyContinuity(const Curve& curve, const std::vector<double>& beta_coeffs);
 

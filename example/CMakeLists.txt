@@ -9,7 +9,6 @@ add_executable(bezier_example
   qgraphicsviewzoom.cpp
   customscene.cpp
   qcurve.cpp
-  qpolycurve.cpp
   mainwindow.ui
 )
 

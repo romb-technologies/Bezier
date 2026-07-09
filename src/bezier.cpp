@@ -575,7 +575,7 @@ Curve Curve::fromPolyline(const PointVector& polyline, unsigned order)
     if (K >= M)
       return polyline;
     if (vw.empty())
-      vw = bu::visvalingamWyatt(polyline);
+      vw = bu::visvalingamWhyatt(polyline);
     std::vector<unsigned> idx(vw.begin(), vw.begin() + K);
     std::sort(idx.begin(), idx.end());
     PointVector out;

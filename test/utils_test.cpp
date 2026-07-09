@@ -136,7 +136,7 @@ TEST(UtilsTest, VisvalingamWyattOrdering)
 {
   // Zig-zag polyline with one nearly collinear vertex (index 3)
   PointVector polyline{{0, 0}, {1, 5}, {2, -3}, {3, 0.001}, {4, 6}, {5, -2}, {6, 0}};
-  std::vector<unsigned> order = Utils::visvalingamWyatt(polyline);
+  std::vector<unsigned> order = Utils::visvalingamWhyatt(polyline);
 
   // Output is a permutation of all indices
   ASSERT_EQ(order.size(), polyline.size());

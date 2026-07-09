@@ -3,6 +3,8 @@
 
 #include <QFrame>
 #include <QLabel>
+#include <QLineEdit>
+#include <QMessageBox>
 #include <QPushButton>
 #include <QVBoxLayout>
 
@@ -49,12 +51,19 @@ void MainWindow::buildDashboard()
 
   auto* vbox = new QVBoxLayout(panel);
   vbox->addWidget(lbl_curves_ = new QLabel);
-  vbox->addWidget(lbl_polycurves_ = new QLabel);
   vbox->addWidget(lbl_selected_ = new QLabel);
   vbox->addWidget(lbl_order_ = new QLabel);
   vbox->addWidget(lbl_length_ = new QLabel);
   vbox->addWidget(lbl_offset_ = new QLabel);
   vbox->addStretch(1);
+
+  vbox->addWidget(new QLabel("Continuity betas:"));
+  beta_edit_ = new QLineEdit("1, 0, 0");
+  beta_edit_->setToolTip("Comma-separated beta coefficients; their count sets the continuity order");
+  btn_continuity_ = new QPushButton("Apply continuity");
+  btn_continuity_->setToolTip("Reshapes the 2nd selected curve to continue from the 1st");
+  vbox->addWidget(beta_edit_);
+  vbox->addWidget(btn_continuity_);
 
   btn_draw_ = new QPushButton("Free-hand draw");
   btn_draw_->setCheckable(true);
@@ -83,6 +92,7 @@ void MainWindow::buildDashboard()
     else if (!btn_draw_->isChecked())
       scene->setInputMode(CustomScene::InputMode::Normal);
   });
+  connect(btn_continuity_, &QPushButton::clicked, this, &MainWindow::applyContinuity);
   connect(btn_help, &QPushButton::clicked, this, [this] { scene->showHelp(); });
   connect(scene, &CustomScene::modeFinished, this, [this] {
     btn_draw_->setChecked(false);
@@ -95,25 +105,21 @@ void MainWindow::buildDashboard()
 
 void MainWindow::refreshDashboard()
 {
-  int n_curves = 0, n_polycurves = 0;
+  int n_curves = 0;
   for (auto* item : scene->items())
-  {
-    if (item->type() == QGraphicsItem::UserType + 1)
+    if (qgraphicsitem_cast<qCurve*>(item))
       n_curves++;
-    else if (item->type() == QGraphicsItem::UserType + 2)
-      n_polycurves++;
-  }
 
   auto selected = scene->selectedItems();
   lbl_curves_->setText(QString("Curves: %1").arg(n_curves));
-  lbl_polycurves_->setText(QString("Polycurves: %1").arg(n_polycurves));
   lbl_selected_->setText(QString("Selected: %1").arg(selected.size()));
+  btn_continuity_->setEnabled(selected.size() == 2);
 
-  if (selected.size() == 1 && selected.first()->type() == QGraphicsItem::UserType + 1)
+  auto* single = selected.size() == 1 ? qgraphicsitem_cast<qCurve*>(selected.first()) : nullptr;
+  if (single)
   {
-    auto* curve = static_cast<qCurve*>(selected.first());
-    lbl_order_->setText(QString("Order: %1").arg(curve->order()));
-    lbl_length_->setText(QString("Length: %1").arg(curve->length(), 0, 'f', 1));
+    lbl_order_->setText(QString("Order: %1").arg(single->order()));
+    lbl_length_->setText(QString("Length: %1").arg(single->length(), 0, 'f', 1));
   }
   else
   {
@@ -122,4 +128,33 @@ void MainWindow::refreshDashboard()
   }
 
   lbl_offset_->setText(QString("Offset: %1").arg(scene->offset(), 0, 'f', 0));
+}
+
+void MainWindow::applyContinuity()
+{
+  auto order = scene->selectionOrder();
+  if (order.size() != 2)
+    return;
+  auto* source = qgraphicsitem_cast<qCurve*>(order.first());
+  auto* target = qgraphicsitem_cast<qCurve*>(order.last());
+  if (!source || !target)
+    return;
+
+  std::vector<double> betas;
+  for (const auto& part : beta_edit_->text().split(',', Qt::SkipEmptyParts))
+  {
+    bool ok;
+    betas.push_back(part.trimmed().toDouble(&ok));
+    if (!ok)
+    {
+      QMessageBox::warning(this, "Warning", "Invalid beta values; enter comma-separated numbers.");
+      return;
+    }
+  }
+  if (betas.empty())
+    return;
+
+  target->prepareGeometryChange();
+  target->applyContinuity(*source, betas);
+  scene->update();
 }

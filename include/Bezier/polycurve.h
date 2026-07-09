@@ -32,7 +32,8 @@ namespace Bezier
  * C0 continuity. It allows subcurve manipulation.
  *
  * \warning Range of parameter 't' depends on number of subcurves.
- * To access n-th subcurve, t has to be in range [n-1, n>
+ * To access n-th subcurve, t has to be in range [n-1, n)
+ * \note Parameter-taking accessors throw std::logic_error on an empty polycurve.
  */
 class PolyCurve
 {
@@ -100,6 +101,8 @@ public:
    * \brief Resolve polycurve parameter to subcurve index
    * \param t A polycurve parameter
    * \return An index of the subcurve where parameter t is
+   * \note t is clamped into [0, size()]
+   * \throws std::logic_error if the polycurve is empty
    */
   unsigned curveIdx(double t) const;
 
@@ -183,6 +186,7 @@ public:
   /*!
    * \brief Get first and last control points
    * \return A pair of end points
+   * \throws std::logic_error if the polycurve is empty
    */
   std::pair<Point, Point> endPoints() const;
 
@@ -263,13 +267,15 @@ public:
    */
   BoundingBox boundingBox() const;
 
+  ///@{
   /*!
    * \brief Get the points of intersection with another curve or polycurve
-   * \param curve Curve to intersect with
+   * \param curve Curve or polycurve to intersect with
    * \return A vector of points of intersection between curves
    */
   PointVector intersections(const Curve& curve) const;
-  PointVector intersections(const PolyCurve& poly_curve) const;
+  PointVector intersections(const PolyCurve& curve) const;
+  ///@}
 
   /*!
    * \brief Get the parameter t where polycurve is closest to given point
